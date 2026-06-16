@@ -12,7 +12,7 @@
     "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:electron\"",
     "build:renderer": "vite build",
     "build": "npm run build:renderer && electron-builder",
-    "build:linux": "npm run build:renderer && electron-builder --linux",
+    "build:linux": "npm run build:renderer && electron-builder --linux && bash scripts/rename-linux-artifacts.sh",
     "build:win": "npm run build:renderer && electron-builder --win --x64",
     "cli": "node src/cli.js",
     "test": "node --test tests/",
@@ -69,7 +69,7 @@
       "icon": "build/icons/icon.png",
       "synopsis": "Open-source audio converter",
       "description": "Converts encrypted audio formats (NCM/QMC0/KGM/KWM) to MP3/FLAC/WAV",
-      "artifactName": "${name}-${version}-${arch}.${ext}"
+      "artifactName": "${name}-v${version}-linux-${arch}.${ext}"
     },
     "win": {
       "target": [
@@ -77,7 +77,7 @@
         { "target": "portable", "arch": ["x64"] }
       ],
       "icon": "build/icons/icon.ico",
-      "artifactName": "${name}-${version}-${arch}.${ext}",
+      "artifactName": "${name}-v${version}-windows-${arch}.${ext}",
       "extraResources": [
         { "from": "scripts/win-deps/ffmpeg.exe",  "to": "ffmpeg.exe" },
         { "from": "scripts/win-deps/ffprobe.exe", "to": "ffprobe.exe" }
@@ -87,10 +87,10 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "perMachine": false,
-      "artifactName": "${name}-${version}-setup.${ext}"
+      "artifactName": "${name}-v${version}-windows-x64-setup.${ext}"
     },
     "portable": {
-      "artifactName": "${name}-${version}-portable.${ext}"
+      "artifactName": "${name}-v${version}-windows-x64-portable.${ext}"
     }
   }
 }

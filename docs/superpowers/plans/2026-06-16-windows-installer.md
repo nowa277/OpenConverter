@@ -758,15 +758,15 @@ Expected: build runs to completion. Output should mention `building target=nsis`
 ls -lh release/*.exe
 ```
 
-Expected: two files roughly matching:
-- `OpenConverter-X.Y.Z-x64.exe` (NSIS installer, ~150 MB)
-- `OpenConverter-X.Y.Z-portable.exe` (Portable, ~150 MB)
+Expected: two files matching the unified naming convention:
+- `openconverter-vX.Y.Z-windows-x64-setup.exe` (NSIS installer, ~125 MB)
+- `openconverter-vX.Y.Z-windows-x64-portable.exe` (Portable, ~125 MB)
 
 - [ ] **Step 4: Extract NSIS to verify ffmpeg.exe AND ffprobe.exe are bundled**
 
 ```bash
 mkdir -p /tmp/nsis-check
-7z x -y "release/OpenConverter-"*"setup.exe" -o/tmp/nsis-check >/dev/null
+7z x -y "release/openconverter-v"*"windows-x64-setup.exe" -o/tmp/nsis-check >/dev/null
 ls -lh /tmp/nsis-check/resources/ffmpeg.exe /tmp/nsis-check/resources/ffprobe.exe
 rm -rf /tmp/nsis-check
 ```
@@ -813,8 +813,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 RELEASE="$ROOT/release"
 
 # 1. Artifact existence
-NSIS=$(ls "$RELEASE"/OpenConverter-*-setup.exe 2>/dev/null | head -1)
-PORTABLE=$(ls "$RELEASE"/OpenConverter-*-portable.exe 2>/dev/null | head -1)
+NSIS=$(ls "$RELEASE"/openconverter-v"*"windows-x64-setup.exe" 2>/dev/null | head -1)
+PORTABLE=$(ls "$RELEASE"/openconverter-v"*"windows-x64-portable.exe" 2>/dev/null | head -1)
 
 if [ -z "$NSIS" ]; then
   echo "FAIL: NSIS installer not found in release/"
@@ -888,9 +888,10 @@ Expected output (truncated):
 
 ```
 PASS: NSIS and Portable artifacts present
-  NSIS:     .../OpenConverter-0.3.0-x64.exe (150M)
-  Portable: .../OpenConverter-0.3.0-portable.exe (150M)
-PASS: ffmpeg.exe bundled (80M)
+  NSIS:     .../openconverter-v0.2.1-windows-x64-setup.exe (125M)
+  Portable: .../openconverter-v0.2.1-windows-x64-portable.exe (125M)
+PASS: ffmpeg.exe bundled (97M)
+PASS: ffprobe.exe bundled (97M)
 PASS: Wine process is still alive after 8s
 
 All build smoke tests passed.
@@ -920,13 +921,13 @@ grep -n "^## Install" README.md
 
 - [ ] **Step 2: Insert Windows subsection after Linux/AppImage sections**
 
-After the existing AppImage install code block (the `chmod +x` / `./OpenConverter-0.2.1.AppImage` lines) and before the `## Build from source` section, add:
+After the existing AppImage install code block (the `chmod +x` / `./OpenConverter-0.2.0.AppImage` lines) and before the `## Build from source` section, add:
 
 ```markdown
 ### Windows
 
-Download the latest `OpenConverter-X.Y.Z-setup.exe` (NSIS installer) or
-`OpenConverter-X.Y.Z-portable.exe` (portable, no install needed) from the
+Download the latest `openconverter-vX.Y.Z-windows-x64-setup.exe` (NSIS installer) or
+`openconverter-vX.Y.Z-windows-x64-portable.exe` (portable, no install needed) from the
 [Releases page](https://github.com/nowa277/OpenConverter/releases).
 
 - **Installer**: double-click `setup.exe`, follow the wizard, choose

@@ -51,8 +51,8 @@ Download the latest release: https://github.com/nowa277/OpenConverter/releases
 
 ### Windows
 
-Download the latest `OpenConverter-X.Y.Z-setup.exe` (NSIS installer) or
-`OpenConverter-X.Y.Z-portable.exe` (portable, no install needed) from the
+Download the latest `openconverter-vX.Y.Z-windows-x64-setup.exe` (NSIS installer) or
+`openconverter-vX.Y.Z-windows-x64-portable.exe` (portable, no install needed) from the
 [Releases page](https://github.com/nowa277/OpenConverter/releases).
 
 - **Installer**: double-click `setup.exe`, follow the wizard, choose

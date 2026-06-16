@@ -47,8 +47,12 @@ scope and will be addressed in future specs.
 
 | Artifact                       | Format   | Size estimate | Target user                |
 | ------------------------------ | -------- | ------------- | -------------------------- |
-| `OpenConverter-X.Y.Z-setup.exe`     | NSIS    | ~150 MB       | Default install            |
-| `OpenConverter-X.Y.Z-portable.exe` | Portable| ~150 MB       | No-install, U盘携带        |
+| `openconverter-vX.Y.Z-windows-x64-setup.exe`     | NSIS    | ~125 MB       | Default install            |
+| `openconverter-vX.Y.Z-windows-x64-portable.exe` | Portable| ~125 MB       | No-install, U盘携带        |
+
+Naming convention (applies to all platforms): `openconverter-v<version>-<platform>-<arch>[-<variant>].<ext>`.
+Linux examples: `openconverter-v0.2.1-linux-amd64.deb`, `openconverter-v0.2.1-linux-x64.AppImage`.
+The version prefix carries `v` to match GitHub release tags.
 
 Both ship a single static binary plus the bundled `ffmpeg.exe`.
 
@@ -224,12 +228,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # 1. Build artifact must exist
-test -f "$ROOT/release/OpenConverter-"*"setup.exe"     || { echo "NSIS missing"; exit 1; }
-test -f "$ROOT/release/OpenConverter-"*"portable.exe" || { echo "Portable missing"; exit 1; }
+test -f "$ROOT/release/openconverter-v"*"windows-x64-setup.exe"     || { echo "NSIS missing"; exit 1; }
+test -f "$ROOT/release/openconverter-v"*"windows-x64-portable.exe" || { echo "Portable missing"; exit 1; }
 
 # 2. ffmpeg.exe AND ffprobe.exe must be bundled inside the NSIS installer
 mkdir -p /tmp/nsis-check
-7z x -y "$ROOT/release/OpenConverter-"*"setup.exe" -o/tmp/nsis-check >/dev/null
+7z x -y "$ROOT/release/openconverter-v"*"windows-x64-setup.exe" -o/tmp/nsis-check >/dev/null
 test -f /tmp/nsis-check/resources/ffmpeg.exe  || { echo "ffmpeg.exe not bundled"; exit 1; }
 test -f /tmp/nsis-check/resources/ffprobe.exe || { echo "ffprobe.exe not bundled"; exit 1; }
 rm -rf /tmp/nsis-check
@@ -256,8 +260,8 @@ Add Windows install section to existing README:
 ```markdown
 ### Windows
 
-Download `OpenConverter-X.Y.Z-setup.exe` (NSIS installer) or
-`OpenConverter-X.Y.Z-portable.exe` (portable) from the Releases page.
+Download `openconverter-vX.Y.Z-windows-x64-setup.exe` (NSIS installer) or
+`openconverter-vX.Y.Z-windows-x64-portable.exe` (portable) from the Releases page.
 Double-click to install or run. SmartScreen will show a warning on
 first launch — click "More info" → "Run anyway". No ffmpeg install
 required (bundled).
@@ -337,8 +341,8 @@ sudo apt install wine64 imagemagick p7zip-full
 npm run build:win
 
 # Output:
-#   release/OpenConverter-X.Y.Z-setup.exe      (NSIS, ~150 MB)
-#   release/OpenConverter-X.Y.Z-portable.exe   (Portable, ~150 MB)
+#   release/openconverter-vX.Y.Z-windows-x64-setup.exe      (NSIS, ~125 MB)
+#   release/openconverter-vX.Y.Z-windows-x64-portable.exe   (Portable, ~125 MB)
 
 # Verify (on the same machine, after build)
 bash tests/build.test.sh
@@ -392,7 +396,8 @@ local Wine setup.
 The spec is complete when ALL of the following are true:
 
 1. `npm run build:win` on a Linux dev machine produces both
-   `OpenConverter-X.Y.Z-setup.exe` and `OpenConverter-X.Y.Z-portable.exe`.
+   `openconverter-vX.Y.Z-windows-x64-setup.exe` and
+   `openconverter-vX.Y.Z-windows-x64-portable.exe`.
 2. Both artifacts contain BOTH `resources/ffmpeg.exe` (~80 MB) and
    `resources/ffprobe.exe` (~80 MB).
 3. `wine OpenConverter.exe` (unpacked) starts and stays alive for 8s.
