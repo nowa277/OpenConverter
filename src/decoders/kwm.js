@@ -82,7 +82,7 @@ function inferFormat(audio) {
   return 'mp3'; // default
 }
 
-function decodeFile(inputPath, outputDir) {
+function decodeFile(inputPath, outputDir, _opts = {}) {
   const input = fs.readFileSync(inputPath);
   const audio = decryptBuffer(input);
   const format = inferFormat(audio);

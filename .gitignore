@@ -13,6 +13,8 @@ tests/output/
 dist/*.ncm
 dist/test-ncm/
 tests/ncm_format/
+tests/errors/
+tests/*.log
 
 # Original DMG / extracted source (reversing artifacts, never commit)
 *.dmg
@@ -21,6 +23,9 @@ tests/ncm_format/
 extracted/
 build/original-app/
 build/*.img
+
+# Documentation / reference notes (non-substantive)
+docs/
 
 # Previous work / leftover scaffolding
 .junk/
