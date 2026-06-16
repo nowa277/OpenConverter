@@ -25,7 +25,10 @@ build/original-app/
 build/*.img
 
 # Documentation / reference notes (non-substantive)
-docs/
+# Allow design specs (superpowers/brainstorming outputs)
+docs/*
+!docs/superpowers/
+!docs/superpowers/**
 
 # Previous work / leftover scaffolding
 .junk/
