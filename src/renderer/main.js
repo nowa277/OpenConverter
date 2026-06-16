@@ -34,21 +34,33 @@ async function init() {
   const os = await api.invoke('os:info');
   $('os-info').textContent = `${os.platform}/${os.arch} · Node ${os.nodeVersion}`;
 
+  const cfg = await api.invoke('config:get');
+  if (cfg.format) state.format = cfg.format;
+  if (cfg.quality) state.quality = cfg.quality;
+  if (cfg.outputDir) state.outputDir = cfg.outputDir;
+  if (cfg.qmcEkey) $('ekey-input').value = cfg.qmcEkey;
+  $('format-select').value = state.format;
+  $('quality-select').value = state.quality;
+
   const decoders = await api.invoke('decoders:list');
   $('supported-formats').textContent =
     'Supported: ' + decoders.supported.map((e) => e.replace('.', '')).join(' ');
   $('verified-formats').innerHTML = decoders.implemented
-    .map((e) => `<li>${e} (verified, byte-diff against Python reference)</li>`)
+    .map((e) => `<li>${e}</li>`)
     .join('') || '<li>None yet</li>';
   $('status-list').innerHTML = `
-    <li>NCM — fully verified (14/14 samples, byte-diff against Python ncmdump)</li>
-    <li>QMC0 / QMC1 / QMC2 / QMCFLAC — algorithm stub, NO samples → not verified</li>
-    <li>KGM / KWM — algorithm stub, NO samples → not verified</li>
+    <li>NCM — verified (14/14 samples, byte-diff against Python ncmdump)</li>
+    <li>QMC0 / QMC3 / QMCFLAC / QMCOGG — verified (round-trip on real MP3)</li>
+    <li>QMCv2 (.mflac / .mgg / .bkc) — implemented, requires QQ Music ekey from client DB</li>
+    <li>KGM / KGMA / VPR — implemented (round-trip on real MP3)</li>
+    <li>KWM — implemented (round-trip on real MP3)</li>
     <li>ffmpeg ${await checkFfmpeg()}</li>
   `;
 
-  // Default output dir to ~/Music/OpenConverter
-  state.outputDir = `${os.homedir}/Music/OpenConverter`.replace(/\$(\w+)/g, (_, n) => ({ homedir: os.homedir }[n] || ''));
+  // Default output dir to ~/Music/OpenConverter if not set
+  if (!state.outputDir) {
+    state.outputDir = `${os.homedir}/Music/OpenConverter`.replace(/\$(\w+)/g, (_, n) => ({ homedir: os.homedir }[n] || ''));
+  }
   updateOutputDisplay();
 
   bindEvents();
@@ -64,8 +76,15 @@ async function checkFfmpeg() {
 
 function bindEvents() {
   // Format/quality
-  $('format-select').addEventListener('change', (e) => { state.format = e.target.value; });
-  $('quality-select').addEventListener('change', (e) => { state.quality = e.target.value; });
+  $('format-select').addEventListener('change', (e) => { state.format = e.target.value; api.invoke('config:set', { patch: { format: e.target.value } }); });
+  $('quality-select').addEventListener('change', (e) => { state.quality = e.target.value; api.invoke('config:set', { patch: { quality: e.target.value } }); });
+
+  // ekey (QQ Music)
+  $('ekey-save-btn').addEventListener('click', async () => {
+    const v = $('ekey-input').value.trim();
+    await api.invoke('config:set', { patch: { qmcEkey: v } });
+    toast(v ? 'QQ Music ekey saved' : 'QQ Music ekey cleared', 'ok');
+  });
 
   // Window controls
   const winMaxBtn = $('win-max');
@@ -79,7 +98,11 @@ function bindEvents() {
   // Output dir
   $('pick-output-btn').addEventListener('click', async () => {
     const r = await api.invoke('file:pickOutputDir');
-    if (r.dir) { state.outputDir = r.dir; updateOutputDisplay(); }
+    if (r.dir) {
+      state.outputDir = r.dir;
+      updateOutputDisplay();
+      api.invoke('config:set', { patch: { outputDir: r.dir } });
+    }
   });
 
   // Input picker

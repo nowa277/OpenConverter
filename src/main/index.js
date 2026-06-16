@@ -95,9 +95,13 @@ async function convertOne(jobId, inputPath, format, outputDir, quality) {
     throw new Error(`No decoder for file: ${path.basename(inputPath)} (unsupported format: ${ext})`);
   }
 
+  // QMCv2 formats (mflac/mgg/bkc) require user-provided ekey from QQ Music DB
+  const needsEkey = decoders.listRequiresEkey().includes(ext);
+  const opts = needsEkey ? { ekey: config.get().qmcEkey } : {};
+
   let decryptedPath;
   try {
-    const r = decoder.decodeFile(inputPath, outputDir);
+    const r = decoder.decodeFile(inputPath, outputDir, opts);
     decryptedPath = r.outputPath;
   } catch (e) {
     throw new Error(`Decryption failed: ${e.message}`);

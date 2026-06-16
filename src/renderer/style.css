@@ -282,6 +282,55 @@ body {
   background: linear-gradient(180deg, transparent, var(--bg) 30%);
 }
 
+/* ---------- Settings panel (collapsible ekey field) ---------- */
+.settings-panel {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+.settings-panel > summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 13px;
+  user-select: none;
+  list-style: none;
+}
+.settings-panel > summary::before {
+  content: "▸ ";
+  color: var(--text-dim);
+}
+.settings-panel[open] > summary::before {
+  content: "▾ ";
+}
+.settings-panel > summary:hover { color: var(--text); }
+.settings-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  align-items: center;
+}
+.text-input {
+  flex: 1;
+  background: var(--bg-elevated-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  outline: none;
+  transition: var(--transition);
+}
+.text-input:focus { border-color: var(--accent); }
+.settings-hint {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
 /* ---------- About ---------- */
 .card {
   background: var(--bg-elevated);

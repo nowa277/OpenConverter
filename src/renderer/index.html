@@ -98,6 +98,21 @@
             <button id="pick-output-btn" class="btn btn-spotify">Choose folder</button>
           </div>
 
+          <details class="settings-panel">
+            <summary>QQ Music ekey (required for .mflac / .mgg / .bkc)</summary>
+            <div class="settings-row">
+              <input type="text" id="ekey-input" class="text-input"
+                     placeholder="Paste base64 ekey from QQ Music client DB"
+                     autocomplete="off" spellcheck="false" />
+              <button id="ekey-save-btn" class="btn btn-secondary">Save</button>
+            </div>
+            <p class="settings-hint">
+              Only needed for QQ Music mobile/desktop cache files (.mflac0, .mgg1, .bkc*).
+              The ekey is a base64 string extracted from the QQ Music client's local database.
+              Leave empty if you only need NCM / QMC0 / QMCFLAC / KGM / KWM.
+            </p>
+          </details>
+
           <div id="dropzone" class="dropzone">
             <div class="dropzone-icon" aria-hidden="true">
               <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">

@@ -35,6 +35,7 @@ app.asar.unpacked/
 opencode.jsonc
 data/
 gpt-image2-output/
+AGENTS.md
 
 # IDE
 .vscode/

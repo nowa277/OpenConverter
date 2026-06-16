@@ -1,5 +1,9 @@
 /**
  * electron-store wrapper. ONLY non-commercial user preferences stored.
+ *
+ * `qmcEkey` is the user-provided base64 string from the QQ Music client
+ * DB, used to decrypt .mflac0/.mgg1/.bkc* files. Treat it as
+ * user-supplied metadata, not commercial logic.
  */
 const Store = require('electron-store');
 
@@ -8,6 +12,7 @@ const DEFAULTS = {
   quality: '320k',
   outputDir: '', // empty = let user pick each session
   theme: 'dark',
+  qmcEkey: '', // base64 string from QQ Music client DB
 };
 
 let store = null;
@@ -23,6 +28,7 @@ function get() {
     quality: s.get('quality'),
     outputDir: s.get('outputDir'),
     theme: s.get('theme'),
+    qmcEkey: s.get('qmcEkey'),
   };
 }
 
