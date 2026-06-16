@@ -1,0 +1,54 @@
+# Node
+node_modules/
+package-lock.json
+
+# Build outputs (regeneratable)
+dist-renderer/
+release/
+out/
+tests/output/
+
+# Test data: encrypted audio samples (120MB+ copyrighted, gitignored)
+# Put your own .ncm / .qmc / .kgm / .kwm files in dist/test-ncm/ to run tests.
+dist/*.ncm
+dist/test-ncm/
+
+# Original DMG / extracted source (reversing artifacts, never commit)
+*.dmg
+*.pkg
+*.img
+extracted/
+build/original-app/
+build/*.img
+
+# Previous work / leftover scaffolding
+.junk/
+app.asar
+app.asar.unpacked/
+
+# Local tooling config
+.claude/
+.codegraph/
+.mcp.json
+.omc/
+opencode.jsonc
+data/
+gpt-image2-output/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary outputs
+*.raw
+*.bak
+
+# Editor backups
+*.tmp

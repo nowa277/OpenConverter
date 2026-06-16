@@ -1,0 +1,76 @@
+# OpenConverter e2e test container
+# Builds OpenConverter and runs CLI conversion tests on the NCM samples.
+# Exposes noVNC on :6080 for manual GUI inspection.
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV LANG=C.UTF-8
+ENV NODE_VERSION=20
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl xz-utils \
+    ffmpeg \
+    xvfb libnss3 libatk-bridge2.0-0 libgtk-3-0 libasound2 libgbm1 \
+    x11vnc novnc websockify \
+    python3 python3-pip \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Node.js 20 LTS from NodeSource
+RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Python reference decoder (for byte-diff verification)
+RUN pip3 install --no-cache-dir ncmdump
+
+WORKDIR /app
+
+# Install deps
+COPY package.json package-lock.json* ./
+RUN npm install --no-audit --no-fund
+
+# Copy source
+COPY . /app/
+
+# Build the renderer
+RUN npm run build:renderer
+
+# ---------- Automated e2e CLI test ----------
+# Run the NCM decryption CLI on every sample, verify ffmpeg accepts the output.
+RUN mkdir -p /app/tests/output
+RUN for f in dist/test-ncm/*.ncm; do \
+      base=$(basename "$f" .ncm); \
+      echo "[e2e] $base.ncm → $base.mp3"; \
+      node src/cli.js --output-dir=/app/tests/output "$f" || (echo "FAIL: $base" && exit 1); \
+      ffmpeg -v error -i "/app/tests/output/${base}.mp3" -f null - 2>&1 | tail -1; \
+    done
+
+# Test log
+RUN { \
+      echo "=== e2e-docker.log ==="; \
+      echo "Built: $(date -u)"; \
+      echo "Node: $(node --version)"; \
+      echo "ffmpeg: $(ffmpeg -version | head -1)"; \
+      echo "All $(ls dist/test-ncm/*.ncm | wc -l) NCM samples converted + validated by ffmpeg"; \
+    } > /app/tests/e2e-docker.log
+
+# Check no commercial elements in built output
+RUN bash tests/check-no-commercial.sh dist-renderer
+
+# Build the Electron app for Linux (deb + AppImage)
+RUN npx electron-builder --linux
+
+# Default: launch with xvfb + noVNC for manual GUI testing
+# Open http://localhost:6080/vnc.html to see the app
+EXPOSE 6080
+CMD ["/bin/bash", "-c", "\
+  Xvfb :99 -screen 0 1280x800x24 & \
+  sleep 1 && \
+  export DISPLAY=:99 && \
+  websockify --web=/usr/share/novnc 6080 localhost:5900 & \
+  x11vnc -display :99 -forever -nopw -rfbport 5900 & \
+  sleep 2 && \
+  echo '=== App ready. Open http://localhost:6080/vnc.html to view GUI ===' && \
+  ls -la release/ 2>/dev/null && \
+  bash"]

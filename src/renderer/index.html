@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:;" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenConverter</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <!-- Custom window title bar (frameless window, macOS-style traffic lights on the left) -->
+  <header class="window-bar" id="window-bar">
+    <div class="window-bar-controls">
+      <button class="traffic-light traffic-light-close" id="win-close" title="Close" aria-label="Close">
+        <svg width="8" height="8" viewBox="0 0 8 8"><line x1="1" y1="1" x2="7" y2="7" stroke="rgba(0,0,0,0.7)" stroke-width="1.2"/><line x1="7" y1="1" x2="1" y2="7" stroke="rgba(0,0,0,0.7)" stroke-width="1.2"/></svg>
+      </button>
+      <button class="traffic-light traffic-light-min" id="win-min" title="Minimize" aria-label="Minimize">
+        <svg width="8" height="8" viewBox="0 0 8 8"><line x1="1" y1="4" x2="7" y2="4" stroke="rgba(0,0,0,0.7)" stroke-width="1.2"/></svg>
+      </button>
+      <button class="traffic-light traffic-light-max" id="win-max" title="Maximize" aria-label="Maximize">
+        <svg width="8" height="8" viewBox="0 0 8 8"><path d="M1 1 H7 V7 H1 Z M1 3 L7 3 M3 1 L3 7" stroke="rgba(0,0,0,0.7)" stroke-width="0.9" fill="none"/></svg>
+      </button>
+    </div>
+    <div class="window-bar-drag">
+      <span class="window-bar-title">OpenConverter</span>
+    </div>
+  </header>
+
+  <div id="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">
+          <svg viewBox="0 0 512 512" width="40" height="40" aria-label="OpenConverter logo">
+            <defs>
+              <linearGradient id="bgG" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#181818"/>
+                <stop offset="100%" style="stop-color:#121212"/>
+              </linearGradient>
+              <linearGradient id="gG" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#1ed760"/>
+                <stop offset="100%" style="stop-color:#1db954"/>
+              </linearGradient>
+            </defs>
+            <circle cx="256" cy="256" r="240" fill="url(#bgG)" stroke="#282828" stroke-width="8"/>
+            <circle cx="256" cy="256" r="200" fill="none" stroke="url(#gG)" stroke-width="12" opacity="0.8"/>
+            <rect x="120" y="180" width="40" height="120" rx="20" fill="url(#gG)"/>
+            <rect x="180" y="140" width="40" height="180" rx="20" fill="url(#gG)" opacity="0.9"/>
+            <rect x="240" y="100" width="40" height="240" rx="20" fill="url(#gG)" opacity="0.85"/>
+            <rect x="300" y="140" width="40" height="180" rx="20" fill="url(#gG)" opacity="0.9"/>
+            <rect x="360" y="180" width="40" height="120" rx="20" fill="url(#gG)"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <div class="brand-title">OpenConverter</div>
+          <div class="brand-sub">Linux audio converter</div>
+        </div>
+      </div>
+      <nav class="nav">
+        <button class="nav-item active" data-view="convert">Convert</button>
+        <button class="nav-item" data-view="about">About</button>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="os-info" id="os-info"></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <h1 class="page-title">Convert audio</h1>
+        <div class="topbar-actions">
+          <label class="select">
+            <span class="select-label">Format</span>
+            <select id="format-select">
+              <option value="mp3">MP3</option>
+              <option value="flac">FLAC</option>
+              <option value="wav">WAV</option>
+              <option value="m4a">M4A / AAC</option>
+              <option value="ogg">OGG / Opus</option>
+            </select>
+          </label>
+          <label class="select">
+            <span class="select-label">Quality</span>
+            <select id="quality-select">
+              <option value="320k">320 kbps</option>
+              <option value="256k">256 kbps</option>
+              <option value="192k">192 kbps</option>
+              <option value="128k">128 kbps</option>
+            </select>
+          </label>
+        </div>
+      </header>
+
+      <section class="content">
+        <div id="view-convert" class="view active">
+          <div class="output-picker">
+            <span class="output-picker-label">Output:</span>
+            <span id="output-dir" class="output-dir-text">Not set</span>
+            <button id="pick-output-btn" class="btn btn-spotify">Choose folder</button>
+          </div>
+
+          <div id="dropzone" class="dropzone">
+            <div class="dropzone-icon" aria-hidden="true">
+              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M9 18V6l12-2v12" />
+                <circle cx="6" cy="18" r="3" />
+                <circle cx="18" cy="16" r="3" />
+              </svg>
+            </div>
+            <div class="dropzone-text">Drop .ncm / .qmc / .kgm files here</div>
+            <div class="dropzone-hint">or <button id="pick-input-btn" class="link-btn">browse</button> to choose</div>
+            <div class="dropzone-formats" id="supported-formats"></div>
+          </div>
+
+          <div class="queue" id="queue" hidden>
+            <div class="queue-header">
+              <h2>Queue</h2>
+              <button id="clear-queue-btn" class="btn btn-text">Clear all</button>
+            </div>
+            <ul id="queue-list" class="queue-list"></ul>
+            <div class="queue-footer">
+              <button id="convert-btn" class="btn btn-primary" disabled>Convert <span id="queue-count">0</span> file(s)</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="view-about" class="view">
+          <div class="card">
+            <h2>About</h2>
+            <p>OpenConverter is an open-source audio format converter for Linux.</p>
+            <p>It supports encrypted formats (NCM, QMC, KGM, KWM) via pure-JavaScript decoders and uses <code>ffmpeg</code> for format conversion.</p>
+            <h3>Verified formats</h3>
+            <ul id="verified-formats"></ul>
+            <h3>Status</h3>
+            <ul id="status-list"></ul>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" hidden></div>
+  </div>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

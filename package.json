@@ -1,0 +1,73 @@
+{
+  "name": "openconverter",
+  "productName": "OpenConverter",
+  "version": "0.1.0",
+  "description": "Open-source audio converter for Linux. Converts encrypted formats (NCM/QMC0/KGM/KWM) to common audio formats.",
+  "homepage": "https://github.com/nowa277/OpenConverter",
+  "main": "src/main/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "dev:renderer": "vite",
+    "dev:electron": "wait-on tcp:3344 && cross-env NODE_ENV=development electron .",
+    "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:electron\"",
+    "build:renderer": "vite build",
+    "build": "npm run build:renderer && electron-builder",
+    "build:linux": "npm run build:renderer && electron-builder --linux",
+    "cli": "node src/cli.js",
+    "test": "node --test tests/",
+    "test:ncm": "node tests/ncm.test.js",
+    "check:commercial": "bash tests/check-no-commercial.sh",
+    "package:dir": "npm run build:renderer && electron-builder --linux --dir"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "nowa277",
+    "email": "sesleycheung@gmail.com"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.13.3",
+    "vite": "^5.4.21",
+    "wait-on": "^7.2.0"
+  },
+  "dependencies": {
+    "electron-store": "^8.2.0"
+  },
+  "build": {
+    "appId": "com.openconverter.app",
+    "productName": "OpenConverter",
+    "files": [
+      "src/**/*",
+      "dist-renderer/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "deb",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "AudioVideo",
+      "icon": "build/icons/icon.png",
+      "synopsis": "Open-source audio converter",
+      "description": "Converts encrypted audio formats (NCM/QMC0/KGM/KWM) to MP3/FLAC/WAV"
+    }
+  }
+}
