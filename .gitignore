@@ -12,6 +12,7 @@ tests/output/
 # Put your own .ncm / .qmc / .kgm / .kwm files in dist/test-ncm/ to run tests.
 dist/*.ncm
 dist/test-ncm/
+tests/ncm_format/
 
 # Original DMG / extracted source (reversing artifacts, never commit)
 *.dmg

@@ -39,7 +39,7 @@ function listSupported() {
 
 function listImplemented() {
   // Only formats where decodeFile actually does something (not stubs)
-  return ['.ncm']; // qmc/kgm/kwm throw "not yet implemented"
+  return ['.ncm', '.qmc0', '.qmc3', '.qmcflac', '.qmcogg'];
 }
 
 module.exports = {
