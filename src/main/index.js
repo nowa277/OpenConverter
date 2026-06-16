@@ -199,6 +199,7 @@ const HANDLERS = {
     arch: process.arch,
     nodeVersion: process.versions.node,
     electronVersion: process.versions.electron,
+    appVersion: app.getVersion(),
     cpus: os.cpus()?.length || 0,
     homedir: os.homedir(),
     tmpdir: os.tmpdir(),

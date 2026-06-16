@@ -110,7 +110,6 @@ body {
 }
 .brand-mark svg { display: block; }
 .brand-title { font-size: 16px; font-weight: 700; }
-.brand-sub { font-size: 11px; color: var(--text-dim); }
 
 .nav { display: flex; flex-direction: column; gap: 2px; }
 .nav-item {

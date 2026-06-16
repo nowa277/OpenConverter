@@ -32,7 +32,7 @@ function toast(msg, kind = '') {
 // ---------- init ----------
 async function init() {
   const os = await api.invoke('os:info');
-  $('os-info').textContent = `${os.platform}/${os.arch} · Node ${os.nodeVersion}`;
+  $('os-info').textContent = `OpenConverter v${os.appVersion}`;
 
   const cfg = await api.invoke('config:get');
   if (cfg.format) state.format = cfg.format;
