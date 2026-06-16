@@ -13,8 +13,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 RELEASE="$ROOT/release"
 
 # 1. Artifact existence
-NSIS=$(ls "$RELEASE"/OpenConverter-*-setup.exe 2>/dev/null | head -1)
-PORTABLE=$(ls "$RELEASE"/OpenConverter-*-portable.exe 2>/dev/null | head -1)
+NSIS=$(ls "$RELEASE"/openconverter-*-setup.exe 2>/dev/null | head -1)
+PORTABLE=$(ls "$RELEASE"/openconverter-*-portable.exe 2>/dev/null | head -1)
 
 if [ -z "$NSIS" ]; then
   echo "FAIL: NSIS installer not found in release/"
