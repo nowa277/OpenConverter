@@ -136,8 +136,14 @@ async function convertOne(jobId, inputPath, format, outputDir, quality) {
     return { jobId, inputPath, outputPath: decryptedPath, format };
   }
 
-  // Otherwise convert with ffmpeg.
-  const ffmpegOut = decryptedPath.replace(/\.[^.]+$/, '') + `.${format}`;
+  // Otherwise convert with ffmpeg. If the requested format matches the
+  // decrypted intermediate's extension, strip+append produces the same
+  // path — ffmpeg refuses to read+write the same file, so use a distinct
+  // ".converted.<format>" suffix in that case.
+  let ffmpegOut = decryptedPath.replace(/\.[^.]+$/, '') + `.${format}`;
+  if (ffmpegOut === decryptedPath) {
+    ffmpegOut = decryptedPath.replace(/\.[^.]+$/, '') + `.converted.${format}`;
+  }
   await ffmpegRun(decryptedPath, ffmpegOut, {
     format,
     quality,
