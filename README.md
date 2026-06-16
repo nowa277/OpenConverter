@@ -49,6 +49,25 @@ chmod +x release/OpenConverter-0.2.0.AppImage
 
 Download the latest release: https://github.com/nowa277/OpenConverter/releases
 
+### Windows
+
+Download the latest `OpenConverter-X.Y.Z-setup.exe` (NSIS installer) or
+`OpenConverter-X.Y.Z-portable.exe` (portable, no install needed) from the
+[Releases page](https://github.com/nowa277/OpenConverter/releases).
+
+- **Installer**: double-click `setup.exe`, follow the wizard, choose
+  install path.
+- **Portable**: place `OpenConverter-X.Y.Z-portable.exe` anywhere (e.g.
+  USB drive), double-click to run. No installer, no system changes.
+
+Both bundles include `ffmpeg.exe` and `ffprobe.exe` — no separate
+ffmpeg install required.
+
+**First launch note**: Windows SmartScreen will show "Windows protected
+your PC" with "Unknown publisher" on first run. Click **More info** →
+**Run anyway** to proceed. This is expected for unsigned binaries; the
+warning will persist until the project gets a code signing certificate.
+
 ## Build from source
 
 ```bash
