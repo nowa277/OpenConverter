@@ -49,8 +49,11 @@ body {
   display: flex;
   gap: 8px;
   padding: 0 12px;
-  -webkit-app-region: no-drag;
+  height: 100%;
   align-items: center;
+  -webkit-app-region: no-drag;
+  flex-shrink: 0;
+  z-index: 2;
 }
 .traffic-light {
   width: 14px; height: 14px;
@@ -61,6 +64,8 @@ body {
   display: inline-flex; align-items: center; justify-content: center;
   transition: filter 120ms ease;
   -webkit-app-region: no-drag;
+  flex-shrink: 0;
+  pointer-events: auto;
 }
 .traffic-light svg { opacity: 0; transition: opacity 120ms ease; }
 .traffic-light:hover svg { opacity: 1; }
@@ -69,16 +74,17 @@ body {
 .traffic-light-max   { background: #28c840; }
 
 .window-bar-drag {
-  position: absolute;
-  left: 0; right: 0; top: 0; bottom: 0;
+  flex: 1;
+  height: 100%;
   -webkit-app-region: drag;
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 12px;
   color: var(--text-dim);
   letter-spacing: 0.3px;
-  pointer-events: none;
 }
-.window-bar-title { opacity: 0.7; pointer-events: none; }
+.window-bar-title { opacity: 0.7; }
 
 #app {
   display: grid;

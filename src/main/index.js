@@ -63,21 +63,52 @@ function createWindow() {
   return mainWindow;
 }
 
+// Plain (non-encrypted) audio formats — passed through or re-encoded,
+// no decryption step.
+const PLAIN_AUDIO_EXTS = new Set(['.mp3', '.flac', '.wav', '.m4a', '.aac', '.ogg', '.opus']);
+
 async function convertOne(jobId, inputPath, format, outputDir, quality) {
+  fs.mkdirSync(outputDir, { recursive: true });
+  const ext = path.extname(inputPath).toLowerCase();
+  const baseName = path.basename(inputPath, path.extname(inputPath));
+  const targetPath = path.join(outputDir, `${baseName}.${format}`);
+
+  // Path 1: plain audio — passthrough (copy as-is, or re-encode to target format).
+  if (PLAIN_AUDIO_EXTS.has(ext)) {
+    if (ext.slice(1) === format && !quality) {
+      fs.copyFileSync(inputPath, targetPath);
+      return { jobId, inputPath, outputPath: targetPath, format };
+    }
+    await ffmpegRun(inputPath, targetPath, {
+      format, quality,
+      onProgress: ({ percent }) => {
+        if (mainWindow) mainWindow.webContents.send('convert:progress', { jobId, percent });
+      },
+      signal: activeJobs.get(jobId)?.signal,
+    });
+    return { jobId, inputPath, outputPath: targetPath, format };
+  }
+
+  // Path 2: encrypted audio — run the matching decoder first.
   const decoder = decoders.pickDecoder(inputPath);
   if (!decoder) {
-    throw new Error(`No decoder for file: ${path.basename(inputPath)}`);
+    throw new Error(`No decoder for file: ${path.basename(inputPath)} (unsupported format: ${ext})`);
   }
 
-  // Decrypt (or pass through if already a plain format)
-  const { outputPath: decryptedPath, format: detectedFormat } = decoder.decodeFile(inputPath, outputDir);
-
-  // If format already matches what user wants, we're done
-  if (detectedFormat === format && !quality) {
-    return { jobId, inputPath, outputPath: decryptedPath, format: detectedFormat };
+  let decryptedPath;
+  try {
+    const r = decoder.decodeFile(inputPath, outputDir);
+    decryptedPath = r.outputPath;
+  } catch (e) {
+    throw new Error(`Decryption failed: ${e.message}`);
   }
 
-  // Otherwise convert with ffmpeg
+  // If format already matches what user wants, we're done.
+  if (path.extname(decryptedPath).slice(1) === format && !quality) {
+    return { jobId, inputPath, outputPath: decryptedPath, format };
+  }
+
+  // Otherwise convert with ffmpeg.
   const ffmpegOut = decryptedPath.replace(/\.[^.]+$/, '') + `.${format}`;
   await ffmpegRun(decryptedPath, ffmpegOut, {
     format,
@@ -90,7 +121,6 @@ async function convertOne(jobId, inputPath, format, outputDir, quality) {
     signal: activeJobs.get(jobId)?.signal,
   });
 
-  // If we re-encoded, remove the intermediate decrypted file
   if (ffmpegOut !== decryptedPath) {
     try { fs.unlinkSync(decryptedPath); } catch {}
   }
@@ -133,8 +163,16 @@ const HANDLERS = {
       title: 'Select audio files',
       properties: [multi ? 'multiSelections' : 'openFile', 'openFile'],
       filters: [
-        { name: 'Encrypted audio', extensions: ['ncm', 'qmc0', 'qmc1', 'qmc2', 'qmcflac', 'kgm', 'kwm'] },
-        { name: 'All audio', extensions: ['mp3', 'flac', 'wav', 'm4a', 'ogg'] },
+        // Single comprehensive filter as default — Linux GTK picker uses the
+        // FIRST filter as default, so this must include every format the app
+        // can convert (encrypted + common), otherwise users see an empty list.
+        { name: 'Audio files (encrypted + common)', extensions: [
+          'ncm', 'qmc0', 'qmc1', 'qmc2', 'qmc3', 'qmcflac', 'qmcogg', 'tkm',
+          'kgm', 'kgma', 'kwm',
+          'mp3', 'flac', 'wav', 'm4a', 'aac', 'ogg', 'opus',
+        ] },
+        { name: 'Encrypted audio only', extensions: ['ncm', 'qmc0', 'qmc1', 'qmc2', 'qmc3', 'qmcflac', 'qmcogg', 'tkm', 'kgm', 'kgma', 'kwm'] },
+        { name: 'Common audio', extensions: ['mp3', 'flac', 'wav', 'm4a', 'aac', 'ogg', 'opus'] },
         { name: 'All files', extensions: ['*'] },
       ],
     });
