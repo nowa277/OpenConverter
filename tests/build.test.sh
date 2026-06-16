@@ -31,23 +31,29 @@ echo "  NSIS:     $NSIS ($(du -h "$NSIS" | cut -f1))"
 echo "  Portable: $PORTABLE ($(du -h "$PORTABLE" | cut -f1))"
 
 # 2. ffmpeg.exe AND ffprobe.exe bundled inside NSIS
+# p7zip 16.02 chokes on the NSIS-3 Unicode uninstall stub ($R0/Uninstall...)
+# with "Data Error", but the actual payload ($PLUGINSDIR/app-64.7z) extracts
+# cleanly. Extract just the payload archive directly to avoid the noisy error.
 CHECK_DIR="$(mktemp -d)"
 trap 'rm -rf "$CHECK_DIR"' EXIT
-7z x -y "$NSIS" -o"$CHECK_DIR" >/dev/null
-if [ ! -f "$CHECK_DIR/resources/ffmpeg.exe" ]; then
-  echo "FAIL: ffmpeg.exe not bundled inside NSIS installer"
-  echo "  contents of extracted root:"
-  ls "$CHECK_DIR" | head -10
+7z x -y "$NSIS" "\$PLUGINSDIR/app-64.7z" -o"$CHECK_DIR" >/dev/null 2>&1 || true
+if [ ! -f "$CHECK_DIR/\$PLUGINSDIR/app-64.7z" ]; then
+  echo "FAIL: could not extract NSIS payload"
   exit 1
 fi
-if [ ! -f "$CHECK_DIR/resources/ffprobe.exe" ]; then
-  echo "FAIL: ffprobe.exe not bundled inside NSIS installer"
-  echo "  contents of resources/:"
-  ls "$CHECK_DIR/resources/" | head -10
+PAYLOAD="$CHECK_DIR/\$PLUGINSDIR/app-64.7z"
+if ! 7z l "$PAYLOAD" 2>/dev/null | grep -q "resources/ffmpeg.exe"; then
+  echo "FAIL: ffmpeg.exe not in NSIS payload"
+  7z l "$PAYLOAD" 2>/dev/null | head -10
   exit 1
 fi
-echo "PASS: ffmpeg.exe bundled ($(du -h "$CHECK_DIR/resources/ffmpeg.exe" | cut -f1))"
-echo "PASS: ffprobe.exe bundled ($(du -h "$CHECK_DIR/resources/ffprobe.exe" | cut -f1))"
+if ! 7z l "$PAYLOAD" 2>/dev/null | grep -q "resources/ffprobe.exe"; then
+  echo "FAIL: ffprobe.exe not in NSIS payload"
+  7z l "$PAYLOAD" 2>/dev/null | head -10
+  exit 1
+fi
+echo "PASS: ffmpeg.exe bundled in NSIS payload"
+echo "PASS: ffprobe.exe bundled in NSIS payload"
 
 # 3. Wine smoke test — Electron should at least start.
 UNPACKED="$RELEASE/win-unpacked/OpenConverter.exe"

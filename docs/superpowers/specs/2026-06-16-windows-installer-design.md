@@ -232,10 +232,14 @@ test -f "$ROOT/release/openconverter-v"*"windows-x64-setup.exe"     || { echo "N
 test -f "$ROOT/release/openconverter-v"*"windows-x64-portable.exe" || { echo "Portable missing"; exit 1; }
 
 # 2. ffmpeg.exe AND ffprobe.exe must be bundled inside the NSIS installer
+# p7zip 16.02 has a known incompatibility with NSIS-3 Unicode uninstall
+# stubs ($R0/Uninstall...) — extracting just $PLUGINSDIR/app-64.7z sidesteps
+# the noisy "Data Error" and validates the actual payload.
 mkdir -p /tmp/nsis-check
-7z x -y "$ROOT/release/openconverter-v"*"windows-x64-setup.exe" -o/tmp/nsis-check >/dev/null
-test -f /tmp/nsis-check/resources/ffmpeg.exe  || { echo "ffmpeg.exe not bundled"; exit 1; }
-test -f /tmp/nsis-check/resources/ffprobe.exe || { echo "ffprobe.exe not bundled"; exit 1; }
+7z x -y "$ROOT/release/openconverter-v"*"windows-x64-setup.exe" "\$PLUGINSDIR/app-64.7z" -o/tmp/nsis-check >/dev/null 2>&1 || true
+test -f "/tmp/nsis-check/\$PLUGINSDIR/app-64.7z" || { echo "could not extract NSIS payload"; exit 1; }
+7z l "/tmp/nsis-check/\$PLUGINSDIR/app-64.7z" 2>/dev/null | grep -q "resources/ffmpeg.exe"  || { echo "ffmpeg.exe not bundled"; exit 1; }
+7z l "/tmp/nsis-check/\$PLUGINSDIR/app-64.7z" 2>/dev/null | grep -q "resources/ffprobe.exe" || { echo "ffprobe.exe not bundled"; exit 1; }
 rm -rf /tmp/nsis-check
 
 # 3. Wine smoke test — Electron should at least start
