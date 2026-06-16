@@ -19,9 +19,31 @@ const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
-const { run: ffmpegRun, probeDuration } = require('./ffmpeg');
+const { run: ffmpegRunRaw, probeDuration: probeDurationRaw } = require('./ffmpeg');
 const config = require('./config');
 const decoders = require('../decoders');
+const { resolveFfmpegPath, resolveFfprobePath } = require('./ffmpeg-path');
+
+// Wrap ffmpegRun so the resolved paths are used at call time. Done in
+// main (not ffmpeg.js) so ffmpeg.js stays a thin subprocess wrapper
+// with no Electron dependency.
+function ffmpegRun(input, output, opts = {}) {
+  const ffmpegBin = resolveFfmpegPath({
+    isPackaged: app.isPackaged,
+    platform: process.platform,
+    resourcesPath: process.resourcesPath,
+  });
+  return ffmpegRunRaw(input, output, { ...opts, ffmpegBin });
+}
+
+function probeDuration(filePath) {
+  const ffprobeBin = resolveFfprobePath({
+    isPackaged: app.isPackaged,
+    platform: process.platform,
+    resourcesPath: process.resourcesPath,
+  });
+  return probeDurationRaw(filePath, { ffprobeBin });
+}
 
 const isDev = process.env.NODE_ENV === 'development';
 let mainWindow = null;
@@ -40,8 +62,10 @@ function createWindow() {
     backgroundColor: '#121212',
     title: 'OpenConverter',
     show: false,
-    frame: false, // custom title bar rendered in renderer
-    titleBarStyle: 'hidden', // macOS: hide inset title bar
+    // Linux + macOS: keep existing custom traffic-light title bar (v0.2.1
+    // behavior preserved). Windows: use OS-native title bar.
+    frame: process.platform === 'win32' ? true : false,
+    titleBarStyle: process.platform === 'win32' ? 'default' : 'hidden',
     icon: path.join(__dirname, '..', '..', 'build', 'icons', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'index.js'),
