@@ -9,7 +9,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.openconverter.app.R
 import com.openconverter.app.failures.FailureLog
@@ -21,7 +20,11 @@ fun SettingsScreen(
     onBack: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    val ekey by vm.ekey.collectAsStateWithLifecycle()
+    // Use plain collectAsState (not collectAsStateWithLifecycle) to avoid the
+    // STOPPED-state IllegalStateException observed on vivo y78 / OriginOS when
+    // SettingsViewModel._ekey is written by a coroutine after the screen
+    // recedes into STOPPED.
+    val ekey by vm.ekey.collectAsState()
     var input by rememberSaveable { mutableStateOf("") }
 
     Column(
