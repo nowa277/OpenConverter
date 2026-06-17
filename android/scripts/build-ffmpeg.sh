@@ -72,7 +72,7 @@ for ABI in arm64-v8a armeabi-v7a x86_64; do
     mkdir -p "${PREFIX}" "${LOG_DIR}"
 
     echo ""
-    echo "=== Configuring ffmpeg for ${ABI} (decoder-only) ==="
+    echo "=== Configuring ffmpeg for ${ABI} (decoder + encoder, v0.3.0) ==="
     cd "${SRC_DIR}"
     make distclean >/dev/null 2>&1 || true
 
@@ -84,6 +84,26 @@ for ABI in arm64-v8a armeabi-v7a x86_64; do
         echo "ERROR: libmp3lame not built for ${ABI}. Run build-lame.sh first." >&2
         exit 1
     fi
+
+    # Generate lame.pc so ffmpeg's --enable-libmp3lame check succeeds via
+    # pkg-config. lame's autotools build does NOT ship a .pc file; without
+    # this, ffmpeg's "External libraries:" list ends up empty and the
+    # MP3 encoder is silently disabled.
+    LAME_PKGCONFIG_DIR="${LAME_LIB_DIR}/pkgconfig"
+    mkdir -p "${LAME_PKGCONFIG_DIR}"
+    cat > "${LAME_PKGCONFIG_DIR}/lame.pc" <<EOF
+prefix=${PREFIX}
+exec_prefix=\${prefix}
+libdir=\${exec_prefix}/lib
+includedir=\${prefix}/include
+
+Name: mp3lame
+Description: LAME MP3 encoder library
+Version: 3.100
+Libs: -L\${libdir} -lmp3lame
+Cflags: -I\${includedir}
+EOF
+    export PKG_CONFIG_PATH="${LAME_PKGCONFIG_DIR}:${PKG_CONFIG_PATH:-}"
 
     # v0.3.0: real encoder support (4 built-in encoders + libmp3lame external)
     # --enable-encoder=aac,flac,vorbis,pcm_s16le are all built-in to ffmpeg
