@@ -47,8 +47,12 @@ fi
 
 # Cross-compile for each ABI
 for ABI in arm64-v8a armeabi-v7a x86_64; do
-    OUTPUT="${JNI_LIBS}/${ABI}/libffmpeg.so"
-    if [ -f "${OUTPUT}" ]; then
+    # ffmpeg's build produces multiple libav*.so files (libavformat, libavcodec,
+    # libavutil, libswresample, libswscale, libavfilter, libavdevice) — NOT a
+    # single libffmpeg.so. We check for libavformat.so as the "is this ABI built?"
+    # sentinel since it's the one our JNI loads first.
+    SENTINEL="${JNI_LIBS}/${ABI}/libavformat.so"
+    if [ -f "${SENTINEL}" ]; then
         echo "Skipping ${ABI}: already built"
         continue
     fi
@@ -104,9 +108,16 @@ for ABI in arm64-v8a armeabi-v7a x86_64; do
     make -j"$(nproc)" >"${LOG_DIR}/build.log" 2>&1
     make install >"${LOG_DIR}/install.log" 2>&1
 
-    cp "${PREFIX}/lib/libffmpeg.so" "${OUTPUT}"
-    "${TOOLCHAIN}/bin/llvm-strip" --strip-unneeded "${OUTPUT}"
-    echo "Built: ${OUTPUT} ($(du -h "${OUTPUT}" | cut -f1))"
+    # Copy all libav*.so files to jniLibs/<abi>/. JNI will loadLibrary() each
+    # one in dependency order (avutil → swresample → avcodec → avformat).
+    SO_COUNT=0
+    for SO_FILE in "${PREFIX}"/lib/libav*.so "${PREFIX}"/lib/libsw*.so; do
+        [ -f "$SO_FILE" ] || continue
+        cp "$SO_FILE" "${JNI_LIBS}/${ABI}/"
+        "${TOOLCHAIN}/bin/llvm-strip" --strip-unneeded "${JNI_LIBS}/${ABI}/$(basename "$SO_FILE")"
+        SO_COUNT=$((SO_COUNT + 1))
+    done
+    echo "Built ${ABI}: copied ${SO_COUNT} .so files to ${JNI_LIBS}/${ABI}/"
 done
 
 echo ""
