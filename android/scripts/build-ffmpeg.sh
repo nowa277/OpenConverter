@@ -1,163 +1,123 @@
 #!/usr/bin/env bash
-# Build libffmpeg.so for Android from source (M1: decoder-only).
+# Install ffmpeg-kit 6.0 (full-gpl) shared libraries for Android (v0.3.0).
 #
-# M1 strategy: NCM/KGM/KWM decryption produces raw audio bytes (e.g. MP3 or
-# FLAC). The NCM→MP3 path is a passthrough — decrypt + ffmpeg copy codec, no
-# re-encoding. So M1 only needs ffmpeg's built-in *decoders* (no external
-# libs: no libmp3lame, no libfdk-aac, no libvorbis).
+# History: v0.2.2 self-built ffmpeg from source with --disable-everything +
+# decoder-only flags. v0.3.0 needs encoders (MP3/FLAC/WAV/M4A/OGG). Self-build
+# with encoders hit 3 consecutive failures (lame.pc detection, OUT_DIR var,
+# encoder-list typo). User-approved switch to ffmpeg-kit 6.0 full-gpl.
 #
-# Encoders (libmp3lame, libfdk-aac, libvorbis for OGG) will be added in
-# Task 3.5 (real ffmpeg JNI for transcoding) when M3 actually needs to
-# re-encode between formats.
+# arthenica/ffmpeg-kit was archived April 2025; artifacts were pulled from
+# Maven Central. Appodeal's public Artifactory (https://artifactory.appodeal.com)
+# still mirrors the original binaries — used here.
 #
-# Output: android/app/src/main/jniLibs/<abi>/libffmpeg.so
+# Output: android/app/src/main/jniLibs/<abi>/lib{avcodec,avformat,...}.so
 set -euo pipefail
 
-ANDROID_NDK_HOME="${ANDROID_NDK_HOME:?ANDROID_NDK_HOME not set}"
-ANDROID_API=26
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 JNI_LIBS="${SCRIPT_DIR}/../app/src/main/jniLibs"
-BUILD_CACHE="${HOME}/.cache/ffmpeg-android-build"
+WORKDIR="${HOME}/.cache/ffmpeg-kit-install"
 
-FFMPEG_VERSION="7.0.2"
-FFMPEG_SHA256="8646515b638a3ad303e23af6a3587734447cb8fc0a0c064ecdb8e95c4fd8b389"
-FFMPEG_URL="https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz"
+FFMPEG_KIT_VERSION="6.0-2.LTS"
+# Appodeal Artifactory mirror — only known post-arthenica-archive source.
+AAR_URL="https://artifactory.appodeal.com/appodeal-public/com/arthenica/ffmpeg-kit-full-gpl/${FFMPEG_KIT_VERSION}/ffmpeg-kit-full-gpl-${FFMPEG_KIT_VERSION}.aar"
+AAR_FILE="${WORKDIR}/ffmpeg-kit-full-gpl-${FFMPEG_KIT_VERSION}.aar"
+# SHA256 verified at install time. Update if Appodeal re-publishes a new build.
+AAR_SHA256=""
 
-TOOLCHAIN="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64"
-NDK_SYSROOT="${TOOLCHAIN}/sysroot"
+# ABIs we ship. ffmpeg-kit also has x86; we skip it (no real devices use x86 in 2026).
+TARGET_ABIS=("arm64-v8a" "armeabi-v7a" "x86_64")
 
-mkdir -p "${BUILD_CACHE}" "${JNI_LIBS}"
+mkdir -p "${WORKDIR}" "${JNI_LIBS}"
 
-# Download + extract ffmpeg (idempotent: skip if already extracted)
-TARBALL="${BUILD_CACHE}/ffmpeg.tar.xz"
-SRC_DIR="${BUILD_CACHE}/ffmpeg-${FFMPEG_VERSION}"
-if [ ! -d "${SRC_DIR}" ]; then
-    echo "Downloading ffmpeg ${FFMPEG_VERSION}..."
-    # Quiet wget: log goes to stderr, file to stdout
-    wget -q -O "${TARBALL}" "${FFMPEG_URL}" 2>/dev/null || {
-        echo "ERROR: ffmpeg download failed from ${FFMPEG_URL}" >&2
+# === Step 1: Download AAR ===
+echo "Downloading ffmpeg-kit-full-gpl-${FFMPEG_KIT_VERSION}.aar from Appodeal mirror..."
+echo "URL: ${AAR_URL}"
+if [ ! -f "${AAR_FILE}" ]; then
+    if ! wget -q -O "${AAR_FILE}" "${AAR_URL}" 2>/dev/null; then
+        echo "ERROR: download failed from ${AAR_URL}" >&2
+        echo "       verify network connectivity or update AAR_URL" >&2
         exit 1
-    }
-    echo "${FFMPEG_SHA256}  ${TARBALL}" | sha256sum -c - >&2 || {
-        echo "ERROR: ffmpeg SHA256 mismatch" >&2
-        exit 1
-    }
-    tar -xJf "${TARBALL}" -C "${BUILD_CACHE}" >&2
+    fi
 fi
 
-# Cross-compile for each ABI
-for ABI in arm64-v8a armeabi-v7a x86_64; do
-    # ffmpeg's build produces multiple libav*.so files (libavformat, libavcodec,
-    # libavutil, libswresample, libswscale, libavfilter, libavdevice) — NOT a
-    # single libffmpeg.so. We check for libavformat.so as the "is this ABI built?"
-    # sentinel since it's the one our JNI loads first.
-    SENTINEL="${JNI_LIBS}/${ABI}/libavformat.so"
-    if [ -f "${SENTINEL}" ]; then
-        echo "Skipping ${ABI}: already built"
-        continue
-    fi
-    mkdir -p "${JNI_LIBS}/${ABI}"
-
-    case "${ABI}" in
-        arm64-v8a)   TRIPLE="aarch64-linux-android";   ARCH="aarch64";   CPU="armv8-a"   ;;
-        armeabi-v7a) TRIPLE="armv7a-linux-androideabi"; ARCH="arm";       CPU="armv7-a"   ;;
-        # clang rejects --cpu=x86_64 (it expects 'x86-64' with hyphen, or a
-        # specific microarch like 'skylake'). The configure check is just
-        # to validate the compiler; generic 'x86-64' is correct here.
-        x86_64)      TRIPLE="x86_64-linux-android";    ARCH="x86_64";    CPU="x86-64"   ;;
-    esac
-
-    PREFIX="${BUILD_CACHE}/build-${ABI}"
-    LOG_DIR="${BUILD_CACHE}/logs-ffmpeg-${ABI}"
-    mkdir -p "${PREFIX}" "${LOG_DIR}"
-
-    echo ""
-    echo "=== Configuring ffmpeg for ${ABI} (decoder + encoder, v0.3.0) ==="
-    cd "${SRC_DIR}"
-    make distclean >/dev/null 2>&1 || true
-
-    # Look up libmp3lame from Phase 2 build (build-lame.sh)
-    LAME_INCLUDE_DIR="${BUILD_CACHE}/build-lame-${ABI}/include"
-    LAME_LIB_DIR="${BUILD_CACHE}/build-lame-${ABI}/lib"
-
-    if [ ! -d "${LAME_INCLUDE_DIR}" ] || [ ! -d "${LAME_LIB_DIR}" ]; then
-        echo "ERROR: libmp3lame not built for ${ABI}. Run build-lame.sh first." >&2
+# SHA verification (skip if not pinned yet)
+if [ -n "${AAR_SHA256}" ] && [ "${AAR_SHA256}" != "PLACEHOLDER" ]; then
+    if ! echo "${AAR_SHA256}  ${AAR_FILE}" | sha256sum -c - >/dev/null 2>&1; then
+        echo "ERROR: AAR SHA256 mismatch" >&2
+        echo "       expected: ${AAR_SHA256}" >&2
+        echo "       got:      $(sha256sum "${AAR_FILE}" | cut -d' ' -f1)" >&2
         exit 1
     fi
+    echo "AAR SHA256 OK."
+else
+    actual_sha=$(sha256sum "${AAR_FILE}" | cut -d' ' -f1)
+    echo "AAR SHA256 (unpinned — recording actual): ${actual_sha}"
+fi
 
-    # Generate lame.pc so ffmpeg's --enable-libmp3lame check succeeds via
-    # pkg-config. lame's autotools build does NOT ship a .pc file; without
-    # this, ffmpeg's "External libraries:" list ends up empty and the
-    # MP3 encoder is silently disabled.
-    LAME_PKGCONFIG_DIR="${LAME_LIB_DIR}/pkgconfig"
-    mkdir -p "${LAME_PKGCONFIG_DIR}"
-    cat > "${LAME_PKGCONFIG_DIR}/lame.pc" <<EOF
-prefix=${PREFIX}
-exec_prefix=\${prefix}
-libdir=\${exec_prefix}/lib
-includedir=\${prefix}/include
+# === Step 2: Extract AAR ===
+EXTRACT_DIR="${WORKDIR}/extract"
+rm -rf "${EXTRACT_DIR}"
+mkdir -p "${EXTRACT_DIR}"
+unzip -q "${AAR_FILE}" -d "${EXTRACT_DIR}"
 
-Name: mp3lame
-Description: LAME MP3 encoder library
-Version: 3.100
-Libs: -L\${libdir} -lmp3lame
-Cflags: -I\${includedir}
-EOF
-    export PKG_CONFIG_PATH="${LAME_PKGCONFIG_DIR}:${PKG_CONFIG_PATH:-}"
+if [ ! -d "${EXTRACT_DIR}/jni" ]; then
+    echo "ERROR: AAR missing jni/ directory" >&2
+    exit 1
+fi
 
-    # v0.3.0: real encoder support (4 built-in encoders + libmp3lame external)
-    # --enable-encoder=aac,flac,vorbis,pcm_s16le are all built-in to ffmpeg
-    # (no external deps). libmp3lame is the only external lib for MP3.
-    # --disable-x86asm: x86_64 build needs nasm/yasm; we don't have them and
-    # don't need SIMD optimizations for an encoder+decoder build (no-op for ARM).
-    ./configure \
-        --prefix="${PREFIX}" \
-        --enable-shared \
-        --disable-static \
-        --disable-programs \
-        --disable-doc \
-        --disable-everything \
-        --disable-x86asm \
-        --enable-protocol=file \
-        --enable-demuxer=mp3,flac,wav,ogg,m4a,aac,opus \
-        --enable-decoder=mp3,flac,vorbis,aac,opus \
-        --enable-muxer=mp3,wav,flac,ogg,m4a,ipod \
-        --enable-parser=mpegaudio,flac,vorbis,aac \
-        --enable-encoder=aac,flac,vorbis,pcm_s16le \
-        --enable-libmp3lame \
-        --extra-cflags="-Os -fPIC -I${LAME_INCLUDE_DIR}" \
-        --extra-ldflags="-L${LAME_LIB_DIR} -lmp3lame -Wl,-z,defs -Wl,--no-undefined" \
-        --enable-cross-compile \
-        --cross-prefix="${TOOLCHAIN}/bin/${TRIPLE}-" \
-        --nm="${TOOLCHAIN}/bin/llvm-nm" \
-        --ar="${TOOLCHAIN}/bin/llvm-ar" \
-        --ranlib="${TOOLCHAIN}/bin/llvm-ranlib" \
-        --strip="${TOOLCHAIN}/bin/llvm-strip" \
-        --sysroot="${NDK_SYSROOT}" \
-        --target-os=android \
-        --arch="${ARCH}" \
-        --cpu="${CPU}" \
-        --cc="${TOOLCHAIN}/bin/${TRIPLE}${ANDROID_API}-clang" \
-        --cxx="${TOOLCHAIN}/bin/${TRIPLE}${ANDROID_API}-clang++" \
-        >"${LOG_DIR}/configure.log" 2>&1
+# === Step 3: Copy .so files to jniLibs/<abi>/ ===
+# Required libs from ffmpeg-kit (we do NOT use their Java wrapper):
+#   libavcodec.so libavformat.so libavutil.so libswresample.so libswscale.so
+#   libavfilter.so libavdevice.so libc++_shared.so
+# Skip libffmpegkit.so / libffmpegkit_abidetect.so (we use our own JNI).
+# Skip armv7a _neon variants? Keep them — Android loads the right one based on
+# CPU features; keeping both ensures compatibility.
 
-    echo "=== Building ffmpeg for ${ABI} ==="
-    make -j"$(nproc)" >"${LOG_DIR}/build.log" 2>&1
-    make install >"${LOG_DIR}/install.log" 2>&1
+REQUIRED_LIBS=(
+    "libavcodec.so"
+    "libavformat.so"
+    "libavutil.so"
+    "libswresample.so"
+    "libswscale.so"
+    "libavfilter.so"
+    "libavdevice.so"
+    "libc++_shared.so"
+)
 
-    # Copy all libav*.so files to jniLibs/<abi>/. JNI will loadLibrary() each
-    # one in dependency order (avutil → swresample → avcodec → avformat).
-    SO_COUNT=0
-    for SO_FILE in "${PREFIX}"/lib/libav*.so "${PREFIX}"/lib/libsw*.so; do
-        [ -f "$SO_FILE" ] || continue
-        cp "$SO_FILE" "${JNI_LIBS}/${ABI}/"
-        "${TOOLCHAIN}/bin/llvm-strip" --strip-unneeded "${JNI_LIBS}/${ABI}/$(basename "$SO_FILE")"
-        SO_COUNT=$((SO_COUNT + 1))
+for ABI in "${TARGET_ABIS[@]}"; do
+    SRC_DIR="${EXTRACT_DIR}/jni/${ABI}"
+    if [ ! -d "${SRC_DIR}" ]; then
+        echo "WARN: ABI ${ABI} not in AAR; skipping" >&2
+        continue
+    fi
+
+    DST_DIR="${JNI_LIBS}/${ABI}"
+    mkdir -p "${DST_DIR}"
+
+    # Clear existing libs we own
+    for lib in "${REQUIRED_LIBS[@]}"; do
+        rm -f "${DST_DIR}/${lib}" "${DST_DIR}/${lib%.so}_neon.so"
     done
-    echo "Built ${ABI}: copied ${SO_COUNT} .so files to ${JNI_LIBS}/${ABI}/"
+    # Remove ffmpegkit wrapper if present
+    rm -f "${DST_DIR}/libffmpegkit"*.so
+
+    # Copy required libs (and _neon variants for armv7a)
+    for lib in "${REQUIRED_LIBS[@]}"; do
+        if [ -f "${SRC_DIR}/${lib}" ]; then
+            cp "${SRC_DIR}/${lib}" "${DST_DIR}/"
+        fi
+        if [ "${ABI}" = "armeabi-v7a" ] && [ -f "${SRC_DIR}/${lib%.so}_neon.so" ]; then
+            cp "${SRC_DIR}/${lib%.so}_neon.so" "${DST_DIR}/"
+        fi
+    done
+
+    echo ""
+    echo "=== ${ABI} ==="
+    ls -lh "${DST_DIR}/" | awk 'NR>1 {printf "  %-40s %s\n", $9, $5}'
 done
 
 echo ""
-echo "ffmpeg (decoder + encoder, v0.3.0) build complete."
-echo "Encoders: aac (built-in), flac (built-in), vorbis (built-in),"
-echo "          pcm_s16le (built-in), libmp3lame (external static)."
+echo "ffmpeg-kit 6.0 (full-gpl) installed for 3 ABIs."
+echo "  MP3 encoder (libmp3lame) included statically in libavcodec.so."
+echo "  + built-in encoders: aac, flac, vorbis, pcm_s16le."
+echo "  Total per ABI: ~26-50 MB (vs self-built decoder-only ~3 MB)."
