@@ -10,10 +10,12 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.openconverter.app.BuildConfig
 import com.openconverter.app.R
 import com.openconverter.app.saf.SafAdapter
 import com.openconverter.app.ui.vm.ConversionViewModel
@@ -26,6 +28,7 @@ fun FileListScreen(
     val safAdapter = remember { SafAdapter() }
     val conversionVm: ConversionViewModel = viewModel()
     val fileListVm: FileListViewModel = viewModel()
+    val context = LocalContext.current
 
     val files by fileListVm.files.collectAsState()
     val outputFolder by fileListVm.outputFolderUri.collectAsState()
@@ -37,10 +40,19 @@ fun FileListScreen(
     val openTree = safAdapter.openDocumentTreeContract()
 
     val pickFilesLauncher = rememberLauncherForActivityResult(pickFiles) { uris ->
-        if (uris.isNotEmpty()) fileListVm.addUris(uris)
+        if (uris.isNotEmpty()) {
+            // Persist READ access across activity/process death.
+            // Without this, Huawei HarmonyOS / vivo OriginOS reclaim the grant
+            // and subsequent ContentResolver.openInputStream throws SecurityException.
+            val persisted = safAdapter.persistReadAccess(context.contentResolver, uris)
+            if (persisted.isNotEmpty()) fileListVm.addUris(persisted)
+        }
     }
     val openTreeLauncher = rememberLauncherForActivityResult(openTree) { uri ->
         if (uri != null) {
+            // Persist WRITE access to the tree so DocumentsContract.createDocument
+            // works from the background service after process death.
+            safAdapter.persistTreeWriteAccess(context.contentResolver, uri)
             val firstName = files.firstOrNull()?.displayName
             fileListVm.setOutputFolder(uri, firstName)
         }
@@ -74,7 +86,7 @@ fun FileListScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("OpenConverter v0.3.0")
+        Text("OpenConverter v${BuildConfig.VERSION_NAME}")
         Text("FormatDetector 补完 + 真转码")
 
         // Target format selector
