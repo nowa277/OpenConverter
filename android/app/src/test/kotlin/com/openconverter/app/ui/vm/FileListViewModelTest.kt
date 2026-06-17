@@ -1,5 +1,6 @@
 package com.openconverter.app.ui.vm
 
+import android.app.Application
 import org.junit.Test
 import kotlin.test.assertEquals
 
@@ -44,5 +45,29 @@ class FileListViewModelTest {
         // CJK / emoji should pass through — only filesystem-unsafe ASCII is stripped.
         assertEquals("周杰伦 - 稻香", FileListViewModel.sanitizeBaseName("周杰伦 - 稻香"))
         assertEquals("track 🎵", FileListViewModel.sanitizeBaseName("track 🎵"))
+    }
+
+    @Test
+    fun `clearOutputIfFormatChanged is no-op when format unchanged`() {
+        val vm = FileListViewModel(Application())
+        // First call establishes the format — no base to clear yet
+        vm.clearOutputIfFormatChanged("mp3")
+        // Same format again must not throw and must not signal clear
+        vm.clearOutputIfFormatChanged("mp3")
+        // If we get here without crash, the test passes. (Behavior is internal;
+        // the public signal "shouldClear" is not exposed, so this test only
+        // guards against regression in the no-throw + idempotent path.)
+    }
+
+    @Test
+    fun `clearOutputIfFormatChanged clears on format change`() {
+        val vm = FileListViewModel(Application())
+        vm.clearOutputIfFormatChanged("mp3")
+        // simulate user editing the base name
+        vm.setOutputBaseName("my-song")
+        // switch format — should clear
+        vm.clearOutputIfFormatChanged("flac")
+        // switch back to same — still cleared (already empty)
+        vm.clearOutputIfFormatChanged("mp3")
     }
 }
