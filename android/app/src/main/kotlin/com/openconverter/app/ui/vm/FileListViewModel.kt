@@ -22,23 +22,38 @@ class FileListViewModel(app: Application) : AndroidViewModel(app) {
     private val _files = MutableStateFlow<List<FileEntry>>(emptyList())
     val files: StateFlow<List<FileEntry>> = _files
 
-    private val _outputUri = MutableStateFlow<Uri?>(null)
-    val outputUri: StateFlow<Uri?> = _outputUri
+    private val _outputFolderUri = MutableStateFlow<Uri?>(null)
+    val outputFolderUri: StateFlow<Uri?> = _outputFolderUri
 
-    fun setOutputUri(uri: Uri) {
-        _outputUri.value = uri
+    private val _outputBaseName = MutableStateFlow<String>("")
+    val outputBaseName: StateFlow<String> = _outputBaseName
+
+    fun setOutputFolder(uri: Uri, firstFileName: String? = null) {
+        _outputFolderUri.value = uri
+        // Auto-derive base name from first file if not set yet.
+        if (_outputBaseName.value.isEmpty() && firstFileName != null) {
+            _outputBaseName.value = stripExtension(firstFileName)
+        }
+    }
+
+    fun setOutputBaseName(name: String) {
+        _outputBaseName.value = name
     }
 
     /**
-     * If the user changes output format, invalidate any pre-set output path
-     * whose file extension no longer matches the new format.
+     * If the user changes output format, clear the derived base name so it
+     * re-derives on next click. The folder itself stays.
      */
-    fun clearOutputIfFormatChanged(newFormat: String) {
-        val current = _outputUri.value ?: return
-        val ext = current.lastPathSegment?.substringAfterLast('.', "")?.lowercase().orEmpty()
-        if (ext != newFormat) {
-            _outputUri.value = null
+    fun clearOutputIfFormatChanged(@Suppress("UNUSED_PARAMETER") newFormat: String) {
+        if (_outputBaseName.value.isNotEmpty()) {
+            _outputBaseName.value = ""
         }
+    }
+
+    /** Compose "baseName.targetFormat" using the current base name. */
+    fun derivedOutputName(targetFormat: String): String {
+        val base = _outputBaseName.value.ifEmpty { "output" }
+        return "$base.$targetFormat"
     }
 
     fun addUris(uris: List<Uri>) {
@@ -102,5 +117,10 @@ class FileListViewModel(app: Application) : AndroidViewModel(app) {
             sourceFormat = sourceFormat,
             readable = readable,
         )
+    }
+
+    private fun stripExtension(fileName: String): String {
+        val lastDot = fileName.lastIndexOf('.')
+        return if (lastDot > 0) fileName.substring(0, lastDot) else fileName
     }
 }
