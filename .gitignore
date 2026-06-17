@@ -75,6 +75,7 @@ errors_screenshots/
 # Android build outputs (regeneratable, large)
 android/.gradle/
 android/app/build/
+android/app/.cxx/
 android/build/
 android/local.properties
 # ffmpeg shared libraries built by android/scripts/build-ffmpeg.sh.
