@@ -62,3 +62,6 @@ Thumbs.db
 
 # Editor backups
 *.tmp
+
+# Windows build artifacts (downloaded by scripts/setup-win-deps.sh, not committed)
+scripts/win-deps/

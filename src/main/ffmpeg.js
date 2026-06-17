@@ -6,9 +6,12 @@ const { spawn } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
 
-function runFfmpeg(args, { onProgress, signal, totalDurationSec } = {}) {
+function runFfmpeg(args, opts = {}) {
+  const { onProgress, signal, totalDurationSec } = opts;
+  const ffmpegBin = opts.ffmpegBin || 'ffmpeg';
+  delete opts.ffmpegBin;
   return new Promise((resolve, reject) => {
-    const proc = spawn('ffmpeg', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const proc = spawn(ffmpegBin, args, { stdio: ['ignore', 'pipe', 'pipe'] });
     let stderr = '';
     let lastPct = -1;
     const onAbort = () => { try { proc.kill('SIGTERM'); } catch {} };
@@ -35,9 +38,10 @@ function runFfmpeg(args, { onProgress, signal, totalDurationSec } = {}) {
   });
 }
 
-function runFfprobeDuration(filePath) {
+function runFfprobeDuration(filePath, opts = {}) {
+  const ffprobeBin = opts.ffprobeBin || 'ffprobe';
   return new Promise((resolve) => {
-    const proc = spawn('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', filePath], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const proc = spawn(ffprobeBin, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', filePath], { stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '';
     proc.stdout.on('data', (c) => out += c.toString());
     proc.on('close', () => { resolve(parseFloat(out) || 0); });
@@ -46,7 +50,7 @@ function runFfprobeDuration(filePath) {
 }
 
 async function run(inputPath, outputPath, options = {}) {
-  const { format = 'mp3', quality = '320k', onProgress, signal } = options;
+  const { format = 'mp3', quality = '320k', onProgress, signal, ffmpegBin, ffprobeBin } = options;
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   const args = ['-y', '-i', inputPath, '-vn'];
   // Choose codec by format
@@ -58,8 +62,8 @@ async function run(inputPath, outputPath, options = {}) {
   else { throw new Error(`Unsupported output format: ${format}`); }
   args.push(outputPath);
 
-  const totalDuration = await runFfprobeDuration(inputPath);
-  await runFfmpeg(args, { onProgress, signal, totalDurationSec: totalDuration });
+  const totalDuration = await runFfprobeDuration(inputPath, { ffprobeBin });
+  await runFfmpeg(args, { onProgress, signal, totalDurationSec: totalDuration, ffmpegBin });
   return { outputPath };
 }
 

@@ -2,9 +2,19 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship a Windows NSIS installer and Portable executable from the existing Linux dev machine, with bundled ffmpeg.exe.
+**Branch:** All work happens on the `windows-installer` feature branch, off `main` (v0.2.1). Do not commit to `main` until the v0.3.0 release PR is reviewed and merged.
 
-**Architecture:** Minimal Linux-friendly Windows build path. All current decoders (NCM, QMC, KGM, KWM) work unchanged on Windows because they are pure JS / pure Node crypto. The only platform-specific code is a single `resolveFfmpegPath()` helper and a one-line `BrowserWindow` config change. Build artifacts come from electron-builder via Wine on Linux; verification is local 7z-extract + Wine smoke test.
+**Goal:** Ship a Windows NSIS installer and Portable executable from the existing Linux dev machine, with bundled `ffmpeg.exe` AND `ffprobe.exe`.
+
+**Architecture:** Minimal Linux-friendly Windows build path. All current decoders (NCM, QMC, KGM, KWM) work unchanged on Windows because they are pure JS / pure Node crypto. Platform-specific code is a small set of pure helpers (`src/main/ffmpeg-path.js`) and a one-line `BrowserWindow` config change. Build artifacts come from electron-builder via Wine on Linux; verification is local 7z-extract + Wine smoke test.
+
+**Linux zero-impact hard rules (per spec §2):** Every commit on this branch MUST:
+1. Not modify `package.json` `linux` sub-block
+2. Not modify anything in `src/preload/` or `src/renderer/`
+3. Not modify anything in `src/decoders/`
+4. Leave `node --test tests/` AND `npm run build:linux --dir` both green
+
+Run both verifications after every task. If a commit breaks Linux, revert before continuing.
 
 **Tech Stack:** Electron 28, Vite 5, electron-builder 24, ImageMagick (`convert`), Wine 64, p7zip-full. No new runtime dependencies.
 
@@ -14,16 +24,98 @@
 
 | File                                              | Status   | Responsibility                                                |
 | ------------------------------------------------- | -------- | ------------------------------------------------------------- |
-| `scripts/setup-win-deps.sh`                       | Create   | Download ffmpeg.exe + generate icon.ico on Linux dev          |
-| `scripts/win-deps/`                               | Create   | Holds downloaded ffmpeg.exe (gitignored)                      |
-| `src/main/ffmpeg-path.js`                         | Create   | Pure `resolveFfmpegPath({isPackaged, platform, resourcesPath})` helper |
-| `src/main/index.js`                               | Modify   | Wire the pure helper to Electron `app` context                |
-| `src/main/ffmpeg.js`                              | Modify   | Replace hard-coded `'ffmpeg'` with `resolveFfmpegPath()`      |
-| `package.json`                                    | Modify   | Add `win.target`, `extraResources`, `build:win` script         |
-| `tests/ffmpeg-path.test.js`                       | Create   | Unit test for the pure helper                                 |
-| `tests/build.test.sh`                             | Create   | Smoke test: 7z-extract NSIS, verify ffmpeg.exe is bundled     |
-| `.gitignore`                                      | Modify   | Ignore `scripts/win-deps/` (vendored binary)                   |
+| `docs/superpowers/baselines/2026-06-16-linux-pre-windows.md` | Create   | Task 0 baseline: record Linux test pass count + Linux build success |
+| `scripts/setup-win-deps.sh`                       | Create   | Download ffmpeg.exe + ffprobe.exe + generate icon.ico on Linux dev |
+| `scripts/win-deps/`                               | Create   | Holds downloaded ffmpeg.exe + ffprobe.exe (gitignored)         |
+| `src/main/ffmpeg-path.js`                         | Create   | Pure `resolveFfmpegPath` + `resolveFfprobePath` helpers        |
+| `src/main/index.js`                               | Modify   | Wire the pure helpers to Electron `app` context; fix BrowserWindow frame |
+| `src/main/ffmpeg.js`                              | Modify   | Read `ffmpegBin` / `ffprobeBin` from `opts` instead of hard-coded strings |
+| `package.json`                                    | Modify   | Add `win.target`, `win.extraResources`, `build:win` script     |
+| `tests/ffmpeg-path.test.js`                       | Create   | Unit tests for both pure helpers (8 tests)                    |
+| `tests/build.test.sh`                             | Create   | Smoke test: 7z-extract NSIS, verify both binaries are bundled  |
+| `.gitignore`                                      | Modify   | Ignore `scripts/win-deps/` (vendored binaries)                 |
 | `README.md`                                       | Modify   | Add Windows install section                                   |
+
+---
+
+## Task 0: Linux baseline + branch setup (DO THIS FIRST)
+
+**Files:**
+- Create: `docs/superpowers/baselines/2026-06-16-linux-pre-windows.md`
+- No code changes — this is a measurement, not an edit.
+
+- [ ] **Step 1: Verify you are on the `windows-installer` branch**
+
+```bash
+git branch --show-current
+```
+
+Expected: `windows-installer`. If not, run `git checkout -b windows-installer` from `main` first.
+
+- [ ] **Step 2: Verify working tree is clean**
+
+```bash
+git status
+```
+
+Expected: `nothing to commit, working tree clean`.
+
+- [ ] **Step 3: Capture Linux test baseline**
+
+```bash
+node --test tests/ 2>&1 | tee /tmp/baseline-tests.log
+```
+
+Expected: 5 existing test suites + the new ffmpeg-path suite all pass. The new ffmpeg-path tests don't exist yet, so the baseline is just the 5 existing suites. Record the pass count and any skips.
+
+- [ ] **Step 4: Capture Linux build baseline**
+
+```bash
+npm run build:linux --dir 2>&1 | tee /tmp/baseline-build.log
+```
+
+Expected: `release/linux-unpacked/` (or similar) is produced. The `--dir` flag skips packaging (no .deb / .AppImage) so the baseline is fast.
+
+- [ ] **Step 5: Write baseline doc**
+
+Create `docs/superpowers/baselines/2026-06-16-linux-pre-windows.md` (create the `baselines/` directory if needed):
+
+```markdown
+# Linux Pre-Windows Baseline (2026-06-16)
+
+Captured before the windows-installer branch started, to ensure every
+subsequent commit on the branch does not regress the v0.2.1 Linux build.
+
+## Test baseline
+
+\`\`\`
+$ node --test tests/
+<PASTE /tmp/baseline-tests.log>
+\`\`\`
+
+**Pass count:** <N> tests, <M> suites.
+**Expected after every task:** pass count does not decrease.
+
+## Build baseline
+
+\`\`\`
+$ npm run build:linux --dir
+<PASTE /tmp/baseline-build.log>
+\`\`\`
+
+**Result:** Linux unpacked build produced at `release/linux-unpacked/`.
+**Expected after every task:** build still succeeds.
+```
+
+- [ ] **Step 6: Commit baseline doc**
+
+```bash
+git add docs/superpowers/baselines/2026-06-16-linux-pre-windows.md
+git commit -m "Record Linux baseline before windows-installer work begins"
+```
+
+This commit establishes the "do not regress" measurement. Every
+subsequent commit on this branch can be checked against it.
 
 ---
 
@@ -57,27 +149,30 @@ No commit needed — this task only installs system tools on the dev machine. Pr
 
 ---
 
-## Task 2: Pure helper `resolveFfmpegPath()` + unit test (TDD)
+## Task 2: Pure helpers `resolveFfmpegPath()` + `resolveFfprobePath()` + unit tests (TDD)
 
 **Files:**
 - Create: `src/main/ffmpeg-path.js`
 - Create: `tests/ffmpeg-path.test.js`
 
-- [ ] **Step 1: Write the failing unit test**
+- [ ] **Step 1: Write the failing unit tests**
 
-Create `tests/ffmpeg-path.test.js`:
+Create `tests/ffmpeg-path.test.js` with 8 tests (4 platform × packaged for ffmpeg, mirrored for ffprobe):
 
 ```js
 /**
- * Tests for the pure resolveFfmpegPath helper. Pure function — does not
- * touch Electron `app` directly, so it's testable in plain Node.
+ * Tests for the pure resolveFfmpegPath / resolveFfprobePath helpers.
+ * Pure functions — do not touch Electron `app` directly, so they are
+ * testable in plain Node.
  */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const { resolveFfmpegPath } = require('../src/main/ffmpeg-path');
+const { resolveFfmpegPath, resolveFfprobePath } = require('../src/main/ffmpeg-path');
 
-test('returns bundled path on packaged Windows', () => {
+// --- ffmpeg path ---
+
+test('resolveFfmpegPath: bundled path on packaged Windows', () => {
   const result = resolveFfmpegPath({
     isPackaged: true,
     platform: 'win32',
@@ -86,7 +181,7 @@ test('returns bundled path on packaged Windows', () => {
   assert.equal(result, path.join('C:\\Users\\me\\AppData\\OpenConverter\\resources', 'ffmpeg.exe'));
 });
 
-test('returns "ffmpeg" on packaged Linux (let PATH handle it)', () => {
+test('resolveFfmpegPath: "ffmpeg" on packaged Linux (let PATH handle it)', () => {
   const result = resolveFfmpegPath({
     isPackaged: true,
     platform: 'linux',
@@ -95,7 +190,7 @@ test('returns "ffmpeg" on packaged Linux (let PATH handle it)', () => {
   assert.equal(result, 'ffmpeg');
 });
 
-test('returns "ffmpeg" on packaged macOS (let PATH handle it)', () => {
+test('resolveFfmpegPath: "ffmpeg" on packaged macOS (let PATH handle it)', () => {
   const result = resolveFfmpegPath({
     isPackaged: true,
     platform: 'darwin',
@@ -104,7 +199,7 @@ test('returns "ffmpeg" on packaged macOS (let PATH handle it)', () => {
   assert.equal(result, 'ffmpeg');
 });
 
-test('returns "ffmpeg" in dev mode (unpackaged) regardless of platform', () => {
+test('resolveFfmpegPath: "ffmpeg" in dev mode (unpackaged) regardless of platform', () => {
   const win = resolveFfmpegPath({
     isPackaged: false,
     platform: 'win32',
@@ -118,9 +213,53 @@ test('returns "ffmpeg" in dev mode (unpackaged) regardless of platform', () => {
   assert.equal(win, 'ffmpeg');
   assert.equal(linux, 'ffmpeg');
 });
+
+// --- ffprobe path (mirrored) ---
+
+test('resolveFfprobePath: bundled path on packaged Windows', () => {
+  const result = resolveFfprobePath({
+    isPackaged: true,
+    platform: 'win32',
+    resourcesPath: 'C:\\Users\\me\\AppData\\OpenConverter\\resources',
+  });
+  assert.equal(result, path.join('C:\\Users\\me\\AppData\\OpenConverter\\resources', 'ffprobe.exe'));
+});
+
+test('resolveFfprobePath: "ffprobe" on packaged Linux', () => {
+  const result = resolveFfprobePath({
+    isPackaged: true,
+    platform: 'linux',
+    resourcesPath: '/usr/share/openconverter/resources',
+  });
+  assert.equal(result, 'ffprobe');
+});
+
+test('resolveFfprobePath: "ffprobe" on packaged macOS', () => {
+  const result = resolveFfprobePath({
+    isPackaged: true,
+    platform: 'darwin',
+    resourcesPath: '/Applications/OpenConverter.app/Contents/Resources',
+  });
+  assert.equal(result, 'ffprobe');
+});
+
+test('resolveFfprobePath: "ffprobe" in dev mode regardless of platform', () => {
+  const win = resolveFfprobePath({
+    isPackaged: false,
+    platform: 'win32',
+    resourcesPath: 'C:\\temp\\dev\\resources',
+  });
+  const linux = resolveFfprobePath({
+    isPackaged: false,
+    platform: 'linux',
+    resourcesPath: '/tmp/dev/resources',
+  });
+  assert.equal(win, 'ffprobe');
+  assert.equal(linux, 'ffprobe');
+});
 ```
 
-- [ ] **Step 2: Run test, verify it fails**
+- [ ] **Step 2: Run tests, verify they fail**
 
 ```bash
 node --test tests/ffmpeg-path.test.js
@@ -134,17 +273,17 @@ Create `src/main/ffmpeg-path.js`:
 
 ```js
 /**
- * Pure helper: resolve the path to the bundled ffmpeg executable.
+ * Pure helpers: resolve paths to the bundled ffmpeg + ffprobe executables.
  *
- * Pure function — takes isPackaged/platform/resourcesPath explicitly so it
- * can be unit-tested without spinning up Electron. The main process wraps
- * this with the actual Electron `app` context.
+ * Pure functions — take isPackaged/platform/resourcesPath explicitly so
+ * they can be unit-tested without spinning up Electron. The main process
+ * wraps these with the actual Electron `app` context.
  *
  * Rules:
- *   - Packaged Windows build → resourcesPath/ffmpeg.exe (bundled by
- *     electron-builder extraResources).
- *   - Packaged Linux / macOS, or any dev mode → 'ffmpeg' (let the system
- *     PATH resolve it).
+ *   - Packaged Windows build → resourcesPath/ffmpeg.exe (and ffprobe.exe),
+ *     bundled by electron-builder extraResources.
+ *   - Packaged Linux / macOS, or any dev mode → 'ffmpeg' / 'ffprobe' (let
+ *     the system PATH resolve them).
  */
 const path = require('node:path');
 
@@ -155,22 +294,37 @@ function resolveFfmpegPath({ isPackaged, platform, resourcesPath }) {
   return 'ffmpeg';
 }
 
-module.exports = { resolveFfmpegPath };
+function resolveFfprobePath({ isPackaged, platform, resourcesPath }) {
+  if (isPackaged && platform === 'win32' && resourcesPath) {
+    return path.join(resourcesPath, 'ffprobe.exe');
+  }
+  return 'ffprobe';
+}
+
+module.exports = { resolveFfmpegPath, resolveFfprobePath };
 ```
 
-- [ ] **Step 4: Run test, verify it passes**
+- [ ] **Step 4: Run tests, verify they pass**
 
 ```bash
 node --test tests/ffmpeg-path.test.js
 ```
 
-Expected: 4 tests pass, 0 fail.
+Expected: 8 tests pass, 0 fail.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Verify Linux baseline NOT broken**
+
+```bash
+node --test tests/ 2>&1 | tail -20
+```
+
+Expected: existing 5 test suites still pass (the new ffmpeg-path suite is now part of the 6 total). Pass count compared to Task 0 baseline: should be baseline + 8.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add src/main/ffmpeg-path.js tests/ffmpeg-path.test.js
-git commit -m "Add pure resolveFfmpegPath helper with unit tests"
+git commit -m "Add pure resolveFfmpegPath + resolveFfprobePath helpers with unit tests"
 ```
 
 ---
@@ -203,7 +357,7 @@ const decoders = require('../decoders');
 Add this line:
 
 ```js
-const { resolveFfmpegPath } = require('./ffmpeg-path');
+const { resolveFfmpegPath, resolveFfprobePath } = require('./ffmpeg-path');
 ```
 
 - [ ] **Step 3: Replace the BrowserWindow config in createWindow()**
@@ -242,11 +396,10 @@ mainWindow = new BrowserWindow({
   backgroundColor: '#121212',
   title: 'OpenConverter',
   show: false,
-  // macOS / Linux: frameless + custom traffic-light title bar (in renderer).
-  // Windows: use OS-native title bar (frame: true) so users get standard
-  // minimize/maximize/close buttons and draggable title region.
-  frame: process.platform === 'darwin' ? false : true,
-  titleBarStyle: process.platform === 'darwin' ? 'hidden' : 'default',
+  // Linux + macOS: keep existing custom traffic-light title bar (v0.2.1
+  // behavior preserved). Windows: use OS-native title bar.
+  frame: process.platform === 'win32' ? true : false,
+  titleBarStyle: process.platform === 'win32' ? 'default' : 'hidden',
   icon: path.join(__dirname, '..', '..', 'build', 'icons', 'icon.png'),
   webPreferences: {
     preload: path.join(__dirname, '..', 'preload', 'index.js'),
@@ -257,18 +410,25 @@ mainWindow = new BrowserWindow({
 });
 ```
 
-- [ ] **Step 4: Replace the `run: ffmpegRun` import to wire the helper**
+> **Why `win32` not `darwin`:** the original draft used
+> `frame: process.platform === 'darwin' ? false : true` which would have
+> flipped Linux from `frame: false` to `frame: true` — a Linux UI
+> breaking change. The corrected condition leaves Linux (and macOS) on
+> the existing custom title bar and only changes Windows. This
+> satisfies the "no renderer / UI changes" constraint for Linux.
 
-The existing `ffmpeg.js` exports `run` (which currently spawns the literal string `'ffmpeg'`). We need to keep that signature stable from main's perspective, but ensure the resolution happens at spawn time. Instead of changing `ffmpeg.js`'s public API, expose a wrapper from `index.js`:
+- [ ] **Step 4: Replace the `run: ffmpegRun` import to wire the helpers**
+
+The existing `ffmpeg.js` exports `run` (which currently spawns the literal string `'ffmpeg'` and `'ffprobe'`). We need to keep that signature stable from main's perspective, but ensure the resolution happens at spawn time. Instead of changing `ffmpeg.js`'s public API, expose a wrapper from `index.js`:
 
 Replace the `const { run: ffmpegRun, probeDuration } = require('./ffmpeg');` line with:
 
 ```js
-const { run: ffmpegRunRaw, probeDuration } = require('./ffmpeg');
+const { run: ffmpegRunRaw, probeDuration: probeDurationRaw } = require('./ffmpeg');
 
-// Wrap ffmpegRun so the resolved path is used at call time. Done in main
-// (not ffmpeg.js) so ffmpeg.js stays a thin subprocess wrapper with no
-// Electron dependency.
+// Wrap ffmpegRun so the resolved paths are used at call time. Done in
+// main (not ffmpeg.js) so ffmpeg.js stays a thin subprocess wrapper
+// with no Electron dependency.
 function ffmpegRun(input, output, opts = {}) {
   const ffmpegBin = resolveFfmpegPath({
     isPackaged: app.isPackaged,
@@ -277,39 +437,60 @@ function ffmpegRun(input, output, opts = {}) {
   });
   return ffmpegRunRaw(input, output, { ...opts, ffmpegBin });
 }
+
+function probeDuration(filePath) {
+  const ffprobeBin = resolveFfprobePath({
+    isPackaged: app.isPackaged,
+    platform: process.platform,
+    resourcesPath: process.resourcesPath,
+  });
+  return probeDurationRaw(filePath, { ffprobeBin });
+}
 ```
 
-- [ ] **Step 5: Modify src/main/ffmpeg.js to accept the ffmpegBin option**
+- [ ] **Step 5: Modify src/main/ffmpeg.js to accept the binary path options**
 
-Read current `src/main/ffmpeg.js`. The `run` function currently does `spawn('ffmpeg', args, opts)`. Change the first arg of `spawn` to read from `opts.ffmpegBin`:
+Read current `src/main/ffmpeg.js`. There are two `spawn(...)` calls:
+- line 11: `spawn('ffmpeg', args, ...)`
+- line 40: `spawn('ffprobe', [...], ...)`
 
-Find the `spawn(...)` call inside the `run()` function and replace it:
+Change both to read from `opts`:
 
 ```js
-// Before:
-const proc = spawn('ffmpeg', args, opts);
-
-// After:
+// ffmpeg spawn (around line 11):
 const ffmpegBin = opts.ffmpegBin || 'ffmpeg';
 delete opts.ffmpegBin;
-const proc = spawn(ffmpegBin, args, opts);
+const proc = spawn(ffmpegBin, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+
+// ffprobe spawn (around line 40):
+function runFfprobeDuration(filePath, opts = {}) {
+  const ffprobeBin = opts.ffprobeBin || 'ffprobe';
+  const proc = spawn(ffprobeBin, [
+    '-v', 'error', '-show_entries', 'format=duration',
+    '-of', 'default=noprint_wrappers=1:nokey=1', filePath,
+  ], { stdio: ['ignore', 'pipe', 'pipe'] });
+  // ... existing promise wrapper unchanged ...
+}
 ```
 
-If the exact line differs in your tree, the change is the same: replace the literal `'ffmpeg'` with `opts.ffmpegBin || 'ffmpeg'`.
+Note: `runFfprobeDuration` is the internal name. The public export
+`probeDuration` is what main calls. The change is at the `spawn`
+call, not at the export — match the local variable name in your tree.
 
 - [ ] **Step 6: Run all tests to make sure nothing broke**
 
 ```bash
-node --test tests/
+node --test tests/ 2>&1 | tail -10
+npm run build:linux --dir 2>&1 | tail -5
 ```
 
-Expected: All existing test suites pass (NCM 14/14, QMC, QMCv2, KWM, KGM, plus the new ffmpeg-path). No regressions.
+Expected: 5 existing test suites + 8 ffmpeg-path tests all pass. Pass count compared to Task 0 baseline: baseline + 8. Linux build still succeeds (look for `release/linux-unpacked/`).
 
 - [ ] **Step 7: Commit**
 
 ```bash
 git add src/main/index.js src/main/ffmpeg.js
-git commit -m "Wire resolveFfmpegPath into main process, set frame=true on Windows"
+git commit -m "Wire resolveFfmpegPath/Path helpers, fix Linux frame (win32-only)"
 ```
 
 ---
@@ -327,8 +508,10 @@ Open `.gitignore`. After the `# Build outputs (regeneratable)` block, add:
 ```
 # Windows build artifacts (downloaded by scripts/setup-win-deps.sh, not committed)
 scripts/win-deps/
-vendor/win/
 ```
+
+The `vendor/win/` path from the original draft is replaced — the
+gitignore stays tight to the actual download location.
 
 - [ ] **Step 2: Write the setup script**
 
@@ -336,41 +519,46 @@ Create `scripts/setup-win-deps.sh`:
 
 ```bash
 #!/usr/bin/env bash
-# Setup script: download a Windows-compatible ffmpeg.exe and generate icon.ico
-# for use by electron-builder when building Windows installers.
+# Setup script: download Windows-compatible ffmpeg.exe + ffprobe.exe
+# and generate icon.ico for use by electron-builder when building
+# Windows installers.
 #
-# Idempotent: skips steps whose output already exists. Re-run after updating
-# the bundled ffmpeg version (e.g., to bump gyan.dev release).
+# Idempotent: skips steps whose output already exists. Re-run after
+# updating the bundled ffmpeg version (e.g., to bump gyan.dev release).
 #
 # Requires: wget, unzip, ImageMagick (convert). All standard on Debian/Ubuntu.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-FFMPEG_DIR="$ROOT/scripts/win-deps"
-FFMPEG_EXE="$FFMPEG_DIR/ffmpeg.exe"
+DEPS_DIR="$ROOT/scripts/win-deps"
+FFMPEG_EXE="$DEPS_DIR/ffmpeg.exe"
+FFPROBE_EXE="$DEPS_DIR/ffprobe.exe"
 ICON_PNG="$ROOT/build/icons/icon.png"
 ICON_ICO="$ROOT/build/icons/icon.ico"
 
-# --- ffmpeg.exe (gyan.dev essentials, latest 7.x) ---
-if [ ! -f "$FFMPEG_EXE" ]; then
-  echo "Downloading ffmpeg.exe (gyan.dev essentials build)..."
-  mkdir -p "$FFMPEG_DIR"
+# --- ffmpeg.exe + ffprobe.exe (gyan.dev essentials, latest 7.x) ---
+if [ ! -f "$FFMPEG_EXE" ] || [ ! -f "$FFPROBE_EXE" ]; then
+  echo "Downloading ffmpeg + ffprobe (gyan.dev essentials build)..."
+  mkdir -p "$DEPS_DIR"
   TMP="$(mktemp -d)"
   trap 'rm -rf "$TMP"' EXIT
   wget -q -O "$TMP/ffmpeg.zip" \
     "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
-  # The zip contains a directory like 'ffmpeg-7.1-essentials_build/bin/ffmpeg.exe'.
-  # Extract just the exe to a known path.
-  unzip -j "$TMP/ffmpeg.zip" 'ffmpeg-*-essentials_build/bin/ffmpeg.exe' \
-    -d "$FFMPEG_DIR/" >/dev/null
-  if [ ! -f "$FFMPEG_EXE" ]; then
-    echo "ERROR: ffmpeg.exe not found after extraction. Listing contents:"
+  # The zip contains ffmpeg-7.x-essentials_build/bin/{ffmpeg,ffprobe}.exe.
+  # Extract both to a known path.
+  unzip -j "$TMP/ffmpeg.zip" \
+    'ffmpeg-*-essentials_build/bin/ffmpeg.exe' \
+    'ffmpeg-*-essentials_build/bin/ffprobe.exe' \
+    -d "$DEPS_DIR/" >/dev/null
+  if [ ! -f "$FFMPEG_EXE" ] || [ ! -f "$FFPROBE_EXE" ]; then
+    echo "ERROR: ffmpeg.exe or ffprobe.exe not found after extraction. Listing contents:"
     unzip -l "$TMP/ffmpeg.zip" | head -20
     exit 1
   fi
   echo "  → $FFMPEG_EXE ($(du -h "$FFMPEG_EXE" | cut -f1))"
+  echo "  → $FFPROBE_EXE ($(du -h "$FFPROBE_EXE" | cut -f1))"
 else
-  echo "ffmpeg.exe already present, skipping download."
+  echo "ffmpeg.exe and ffprobe.exe already present, skipping download."
 fi
 
 # --- icon.ico (multi-resolution, from existing icon.png) ---
@@ -403,26 +591,33 @@ chmod +x scripts/setup-win-deps.sh
 ./scripts/setup-win-deps.sh
 ```
 
-Expected: Downloads ffmpeg.exe (~80 MB) and generates icon.ico. Both `scripts/win-deps/ffmpeg.exe` and `build/icons/icon.ico` should now exist. The script must not fail.
+Expected: Downloads ffmpeg.exe (~80 MB) AND ffprobe.exe (~80 MB) and generates icon.ico. Both `scripts/win-deps/ffmpeg.exe`, `scripts/win-deps/ffprobe.exe`, and `build/icons/icon.ico` should now exist. The script must not fail.
 
 - [ ] **Step 5: Verify outputs**
 
 ```bash
-ls -lh scripts/win-deps/ffmpeg.exe build/icons/icon.ico
-file scripts/win-deps/ffmpeg.exe
-file build/icons/icon.ico
+ls -lh scripts/win-deps/ffmpeg.exe scripts/win-deps/ffprobe.exe build/icons/icon.ico
+file scripts/win-deps/ffmpeg.exe scripts/win-deps/ffprobe.exe build/icons/icon.ico
 ```
 
-Expected: ffmpeg.exe shows as a Windows PE executable (e.g., `PE32+ executable (GUI) x86-64`). icon.ico shows as `MS Windows icon resource`.
+Expected: ffmpeg.exe and ffprobe.exe show as Windows PE executables (`PE32+ executable (GUI) x86-64`). icon.ico shows as `MS Windows icon resource`.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Verify Linux baseline NOT broken**
+
+```bash
+node --test tests/ 2>&1 | tail -5
+```
+
+Expected: same pass count as before this task (baseline + 8 from Task 2, no new changes). The .gitignore and script additions don't affect tests.
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git add .gitignore scripts/setup-win-deps.sh
-git commit -m "Add setup-win-deps.sh to vendor ffmpeg.exe and generate icon.ico"
+git commit -m "Add setup-win-deps.sh to vendor ffmpeg.exe + ffprobe.exe, gitignore scripts/win-deps/"
 ```
 
-Note: ffmpeg.exe and icon.ico are NOT committed — ffmpeg.exe is gitignored, icon.ico will be added in the next commit (after we verify it builds correctly).
+Note: ffmpeg.exe and ffprobe.exe are NOT committed (gitignored). icon.ico will be added in a future commit (after we verify it builds correctly).
 
 ---
 
@@ -437,9 +632,9 @@ Note: ffmpeg.exe and icon.ico are NOT committed — ffmpeg.exe is gitignored, ic
 cat package.json
 ```
 
-- [ ] **Step 2: Add `win`, `nsis`, `portable`, `extraResources` to the `build` object**
+- [ ] **Step 2: Add `win`, `nsis`, `portable` to the `build` object (with `extraResources` nested inside `win`)**
 
-Find the existing `"build"` block in `package.json`. It currently has `appId`, `productName`, `files`, `directories`, and `linux` keys. Add a `win` block (sibling of `linux`), an `nsis` config block, and an `extraResources` block at the end (sibling of `linux`):
+Find the existing `"build"` block in `package.json`. It currently has `appId`, `productName`, `files`, `directories`, and `linux` keys. Add a `win` block (sibling of `linux`) with `extraResources` nested INSIDE the `win` block (not at the top level), and add `nsis` and `portable` config blocks as siblings of `win`:
 
 ```json
 "build": {
@@ -470,7 +665,11 @@ Find the existing `"build"` block in `package.json`. It currently has `appId`, `
       { "target": "portable", "arch": ["x64"] }
     ],
     "icon": "build/icons/icon.ico",
-    "artifactName": "${productName}-${version}-${arch}.${ext}"
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "extraResources": [
+      { "from": "scripts/win-deps/ffmpeg.exe",  "to": "ffmpeg.exe" },
+      { "from": "scripts/win-deps/ffprobe.exe", "to": "ffprobe.exe" }
+    ]
   },
   "nsis": {
     "oneClick": false,
@@ -480,12 +679,16 @@ Find the existing `"build"` block in `package.json`. It currently has `appId`, `
   },
   "portable": {
     "artifactName": "${productName}-${version}-portable.${ext}"
-  },
-  "extraResources": [
-    { "from": "scripts/win-deps/ffmpeg.exe", "to": "ffmpeg.exe" }
-  ]
+  }
 }
 ```
+
+> **Why `extraResources` inside `win`, not top-level:** if `extraResources`
+> is at the top level of `build`, electron-builder applies it to ALL
+> targets (including Linux). On Linux dev, `scripts/win-deps/ffmpeg.exe`
+> only exists after `setup-win-deps.sh` runs, so the Linux build would
+> fail or produce a broken artifact. Nesting inside `win` keeps the
+> Linux build path completely untouched.
 
 Notes:
 - `artifactName` overrides produce predictable filenames matching the spec.
@@ -509,11 +712,20 @@ node -e "JSON.parse(require('fs').readFileSync('package.json', 'utf8')); console
 
 Expected: prints `OK`. If JSON parse fails, fix the syntax error before proceeding.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Verify Linux baseline NOT broken (CRITICAL)**
+
+```bash
+node --test tests/ 2>&1 | tail -5
+npm run build:linux --dir 2>&1 | tail -5
+```
+
+Expected: same pass count as before this task. Linux build still produces `release/linux-unpacked/`. If Linux build fails because electron-builder complains about a missing ffmpeg.exe, you forgot to nest `extraResources` inside `win` — go back to step 2.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add package.json
-git commit -m "Add Windows build target (NSIS + Portable) with bundled ffmpeg"
+git commit -m "Add Windows build target (NSIS + Portable) with bundled ffmpeg+ffprobe"
 ```
 
 ---
@@ -546,22 +758,31 @@ Expected: build runs to completion. Output should mention `building target=nsis`
 ls -lh release/*.exe
 ```
 
-Expected: two files roughly matching:
-- `OpenConverter-X.Y.Z-x64.exe` (NSIS installer, ~150 MB)
-- `OpenConverter-X.Y.Z-portable.exe` (Portable, ~150 MB)
+Expected: two files matching the unified naming convention:
+- `openconverter-vX.Y.Z-windows-x64-setup.exe` (NSIS installer, ~125 MB)
+- `openconverter-vX.Y.Z-windows-x64-portable.exe` (Portable, ~125 MB)
 
-- [ ] **Step 4: Extract NSIS to verify ffmpeg.exe is bundled**
+- [ ] **Step 4: Extract NSIS to verify ffmpeg.exe AND ffprobe.exe are bundled**
 
 ```bash
 mkdir -p /tmp/nsis-check
-7z x -y "release/OpenConverter-"*"setup.exe" -o/tmp/nsis-check >/dev/null
-ls -lh /tmp/nsis-check/resources/ffmpeg.exe
+7z x -y "release/openconverter-v"*"windows-x64-setup.exe" -o/tmp/nsis-check >/dev/null
+ls -lh /tmp/nsis-check/resources/ffmpeg.exe /tmp/nsis-check/resources/ffprobe.exe
 rm -rf /tmp/nsis-check
 ```
 
-Expected: ffmpeg.exe is present in `resources/`, size ~80 MB.
+Expected: BOTH ffmpeg.exe AND ffprobe.exe are present in `resources/`, each ~80 MB.
 
-- [ ] **Step 5: Commit no code** (artifacts are in release/, which is gitignored)
+- [ ] **Step 5: Verify Linux baseline NOT broken (sanity)**
+
+```bash
+node --test tests/ 2>&1 | tail -3
+npm run build:linux --dir 2>&1 | tail -3
+```
+
+Expected: tests pass count unchanged from baseline, Linux build still works. (This task only runs `electron-builder --win`, so Linux shouldn't be touched, but verify anyway.)
+
+- [ ] **Step 6: Commit no code** (artifacts are in release/, which is gitignored)
 
 Proceed to Task 7 for the automated smoke test.
 
@@ -582,7 +803,7 @@ Create `tests/build.test.sh`:
 #
 # Verifies:
 #   1. Both NSIS installer and Portable artifacts exist.
-#   2. NSIS installer contains resources/ffmpeg.exe (bundled).
+#   2. NSIS installer contains resources/ffmpeg.exe AND resources/ffprobe.exe.
 #   3. Wine can start the unpacked Electron binary and keep it alive.
 #
 # Exit code 0 = all checks passed. Non-zero = first failed check.
@@ -592,8 +813,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 RELEASE="$ROOT/release"
 
 # 1. Artifact existence
-NSIS=$(ls "$RELEASE"/OpenConverter-*-setup.exe 2>/dev/null | head -1)
-PORTABLE=$(ls "$RELEASE"/OpenConverter-*-portable.exe 2>/dev/null | head -1)
+NSIS=$(ls "$RELEASE"/openconverter-v"*"windows-x64-setup.exe" 2>/dev/null | head -1)
+PORTABLE=$(ls "$RELEASE"/openconverter-v"*"windows-x64-portable.exe" 2>/dev/null | head -1)
 
 if [ -z "$NSIS" ]; then
   echo "FAIL: NSIS installer not found in release/"
@@ -607,7 +828,7 @@ echo "PASS: NSIS and Portable artifacts present"
 echo "  NSIS:     $NSIS ($(du -h "$NSIS" | cut -f1))"
 echo "  Portable: $PORTABLE ($(du -h "$PORTABLE" | cut -f1))"
 
-# 2. ffmpeg.exe bundled inside NSIS
+# 2. ffmpeg.exe AND ffprobe.exe bundled inside NSIS
 CHECK_DIR="$(mktemp -d)"
 trap 'rm -rf "$CHECK_DIR"' EXIT
 7z x -y "$NSIS" -o"$CHECK_DIR" >/dev/null
@@ -617,7 +838,14 @@ if [ ! -f "$CHECK_DIR/resources/ffmpeg.exe" ]; then
   ls "$CHECK_DIR" | head -10
   exit 1
 fi
+if [ ! -f "$CHECK_DIR/resources/ffprobe.exe" ]; then
+  echo "FAIL: ffprobe.exe not bundled inside NSIS installer"
+  echo "  contents of resources/:"
+  ls "$CHECK_DIR/resources/" | head -10
+  exit 1
+fi
 echo "PASS: ffmpeg.exe bundled ($(du -h "$CHECK_DIR/resources/ffmpeg.exe" | cut -f1))"
+echo "PASS: ffprobe.exe bundled ($(du -h "$CHECK_DIR/resources/ffprobe.exe" | cut -f1))"
 
 # 3. Wine smoke test — Electron should at least start.
 UNPACKED="$RELEASE/win-unpacked/OpenConverter.exe"
@@ -660,9 +888,10 @@ Expected output (truncated):
 
 ```
 PASS: NSIS and Portable artifacts present
-  NSIS:     .../OpenConverter-0.3.0-x64.exe (150M)
-  Portable: .../OpenConverter-0.3.0-portable.exe (150M)
-PASS: ffmpeg.exe bundled (80M)
+  NSIS:     .../openconverter-v0.2.1-windows-x64-setup.exe (125M)
+  Portable: .../openconverter-v0.2.1-windows-x64-portable.exe (125M)
+PASS: ffmpeg.exe bundled (97M)
+PASS: ffprobe.exe bundled (97M)
 PASS: Wine process is still alive after 8s
 
 All build smoke tests passed.
@@ -692,13 +921,13 @@ grep -n "^## Install" README.md
 
 - [ ] **Step 2: Insert Windows subsection after Linux/AppImage sections**
 
-After the existing AppImage install code block (the `chmod +x` / `./OpenConverter-0.2.1.AppImage` lines) and before the `## Build from source` section, add:
+After the existing AppImage install code block (the `chmod +x` / `./OpenConverter-0.2.0.AppImage` lines) and before the `## Build from source` section, add:
 
 ```markdown
 ### Windows
 
-Download the latest `OpenConverter-X.Y.Z-setup.exe` (NSIS installer) or
-`OpenConverter-X.Y.Z-portable.exe` (portable, no install needed) from the
+Download the latest `openconverter-vX.Y.Z-windows-x64-setup.exe` (NSIS installer) or
+`openconverter-vX.Y.Z-windows-x64-portable.exe` (portable, no install needed) from the
 [Releases page](https://github.com/nowa277/OpenConverter/releases).
 
 - **Installer**: double-click `setup.exe`, follow the wizard, choose
@@ -706,7 +935,8 @@ Download the latest `OpenConverter-X.Y.Z-setup.exe` (NSIS installer) or
 - **Portable**: place `OpenConverter-X.Y.Z-portable.exe` anywhere (e.g.
   USB drive), double-click to run. No installer, no system changes.
 
-Both bundles include `ffmpeg.exe` — no separate ffmpeg install required.
+Both bundles include `ffmpeg.exe` and `ffprobe.exe` — no separate
+ffmpeg install required.
 
 **First launch note**: Windows SmartScreen will show "Windows protected
 your PC" with "Unknown publisher" on first run. Click **More info** →
@@ -722,7 +952,15 @@ grep -A 15 "^### Windows" README.md
 
 Expected: Windows section is present with the right structure.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Verify Linux baseline NOT broken**
+
+```bash
+node --test tests/ 2>&1 | tail -3
+```
+
+Expected: same pass count as before this task. README changes don't affect tests, but verify anyway per the §2 hard rules.
+
+- [ ] **Step 5: Commit**
 
 ```bash
 git add README.md
@@ -762,37 +1000,66 @@ dir if needed) and link from the spec doc.
 
 **Spec coverage check:**
 - Section 4.1 package.json — Task 5 ✓
-- Section 4.2 main/index.js — Task 3 (BrowserWindow) + Task 3 (helper wire) ✓
-- Section 4.3 main/ffmpeg.js — Task 3 step 5 ✓
-- Section 4.4 vendor/win/ffmpeg.exe → moved to `scripts/win-deps/` per
-  spec intent ("downloaded by setup script"). Task 4 ✓
+- Section 4.2 main/index.js — Task 3 step 3 (BrowserWindow `win32` fix) + Task 3 step 4 (helper wire, both ffmpeg+ffprobe) ✓
+- Section 4.3 main/ffmpeg.js — Task 3 step 5 (both spawns take opts) ✓
+- Section 4.4 scripts/win-deps/ffmpeg.exe + ffprobe.exe — Task 4 ✓
 - Section 4.5 icon.ico — Task 4 ✓
-- Section 4.6 setup-win-deps.sh — Task 4 ✓
-- Section 4.7 build.test.sh — Task 7 ✓
+- Section 4.6 setup-win-deps.sh — Task 4 (both binaries) ✓
+- Section 4.7 build.test.sh — Task 7 (checks both binaries) ✓
 - Section 4.8 README — Task 8 ✓
-- Section 6 verification: 4 layers — Task 6 (local build), Task 6 (7z
-  extract), Task 7 (wine smoke), Task 9 (manual acceptance) ✓
-- Section 9 acceptance criteria — addressed by Task 6 + Task 9 ✓
+- Section 4.9 ffmpeg-path.js — Task 2 (8 tests) + Task 3 step 2 (wiring) ✓
+- Section 6 verification: 5 layers (unit tests, local build, bundle
+  integrity, wine smoke, manual acceptance) — Task 2 (unit), Task 6
+  (build), Task 6 (7z extract), Task 7 (smoke), Task 9 (manual) ✓
+- Section 9 acceptance criteria — Task 6 (binary check) + Task 7
+  (smoke) + Task 9 (manual) ✓
+- Section 11 multi-platform principles — reflected throughout
+  (Task 0 baseline, per-task Linux verify, additive-only changes) ✓
+
+**Linux zero-impact verification:** every code-modifying task (Tasks
+2, 3, 4, 5, 7, 8) has a "verify Linux baseline NOT broken" step that
+runs `node --test tests/` and compares to Task 0 baseline. A
+regression is a blocker.
 
 **Placeholder scan:** No "TBD" / "TODO" / "implement later". Every step
 either has concrete commands or code blocks.
 
 **Type consistency:**
-- `resolveFfmpegPath` signature: `{ isPackaged, platform, resourcesPath }`
-  in tests (Task 2), in main wiring (Task 3 step 4) ✓
-- `ffmpegRun` wrapper signature matches original (input, output, opts)
-- ffmpeg.js opts.ffmpegBin flow: passed in via wrapper → consumed in
-  spawn call ✓
+- `resolveFfmpegPath` / `resolveFfprobePath` signatures: `{ isPackaged,
+  platform, resourcesPath }` in tests (Task 2) and in main wiring
+  (Task 3 step 4) ✓
+- `ffmpegRun` / `probeDuration` wrapper signatures match original
+  (input, output, opts) and (filePath) ✓
+- ffmpeg.js opts flow: `ffmpegBin` + `ffprobeBin` passed in via
+  wrappers → consumed in spawn calls (then deleted from opts so
+  child_process doesn't choke) ✓
 
 **File structure check:**
-- `src/main/ffmpeg-path.js` is single-responsibility (pure helper) ✓
+- `src/main/ffmpeg-path.js` is single-responsibility (pure helpers) ✓
 - `scripts/setup-win-deps.sh` is single-responsibility (deps setup) ✓
 - `tests/build.test.sh` is single-responsibility (build smoke) ✓
 - Existing `src/main/ffmpeg.js` stays thin subprocess wrapper ✓
+- New `src/main/ffmpeg-path.js` keeps ffmpeg.js Electron-free ✓
+
+**Branch strategy:** all work happens on `windows-installer` branch
+(off main v0.2.1). Each task = 1 commit. Each commit is independently
+reviewable.
 
 **Known scope gap:** Task 9 (manual acceptance) is not automatable.
 Documented as deferred to user; spec Section 9 explicitly requires
 real-Windows testing which is by definition not in this implementation
 plan.
 
-No issues found. Plan is ready for execution.
+**Refinements from brainstorming (vs. original plan):**
+1. Task 0 added (Linux baseline + branch setup)
+2. Q1 fix: BrowserWindow uses `win32 ? true : false` (not
+   `darwin ? false : true`) — preserves v0.2.1 Linux UI
+3. Q2 fix: `extraResources` nested inside `win` block — keeps Linux
+   build path completely untouched
+4. ffprobe.exe added throughout (plan originally only mentioned ffmpeg)
+5. Per-task Linux baseline verification added (not just at end)
+6. `vendor/win/` gitignore removed (replaced by `scripts/win-deps/`)
+7. Spec §11 added with long-term multi-platform principles
+
+No issues found. Plan is ready for execution on the `windows-installer`
+branch.
