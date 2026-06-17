@@ -11,10 +11,13 @@
 # v0.3.0 changes from v0.2.2:
 #   - Step 2 switched from self-build ffmpeg (decoder-only) to
 #     install-ffmpeg-kit 6.0 full-gpl (decoder + 5 encoders)
-#   - APK artifact names: v0.2.2 -> v0.3.0
+#   - APK artifact names: v0.2.2 -> v0.3.x
 #   - Per-ABI APK size grows from ~3-4 MB to ~28-52 MB (ffmpeg-kit)
 #
-# Output: release/openconverter-v0.3.0-android-{arm64-v8a,armeabi-v7a,x86_64}.apk
+# v0.3.1 (hotfix): add ALOGE logging + SafAdapter MIME fix + output path UI
+#
+# Output: release/openconverter-v<version>-android-{arm64-v8a,armeabi-v7a,x86_64}.apk
+VERSION="${VERSION:-v0.3.1}"
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -50,10 +53,10 @@ export PATH="$JAVA_HOME/bin:$PATH"
 echo "[$(date +%H:%M:%S)] Step 3/3: Copying APKs to release/..."
 APK_DIR="$ROOT/android/app/build/outputs/apk/release"
 mkdir -p "$ROOT/release"
-cp "$APK_DIR"/openconverter-v0.3.0-android-*.apk "$ROOT/release/"
+cp "$APK_DIR"/openconverter-v${VERSION}-android-*.apk "$ROOT/release/"
 
 echo ""
 echo "========================================"
-echo "BUILD COMPLETE (v0.3.0)"
+echo "BUILD COMPLETE (${VERSION})"
 echo "========================================"
-ls -lh "$ROOT/release"/openconverter-v0.3.0-android-*.apk
+ls -lh "$ROOT/release"/openconverter-v${VERSION}-android-*.apk
