@@ -76,12 +76,20 @@ for ABI in arm64-v8a armeabi-v7a x86_64; do
     cd "${SRC_DIR}"
     make distclean >/dev/null 2>&1 || true
 
-    # DECODER-ONLY configuration for M1.
-    # No --enable-encoder, no --enable-libmp3lame, no --enable-libfdk-aac,
-    # no --enable-libvorbis — ffmpeg's built-in audio decoders are sufficient
-    # for M1 (NCM decrypt + MP3/FLAC/etc passthrough). Encoders come in M3.
+    # Look up libmp3lame from Phase 2 build (build-lame.sh)
+    LAME_INCLUDE_DIR="${BUILD_CACHE}/build-lame-${ABI}/include"
+    LAME_LIB_DIR="${BUILD_CACHE}/build-lame-${ABI}/lib"
+
+    if [ ! -d "${LAME_INCLUDE_DIR}" ] || [ ! -d "${LAME_LIB_DIR}" ]; then
+        echo "ERROR: libmp3lame not built for ${ABI}. Run build-lame.sh first." >&2
+        exit 1
+    fi
+
+    # v0.3.0: real encoder support (4 built-in encoders + libmp3lame external)
+    # --enable-encoder=aac,flac,vorbis,pcm_s16le are all built-in to ffmpeg
+    # (no external deps). libmp3lame is the only external lib for MP3.
     # --disable-x86asm: x86_64 build needs nasm/yasm; we don't have them and
-    # don't need SIMD optimizations for a decoder-only build (no-op for ARM).
+    # don't need SIMD optimizations for an encoder+decoder build (no-op for ARM).
     ./configure \
         --prefix="${PREFIX}" \
         --enable-shared \
@@ -92,8 +100,13 @@ for ABI in arm64-v8a armeabi-v7a x86_64; do
         --disable-x86asm \
         --enable-protocol=file \
         --enable-demuxer=mp3,flac,wav,ogg,m4a,aac,opus \
-        --enable-parser=mpegaudio,flac,vorbis,aac \
         --enable-decoder=mp3,flac,vorbis,aac,opus \
+        --enable-muxer=mp3,wav,flac,ogg,m4a,ipod \
+        --enable-parser=mpegaudio,flac,vorbis,aac \
+        --enable-encoder=aac,flac,vorbis,pcm_s16le \
+        --enable-libmp3lame \
+        --extra-cflags="-Os -fPIC -I${LAME_INCLUDE_DIR}" \
+        --extra-ldflags="-L${LAME_LIB_DIR} -lmp3lame -Wl,-z,defs -Wl,--no-undefined" \
         --enable-cross-compile \
         --cross-prefix="${TOOLCHAIN}/bin/${TRIPLE}-" \
         --nm="${TOOLCHAIN}/bin/llvm-nm" \
@@ -106,8 +119,6 @@ for ABI in arm64-v8a armeabi-v7a x86_64; do
         --cpu="${CPU}" \
         --cc="${TOOLCHAIN}/bin/${TRIPLE}${ANDROID_API}-clang" \
         --cxx="${TOOLCHAIN}/bin/${TRIPLE}${ANDROID_API}-clang++" \
-        --extra-cflags="-Os -fPIC" \
-        --extra-ldflags="-Wl,-z,defs -Wl,--no-undefined" \
         >"${LOG_DIR}/configure.log" 2>&1
 
     echo "=== Building ffmpeg for ${ABI} ==="
@@ -127,6 +138,6 @@ for ABI in arm64-v8a armeabi-v7a x86_64; do
 done
 
 echo ""
-echo "ffmpeg (decoder-only, M1) build complete."
-echo "Note: encoders (libmp3lame, libfdk-aac, libvorbis) are not built."
-echo "Re-encoding (e.g. MP3→FLAC) will fail until M3 Task 3.5 adds them."
+echo "ffmpeg (decoder + encoder, v0.3.0) build complete."
+echo "Encoders: aac (built-in), flac (built-in), vorbis (built-in),"
+echo "          pcm_s16le (built-in), libmp3lame (external static)."
