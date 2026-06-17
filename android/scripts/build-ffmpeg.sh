@@ -61,7 +61,10 @@ for ABI in arm64-v8a armeabi-v7a x86_64; do
     case "${ABI}" in
         arm64-v8a)   TRIPLE="aarch64-linux-android";   ARCH="aarch64";   CPU="armv8-a"   ;;
         armeabi-v7a) TRIPLE="armv7a-linux-androideabi"; ARCH="arm";       CPU="armv7-a"   ;;
-        x86_64)      TRIPLE="x86_64-linux-android";    ARCH="x86_64";    CPU="x86_64"    ;;
+        # clang rejects --cpu=x86_64 (it expects 'x86-64' with hyphen, or a
+        # specific microarch like 'skylake'). The configure check is just
+        # to validate the compiler; generic 'x86-64' is correct here.
+        x86_64)      TRIPLE="x86_64-linux-android";    ARCH="x86_64";    CPU="x86-64"   ;;
     esac
 
     PREFIX="${BUILD_CACHE}/build-${ABI}"
