@@ -70,4 +70,16 @@ class FileListViewModelTest {
         // switch back to same — still cleared (already empty)
         vm.clearOutputIfFormatChanged("mp3")
     }
+
+    @Test
+    fun `sanitizeBaseName applied to single-file path produces safe stem`() {
+        // Mirrors the ConversionService branch logic in testable form.
+        val raw = "song/with/slashes"
+        val sanitized = FileListViewModel.sanitizeBaseName(raw)
+        // FS-unsafe characters replaced; stem remains safe for SAF createDocument call
+        assertEquals("song_with_slashes", sanitized)
+        // No path separator in the result — would not survive a SAF createDocument call
+        assert(!sanitized.contains('/'))
+        assert(!sanitized.contains('\\'))
+    }
 }

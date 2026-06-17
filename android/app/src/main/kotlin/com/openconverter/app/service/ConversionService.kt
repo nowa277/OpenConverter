@@ -81,10 +81,14 @@ class ConversionService : Service() {
 
                 // Single-file: honor the user-edited baseName as the output stem.
                 // Multi-file: keep each source's own stem to avoid collisions.
-                val outName = if (uris.size == 1 && baseName.isNotBlank()) {
-                    "$baseName.$targetFormat"
+                val sanitizedBase = com.openconverter.app.ui.vm.FileListViewModel
+                    .sanitizeBaseName(baseName)
+                val outName = if (uris.size == 1 && sanitizedBase.isNotBlank() &&
+                                  sanitizedBase != "output") {
+                    "$sanitizedBase.$targetFormat"
                 } else {
-                    val sourceStem = displayName?.substringBeforeLast('.', "output_$i") ?: "output_$i"
+                    val sourceStem = displayName?.substringBeforeLast('.', "output_$i")
+                        ?: "output_$i"
                     "$sourceStem.$targetFormat"
                 }
                 val outUri = if (folderUri != null) {
