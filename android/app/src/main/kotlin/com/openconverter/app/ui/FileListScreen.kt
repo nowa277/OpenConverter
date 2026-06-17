@@ -125,13 +125,20 @@ fun FileListScreen(
                 Text(if (outputFolder == null) "选择输出文件夹" else "更改文件夹")
             }
             if (outputFolder != null) {
+                val isMulti = files.size > 1
                 OutlinedTextField(
                     value = outputBaseName,
                     onValueChange = { fileListVm.setOutputBaseName(it) },
+                    enabled = !isMulti,
                     label = { Text("输出文件名 (不含后缀)") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    supportingText = { Text("将自动加上 .${targetFormat} 后缀") },
+                    supportingText = {
+                        Text(
+                            if (isMulti) "多文件时使用各自源文件名 (已禁用编辑)"
+                            else "将自动加上 .${targetFormat} 后缀"
+                        )
+                    },
                 )
             }
         }
