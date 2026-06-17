@@ -32,4 +32,5 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
     </application>
+    </application>
 </manifest>

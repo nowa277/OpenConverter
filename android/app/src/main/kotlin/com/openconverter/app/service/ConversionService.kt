@@ -134,8 +134,12 @@ class ConversionService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {  // API 34
             // FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING = 0x00200000 (Android 14).
             // ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING was added at
-            // API 34; the constant isn't visible to the compiler in this SDK,
-            // so use the documented int value.
+            // API 34; the constant isn't visible to the compiler in this SDK
+            // (compileSdk 34 manifest schema does not yet recognize the
+            // "mediaProcessing" string attribute), so use the documented int
+            // value. Manifest currently declares dataSync for compatibility with
+            // compileSdk 34; the runtime type is what StrictMode actually checks
+            // at startForeground time.
             startForeground(
                 ProgressNotification.NOTIFICATION_ID,
                 notification,
