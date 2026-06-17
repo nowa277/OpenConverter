@@ -1,22 +1,39 @@
 package com.openconverter.app.ffmpeg
 
 /**
- * Kotlin wrapper around the native ffmpeg libraries (libavformat, libavcodec,
- * libavutil, libswresample, libswscale, libavfilter, libavdevice).
+ * Pure interface describing what the orchestrator needs from ffmpeg.
  *
- * The native implementation is in app/src/main/cpp/ffmpeg_jni.cpp.
- * It links against the prebuilt .so files (in jniLibs/<abi>/).
+ * Defined so JVM unit tests can inject a fake transcoder (e.g. a passthrough
+ * stub) without ever loading the native libraries. The real production
+ * implementation is [FfmpegBridge] (an `object` — JVM-instantiated once,
+ * loads the .so files in its `init` block).
  *
- * M1 scope: this is a STUB. The actual ffmpeg transcode logic is filled
- * in by Task 3.5. For M1, the stub returns the input bytes unchanged
- * so the NcmDecoder → FfmpegBridge pipeline can be exercised end-to-end.
- *
- * M1 test path: NcmDecoder.decrypt(ncm) → AudioData (raw MP3 bytes) →
- * FfmpegBridge.transcode(audio.bytes, "mp3", "mp3", 256) → byte[] (passthrough).
- * We then ffprobe the output to verify it's a valid MP3 with non-zero
- * duration (M1 acceptance).
+ * Why an interface, not just a stub: the JNI load in FfmpegBridge's `init`
+ * block runs on first class-init, and a pure JVM test that touches
+ * FfmpegBridge.transcode will UnsatisfiedLinkError before the test body
+ * executes. Routing the orchestrator through this interface keeps the test
+ * JVM free of native deps.
  */
-object FfmpegBridge {
+interface FfmpegTranscoder {
+    fun transcode(
+        inputBytes: ByteArray,
+        inputFormat: String,
+        outputFormat: String,
+        bitrateKbps: Int,
+    ): ByteArray
+}
+
+/**
+ * Production ffmpeg transcoder — Kotlin wrapper around the native libraries
+ * (libavformat, libavcodec, libavutil, libswresample, libswscale,
+ * libavfilter, libavdevice). The native implementation is in
+ * app/src/main/cpp/ffmpeg_jni.cpp.
+ *
+ * M3.1 scope: this is still a STUB. The actual ffmpeg transcode logic is
+ * filled in by Task 3.5. The stub returns the input bytes unchanged so the
+ * NcmDecoder → FfmpegBridge pipeline can be exercised end-to-end.
+ */
+object FfmpegBridge : FfmpegTranscoder {
     init {
         // Load in dependency order. Android's System.loadLibrary() resolves
         // transitive deps, but explicit ordering is documentation.
@@ -30,10 +47,14 @@ object FfmpegBridge {
     }
 
     /**
-     * Stub: returns input bytes unchanged. Real implementation in Task 3.5
-     * will use ffmpeg's avcodec API to transcode between formats.
+     * JNI symbol: Java_com_openconverter_ffmpeg_FfmpegBridge_transcode.
+     * Package in C signature is the historic `com.openconverter.ffmpeg` —
+     * M3.5 will fix the JNI package binding to match our current
+     * `com.openconverter.app.ffmpeg` location. Until then, the JNI stub
+     * is not actually invoked at runtime; this code is reachable only on
+     * an emulator build with a matching JNI package.
      */
-    external fun transcode(
+    external override fun transcode(
         inputBytes: ByteArray,
         inputFormat: String,
         outputFormat: String,
