@@ -4,7 +4,7 @@
 set -euo pipefail
 
 FFMPEG_VERSION="7.0.2"
-FFMPEG_SHA256="5f0fb39e7e822ea9737fa9b4c19cf52d9aacf5b3bf2f4b0c1bdef7cdd5ce6fa6"
+FFMPEG_SHA256="8646515b638a3ad303e23af6a3587734447cb8fc0a0c064ecdb8e95c4fd8b389"
 FFMPEG_URL="https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz"
 
 ANDROID_NDK_HOME="${ANDROID_NDK_HOME:?ANDROID_NDK_HOME not set}"
