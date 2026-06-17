@@ -1,0 +1,4 @@
+# Copy this file to local.properties and fill in your SDK/NDK paths.
+# local.properties is gitignored; this template is committed.
+sdk.dir=/home/user/Android/Sdk
+ndk.dir=/home/user/Android/Sdk/ndk/25.2.9519653

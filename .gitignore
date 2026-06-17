@@ -71,3 +71,18 @@ build/icons/*.ico
 
 # Local user artifacts (test screenshots, scratch output)
 errors_screenshots/
+
+# Android build outputs (regeneratable, large)
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/app/src/main/jniLibs/*/libffmpeg.so
+android/app/src/main/jniLibs/*/libffmpeg.so.debug
+
+# Android signing keys
+*.jks
+*.keystore
+
+# Android release artifacts
+release/openconverter-v*.apk
