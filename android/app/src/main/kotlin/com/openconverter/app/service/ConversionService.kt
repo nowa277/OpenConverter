@@ -7,6 +7,7 @@ import android.content.pm.ServiceInfo
 import android.net.Uri
 import android.os.Build
 import android.os.IBinder
+import android.provider.OpenableColumns
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.openconverter.app.ekey.EkeyStore
@@ -61,8 +62,15 @@ class ConversionService : Service() {
                     return@forEachIndexed
                 }
 
+                val displayName = queryDisplayName(uri)
                 val result = runCatching {
-                    orchestrator.convertOneInMemory(input, ekey, targetFormat)
+                    orchestrator.convertOneInMemory(
+                        input = input,
+                        fileName = displayName,
+                        ekey = ekey,
+                        targetFormat = targetFormat,
+                        bitrateKbps = 256,
+                    )
                 }
                 if (result.isFailure) {
                     val err = result.exceptionOrNull()?.message ?: "未知错误"
@@ -148,6 +156,21 @@ class ConversionService : Service() {
         object Idle : Progress()
         data class Processing(val index: Int, val total: Int, val current: String) : Progress()
         data class Done(val completed: Int, val total: Int, val last: String) : Progress()
+    }
+
+    private fun queryDisplayName(uri: Uri): String? = try {
+        contentResolver.query(
+            uri,
+            arrayOf(android.provider.OpenableColumns.DISPLAY_NAME),
+            null, null, null
+        )?.use { c ->
+            if (c.moveToFirst()) {
+                val idx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                if (idx >= 0 && !c.isNull(idx)) c.getString(idx) else null
+            } else null
+        }
+    } catch (e: Exception) {
+        null
     }
 
     companion object {
