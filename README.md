@@ -148,28 +148,29 @@ node tests/kgm.test.js        # KGM / KGMA / VPR round-trip
 从 [Releases 页面](https://github.com/nowa277/OpenConverter/releases)
 下载最新版本：
 
-- **arm64-v8a**：`openconverter-v0.2.2-android-arm64-v8a.apk`（~3.5 MB，现代手机）
-- **armeabi-v7a**：`openconverter-v0.2.2-android-armeabi-v7a.apk`（~3.1 MB，老年机/低端机）
-- **x86_64**：`openconverter-v0.2.2-android-x86_64.apk`（~3.9 MB，模拟器测试用）
+- **arm64-v8a**：`openconverter-v0.3.0-android-arm64-v8a.apk`（~28 MB，现代手机）
+- **armeabi-v7a**：`openconverter-v0.3.0-android-armeabi-v7a.apk`（~52 MB，老年机/低端机）
+- **x86_64**：`openconverter-v0.3.0-android-x86_64.apk`（~34 MB，模拟器测试用）
 
 下载后在手机上点击 APK 安装（首次需开启"安装未知来源应用"权限）。
-**APK 已用 v0.2.2 专用 keystore 签名**（非 debug 签名），手机可能提示"未知发布者"，
+**APK 已用 v0.3.0 专用 keystore 签名**（非 debug 签名），手机可能提示"未知发布者"，
 点"仍要安装"即可。
 
-**功能**：11 种加密音频格式 → MP3 / FLAC / WAV / M4A / OGG。
+**功能**：11 种加密音频格式 → MP3 / FLAC / WAV / M4A / OGG 真实转码。
+**v0.3.0 起**：FormatDetector 自动识别 11 个格式（4 个 magic + 7 个 headerless
+按扩展名），选文件时**不需要**带后缀。
 **ekey 设置**：QQ Music v2 加密（MFLAC / MGG / BKC*）需要在 App 内"设置 → QQ Music ekey"里填一次。
 **首次运行**：会请求"通知"权限（用于显示转换进度）。
 
-**架构**：原生 Kotlin + Jetpack Compose，调用 NDK 构建的 ffmpeg 7.0.2 共享库
-（音频 codec only，decoder-only），4 个 decoder 全部字节级 TDD 通过
-（与桌面端输出 sha256 完全一致）。
+**架构**：原生 Kotlin + Jetpack Compose，调用 **ffmpeg-kit 6.0 full-gpl**
+（FFmpeg n6.0 + libmp3lame MP3 编码器 + 4 个内置编码器），所有 5 个输出
+格式真实转码。APK 体积因 ffmpeg-kit 较大（~28-52 MB），换取 5 个格式全支持。
 
 **已知限制**：
-- 重新编码（MP3→FLAC 等）暂未启用，原因是 ffmpeg 自编译时缺少 libmp3lame
-  /libfdk-aac/libvorbis 外部依赖（参见 plan §12.1 的失败记录）。当前
-  NCM 解密后是 MP3 字节（passthrough），可正常播放；要转码为 FLAC/OGG 等
-  需要先用桌面端转换，或等待 v0.3.0 启用 ffmpeg encoder。
-- APK 暂未上架 Play Store / F-Droid（v0.2.2 范围外）。
+- BKC 8 个变体（bkc, bkcmp3, bkcflac, bkcogg, bkcm4a, bkcwav, bkcwma, bkcape）
+  v0.3.0 仍为 stub 状态（synthetic 测试通过，真实文件验证留 v0.3.1）。
+- 进度条 / 取消按钮 v0.3.0 不加（v0.3.1）。
+- APK 暂未上架 Play Store / F-Droid。
 
 ## 许可证
 
