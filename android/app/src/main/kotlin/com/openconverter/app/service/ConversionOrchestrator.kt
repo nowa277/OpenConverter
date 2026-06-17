@@ -44,21 +44,24 @@ class ConversionOrchestrator(
      * Convert one in-memory buffer.
      *
      * @param input raw encrypted bytes (any of the supported formats).
+     * @param fileName original filename for extension-based dispatch
+     *   (headerless formats like QMC v1/v2 require this).
      * @param ekey QQ Music ekey string, required only for QMCv2 files.
      * @param targetFormat output container ("mp3" / "flac" / "wav" / "m4a" / "ogg").
-     * @param bitrateKbps target bitrate hint for the ffmpeg stub (real
-     *   implementation will use it in Task 3.5).
+     * @param bitrateKbps target bitrate hint for ffmpeg.
      * @throws IllegalArgumentException if the format is unknown or unsupported.
      * @throws com.openconverter.app.decoders.MissingEkeyException for QMCv2
      *   without an ekey.
      */
     fun convertOneInMemory(
         input: ByteArray,
+        fileName: String? = null,
         ekey: String? = null,
         targetFormat: String = "mp3",
         bitrateKbps: Int = 256,
     ): Result {
-        val sourceFormat = FormatDetector.detect(input)
+        val firstBytes = if (input.size >= 16) input.copyOfRange(0, 16) else null
+        val sourceFormat = FormatDetector.detect(firstBytes, fileName)
             ?: throw IllegalArgumentException(
                 "Unknown format. First bytes: " +
                     input.copyOfRange(0, minOf(16, input.size))
