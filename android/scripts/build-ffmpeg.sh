@@ -80,6 +80,8 @@ for ABI in arm64-v8a armeabi-v7a x86_64; do
     # No --enable-encoder, no --enable-libmp3lame, no --enable-libfdk-aac,
     # no --enable-libvorbis — ffmpeg's built-in audio decoders are sufficient
     # for M1 (NCM decrypt + MP3/FLAC/etc passthrough). Encoders come in M3.
+    # --disable-x86asm: x86_64 build needs nasm/yasm; we don't have them and
+    # don't need SIMD optimizations for a decoder-only build (no-op for ARM).
     ./configure \
         --prefix="${PREFIX}" \
         --enable-shared \
@@ -87,6 +89,7 @@ for ABI in arm64-v8a armeabi-v7a x86_64; do
         --disable-programs \
         --disable-doc \
         --disable-everything \
+        --disable-x86asm \
         --enable-protocol=file \
         --enable-demuxer=mp3,flac,wav,ogg,m4a,aac,opus \
         --enable-parser=mpegaudio,flac,vorbis,aac \
