@@ -1,148 +1,143 @@
 # OpenConverter
 
-Open-source audio format converter. Converts encrypted audio formats
-(NCM, QMC, KGM, KWM, MFLAC, MGG, BKC) to common formats (MP3, FLAC,
-WAV, M4A, OGG) using pure-JavaScript decoders and `ffmpeg`.
+开源加密音频格式转换器。把网易云、QQ 音乐、酷狗、酷我等平台的
+**加密音频**（NCM / QMC / KGM / KWM / MFLAC / MGG / BKC 等）转换为
+通用格式（MP3 / FLAC / WAV / M4A / OGG），全部使用纯 JavaScript
+解码器 + `ffmpeg` 转码。
 
-Spotify-inspired dark UI. Native packages for **Linux** (.deb /
-AppImage) and **Windows** (NSIS installer / portable).
+Spotify 风格的深色 UI，原生支持 **Linux**（.deb / AppImage）和
+**Windows**（NSIS 安装包 / 便携版）。
 
-## Supported formats
+## 支持的格式
 
-| Format                 | Source        | Verification                                                                                    |
-| ---------------------- | ------------- | ----------------------------------------------------------------------------------------------- |
-| `.ncm`                 | NetEase       | Byte-diff against Python `ncmdump` reference (14/14 samples, 0 diff)                             |
-| `.qmc0` / `.qmc3`      | QQ Music      | Algorithm cross-checked against C++/Rust references; round-trip on real MP3 (ffprobe 2.06s)      |
-| `.qmcflac`             | QQ Music      | Same algorithm as QMC0; round-trip verified                                                      |
-| `.qmcogg`              | QQ Music      | Same algorithm as QMC0; round-trip verified                                                      |
-| `.kwm`                 | Kuwo          | Re-derived from `davidxuang/MusicDecrypto` (LGPL, re-implemented); round-trip verified          |
-| `.kgm` / `.kgma`       | KuGou         | Re-implemented from `huangbao/MyKgmWasm` (MIT); round-trip verified                             |
-| `.vpr`                 | KuGou         | Same algorithm as KGM (post-mask only); round-trip verified                                     |
-| `.mflac` / `.mflac0`   | QQ Music      | QMCv2 cipher; key from user-provided ekey. `key_compress` cross-checked against pyqmc-rust       |
-| `.mgg` / `.mgg1`       | QQ Music      | QMCv2 cipher; requires user-provided ekey                                                        |
-| `.bkc*`                | QQ Music      | QMCv2 cipher; same dispatcher as MFLAC. `.bkc, .bkcmp3, .bkcflac, .bkcogg, .bkcm4a, .bkcwav, .bkcwma, .bkcape` |
-| `.mp3` / `.flac` / `.wav` / `.m4a` / `.aac` / `.ogg` / `.opus` | passthrough | Direct copy or `ffmpeg` re-encode to target format |
+| 格式                 | 来源       | 说明                                                                                              |
+| -------------------- | ---------- | ------------------------------------------------------------------------------------------------- |
+| `.ncm`               | 网易云     | 与 Python `ncmdump` 参考实现逐字节对比（14/14 样本，0 差异）                                      |
+| `.qmc0` / `.qmc3`    | QQ 音乐    | 算法对照 C++/Rust 参考实现；真实 MP3 round-trip（ffprobe 2.06s）                                |
+| `.qmcflac`           | QQ 音乐    | 与 QMC0 相同算法；round-trip 已验证                                                                |
+| `.qmcogg`            | QQ 音乐    | 与 QMC0 相同算法；round-trip 已验证                                                                |
+| `.kwm`               | 酷我       | 从 `davidxuang/MusicDecrypto`（LGPL）重写；round-trip 已验证                                       |
+| `.kgm` / `.kgma`     | 酷狗       | 从 `huangbao/MyKgmWasm`（MIT）重写；round-trip 已验证                                              |
+| `.vpr`               | 酷狗       | 与 KGM 相同算法（仅 post-mask 不同）；round-trip 已验证                                            |
+| `.mflac` / `.mflac0` | QQ 音乐    | QMCv2 加密；密钥来自用户提供的 ekey。`key_compress` 对照 pyqmc-rust                                |
+| `.mgg` / `.mgg1`     | QQ 音乐    | QMCv2 加密；需要用户提供的 ekey                                                                    |
+| `.bkc*`              | QQ 音乐    | QMCv2 加密；与 MFLAC 共用 dispatcher。`.bkc, .bkcmp3, .bkcflac, .bkcogg, .bkcm4a, .bkcwav, .bkcwma, .bkcape` |
+| `.mp3` / `.flac` / `.wav` / `.m4a` / `.aac` / `.ogg` / `.opus` | 明文   | 直接复制，或用 `ffmpeg` 重编码为目标格式                                                          |
 
-Decryption for QMCv2 (`.mflac`, `.mgg`, `.bkc*`) requires an **ekey** —
-a base64 string extracted from the QQ Music client's local database.
-Configure it once in **Settings → QQ Music ekey**; it is persisted via
-`electron-store`.
+QMCv2 系列（`.mflac`、`.mgg`、`.bkc*`）的解密需要 **ekey** ——
+从 QQ 音乐客户端本地数据库提取的 base64 字符串。在 **设置 → QQ
+Music ekey** 里填一次，通过 `electron-store` 持久化。
 
-Decryption for all other formats does **not** require any user-supplied key.
+其他格式的解密**不需要**任何用户提供的密钥。
 
-## Install
+## 安装
 
 ### Debian / Ubuntu
 
 ```bash
-sudo apt install ffmpeg   # OpenConverter needs ffmpeg in PATH
-sudo dpkg -i release/openconverter_0.2.0_amd64.deb
-sudo apt install -f       # resolve any missing deps
+sudo apt install ffmpeg   # OpenConverter 需要 ffmpeg 在 PATH 中
+sudo dpkg -i release/openconverter-v0.2.2-linux-amd64.deb
+sudo apt install -f       # 解决可能的依赖缺失
 openconverter
 ```
 
-### AppImage (any Linux distro)
+### AppImage（任何 Linux 发行版）
 
 ```bash
-chmod +x release/OpenConverter-0.2.0.AppImage
-./release/OpenConverter-0.2.0.AppImage
+chmod +x release/openconverter-v0.2.2-linux-x64.AppImage
+./release/openconverter-v0.2.2-linux-x64.AppImage
 ```
 
-Download the latest release: https://github.com/nowa277/OpenConverter/releases
+最新发布：https://github.com/nowa277/OpenConverter/releases
 
 ### Windows
 
-Download the latest `openconverter-vX.Y.Z-windows-x64-setup.exe` (NSIS installer) or
-`openconverter-vX.Y.Z-windows-x64-portable.exe` (portable, no install needed) from the
-[Releases page](https://github.com/nowa277/OpenConverter/releases).
+从 [Releases 页面](https://github.com/nowa277/OpenConverter/releases)
+下载最新版本：
 
-- **Installer**: double-click `setup.exe`, follow the wizard, choose
-  install path.
-- **Portable**: place `OpenConverter-X.Y.Z-portable.exe` anywhere (e.g.
-  USB drive), double-click to run. No installer, no system changes.
+- **NSIS 安装包**：`openconverter-v0.2.2-windows-x64-setup.exe`
+  双击 `setup.exe`，按向导选择安装路径。
+- **便携版**：`openconverter-v0.2.2-windows-x64-portable.exe`
+  可以放在任何目录（U 盘等），双击直接运行，无需安装。
 
-Both bundles include `ffmpeg.exe` and `ffprobe.exe` — no separate
-ffmpeg install required.
+两个包都内置了 `ffmpeg.exe` 和 `ffprobe.exe`，**不需要**单独安装
+ffmpeg。
 
-**First launch note**: Windows SmartScreen will show "Windows protected
-your PC" with "Unknown publisher" on first run. Click **More info** →
-**Run anyway** to proceed. This is expected for unsigned binaries; the
-warning will persist until the project gets a code signing certificate.
+**首次运行提示**：Windows SmartScreen 会显示 "Windows 已保护你的
+电脑" 和 "未知发布者"。点击 **更多信息** → **仍要运行** 即可。
+这是未签名二进制文件的正常现象，未来添加代码签名证书后警告会消失。
 
-## Build from source
+## 从源码构建
 
 ```bash
 npm install
 npm run build:renderer
-npm run build:linux    # produces 4 Linux artifacts in release/
-npm run build:win      # produces NSIS + Portable in release/ (requires wine64)
+npm run build:linux    # 在 release/ 生成 4 个 Linux 产物
+npm run build:win      # 在 release/ 生成 NSIS + Portable（需要 wine64）
 ```
 
-### Build artifacts (naming convention)
+### 产物命名规范
 
-`openconverter-v<version>-<platform>-<arch>[-<variant>].<ext>`
+`openconverter-v<版本>-<平台>-<架构>[-<变体>].<扩展名>`
 
-| Platform | Artifact |
-|----------|----------|
+| 平台 / 架构 | 产物 |
+|------------|------|
 | Linux x64 | `openconverter-vX.Y.Z-linux-amd64.deb` / `openconverter-vX.Y.Z-linux-x64.AppImage` |
 | Linux arm64 | `openconverter-vX.Y.Z-linux-arm64.deb` / `openconverter-vX.Y.Z-linux-arm64.AppImage` |
-| Windows x64 | `openconverter-vX.Y.Z-windows-x64-setup.exe` (NSIS) / `openconverter-vX.Y.Z-windows-x64-portable.exe` |
+| Windows x64 | `openconverter-vX.Y.Z-windows-x64-setup.exe`（NSIS）/ `openconverter-vX.Y.Z-windows-x64-portable.exe` |
 
-For Windows builds on Linux, install `wine64 imagemagick p7zip-full`, then run
-`./scripts/setup-win-deps.sh` once to download ffmpeg.exe + ffprobe.exe.
+在 Linux 上构建 Windows 包时，需要先安装 `wine64 imagemagick
+p7zip-full`，然后运行一次 `./scripts/setup-win-deps.sh` 下载
+ffmpeg.exe + ffprobe.exe。
 
-## Run tests
+## 运行测试
 
 ```bash
-node tests/ncm.test.js        # 14/14 NCM samples, byte-diff vs Python ncmdump
+node tests/ncm.test.js        # 14/14 NCM 样本，与 Python ncmdump 逐字节对比
 node tests/qmc.test.js        # QMCv1 round-trip
-node tests/qmc-v2.test.js     # QMCv2 key_compress against pyqmc-rust test vector
+node tests/qmc-v2.test.js     # QMCv2 key_compress 对照 pyqmc-rust 测试向量
 node tests/kwm.test.js        # KWM round-trip
 node tests/kgm.test.js        # KGM / KGMA / VPR round-trip
 ```
 
-All 5 test suites must pass. They verify:
-- Algorithm byte-level correctness (cross-checked against public Rust/C++/Python references)
-- Round-trip identity on real MP3 audio (encoded → decoded = original bytes)
-- `ffprobe` reports valid duration on the output (audio not corrupted)
+5 个测试套件都必须通过，验证：
+- 算法字节级正确性（对照公开的 Rust/C++/Python 参考实现）
+- 真实 MP3 音频的 round-trip 恒等性（编码 → 解码 = 原始字节）
+- `ffprobe` 在输出上报告有效时长（音频未损坏）
 
-The tests are **self-verifying via round-trip** — they encrypt a known
-plaintext with the same algorithm, decrypt with our decoder, and verify
-byte-for-byte identity. This proves algorithm self-consistency but does
-**not** prove the algorithm matches what the QQ / NetEase / KuGou / Kuwo
-clients actually use; for that, real samples are needed.
+测试通过 **round-trip 自验证** —— 用同一算法加密一段已知明文，再
+用我们的解码器解密，逐字节比对恒等。这证明了算法的自洽性，但不
+**证明**算法匹配 QQ / 网易云 / 酷狗 / 酷我客户端实际使用的算法；那
+需要真实样本。
 
-## Architecture
+## 架构
 
-- **Main process** (`src/main/`): Electron main, single `process-message`
-  IPC channel for all renderer requests, `electron-store` for user
-  preferences, `ffmpeg` subprocess for format conversion. On Windows,
-  ffmpeg/ffprobe are resolved to the bundled binaries in `resources/`
-  via `src/main/ffmpeg-path.js`.
-- **Preload** (`src/preload/`): exposes a sandboxed `window.api` to the renderer
-- **Renderer** (`src/renderer/`): vanilla JS + CSS, no framework,
-  Spotify-inspired dark theme with macOS traffic-light window controls
-  (Linux/macOS); Windows uses the OS-native title bar
-- **Decoders** (`src/decoders/`): pure Node `crypto` implementations,
-  no native FFI, no third-party cryptography libraries. Cross-platform
-  by design — same code runs on Linux, macOS, and Windows.
+- **主进程** (`src/main/`)：Electron 主进程，单一 `process-message`
+  IPC 通道处理所有渲染进程请求，`electron-store` 保存用户配置，
+  `ffmpeg` 子进程做格式转换。在 Windows 上，ffmpeg/ffprobe 通过
+  `src/main/ffmpeg-path.js` 解析为 `resources/` 中内置的二进制。
+- **预加载脚本** (`src/preload/`)：向渲染进程暴露沙箱化的
+  `window.api`
+- **渲染进程** (`src/renderer/`)：原生 JS + CSS，无框架，Spotify
+  风格深色主题 + macOS 红黄绿窗口控制按钮（Linux / macOS）；
+  Windows 使用系统原生标题栏
+- **解码器** (`src/decoders/`)：纯 Node `crypto` 实现，无原生 FFI，
+  无第三方加密库。设计上跨平台 —— 同一份代码在 Linux、macOS、
+  Windows 上运行
 
-## Multi-platform development
+## 多平台开发
 
-- **Branch-per-platform** — each platform's work happens on its own
-  feature branch (`windows-installer`, future `macos-installer`,
-  `linux-arm64-fix`).
-- **Additive-only** — new platform branches don't modify other
-  platforms' config. Per-platform `extraResources` and `artifactName`
-  are nested inside the per-platform target block.
-- **Platform conditionals in main process only** — the renderer
-  stays platform-agnostic; all `process.platform` checks live in
-  `src/main/`.
-- **Per-commit Linux regression check** — every commit on a
-  `windows-installer` branch must leave `npm run build:linux --dir`
-  green. The same check will apply to the `macos-installer` branch
-  (must not regress Linux or Windows builds).
+- **每个平台独立分支** — 每个平台的工作在独立 feature 分支上
+  （`windows-installer`、未来的 `macos-installer`、
+  `linux-arm64-fix`）。
+- **只增不删** — 新平台分支不修改其他平台的配置。平台相关的
+  `extraResources` 和 `artifactName` 嵌套在各自的 target 块内。
+- **平台分支判断只在主进程** — 渲染进程保持完全平台无关；
+  所有 `process.platform` 检查都在 `src/main/`。
+- **每次 commit 跑 Linux 回归检查** — `windows-installer` 分支上的
+  每次 commit 都必须保持 `npm run build:linux --dir` 绿色。`macos-installer`
+  分支上同样要保证不破坏 Linux 和 Windows 构建。
 
-## License
+## 许可证
 
 MIT
