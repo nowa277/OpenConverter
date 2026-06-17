@@ -44,6 +44,8 @@ object FfmpegBridge : FfmpegTranscoder {
     init {
         // Load in dependency order. Android's System.loadLibrary() resolves
         // transitive deps, but explicit ordering is documentation.
+        // v0.3.0: ffmpeg-kit 6.0 (FFmpeg n6.0) requires libc++_shared
+        System.loadLibrary("c++_shared")
         System.loadLibrary("avutil")
         System.loadLibrary("swresample")
         System.loadLibrary("swscale")
