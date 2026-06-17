@@ -7,7 +7,7 @@ import android.content.pm.ServiceInfo
 import android.net.Uri
 import android.os.Build
 import android.os.IBinder
-import android.provider.OpenableColumns
+import android.provider.DocumentsContract
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.openconverter.app.ekey.EkeyStore
@@ -21,7 +21,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.io.File
 
 class ConversionService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -37,7 +36,8 @@ class ConversionService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val uris = intent?.getStringArrayExtra(EXTRA_URIS)?.map(Uri::parse).orEmpty()
         val targetFormat = intent?.getStringExtra(EXTRA_TARGET_FORMAT) ?: "mp3"
-        val targetDirUri = intent?.getStringExtra(EXTRA_TARGET_DIR_URI)?.let(Uri::parse)
+        val folderUri = intent?.getStringExtra(EXTRA_FOLDER_URI)?.let(Uri::parse)
+        @Suppress("UNUSED_VARIABLE") val baseName = intent?.getStringExtra(EXTRA_BASE_NAME).orEmpty()
 
         startForegroundCompat(
             ProgressNotification.build(this, "转换中…", 0, uris.size)
@@ -79,8 +79,17 @@ class ConversionService : Service() {
                     return@forEachIndexed
                 }
 
-                val outName = filename.substringBeforeLast('.', "") + "." + targetFormat
-                val outUri = createOutputDocument(outName, targetDirUri)
+                // Per Bug #2: preserve the source filename with just the
+                // extension swapped. baseName is a UI hint shown before write
+                // (preview) but the source stem is what we actually write so
+                // multi-file batches don't collide on a single name.
+                val sourceStem = displayName?.substringBeforeLast('.', "output_$i") ?: "output_$i"
+                val outName = "$sourceStem.$targetFormat"
+                val outUri = if (folderUri != null) {
+                    createDocumentInFolder(folderUri, outName, targetFormat)
+                } else {
+                    null
+                }
                 if (outUri == null) {
                     failures.add(uri to "无法创建输出文件")
                     failureLog.record(uri.toString(), filename, "无法创建输出文件")
@@ -141,10 +150,32 @@ class ConversionService : Service() {
         }
     }
 
-    private fun createOutputDocument(name: String, dirUri: Uri?): Uri? {
-        // M3 stub: write to cacheDir (SAF ACTION_CREATE_DOCUMENT is Task 3.3).
-        val outFile = File(cacheDir, name)
-        return Uri.fromFile(outFile)
+    /**
+     * Create a new document inside the user-picked folder tree using
+     * DocumentsContract.createDocument, then return its URI for writing.
+     */
+    private fun createDocumentInFolder(
+        folderUri: Uri,
+        fileName: String,
+        targetFormat: String,
+    ): Uri? {
+        val mime = mimeForFormat(targetFormat)
+        val docUri = DocumentsContract.createDocument(
+            contentResolver,
+            folderUri,
+            mime,
+            fileName,
+        ) ?: return null
+        return docUri
+    }
+
+    private fun mimeForFormat(format: String): String = when (format) {
+        "mp3" -> "audio/mpeg"
+        "flac" -> "audio/flac"
+        "wav" -> "audio/wav"
+        "m4a" -> "audio/mp4"
+        "ogg" -> "audio/ogg"
+        else -> "application/octet-stream"
     }
 
     override fun onDestroy() {
@@ -176,13 +207,21 @@ class ConversionService : Service() {
     companion object {
         const val EXTRA_URIS = "uris"
         const val EXTRA_TARGET_FORMAT = "targetFormat"
-        const val EXTRA_TARGET_DIR_URI = "targetDirUri"
+        const val EXTRA_FOLDER_URI = "folderUri"
+        const val EXTRA_BASE_NAME = "baseName"
 
-        fun start(context: Context, uris: List<Uri>, targetFormat: String, targetDirUri: Uri? = null) {
+        fun start(
+            context: Context,
+            uris: List<Uri>,
+            targetFormat: String,
+            folderUri: Uri,
+            baseName: String,
+        ) {
             val intent = Intent(context, ConversionService::class.java).apply {
                 putExtra(EXTRA_URIS, uris.map { it.toString() }.toTypedArray())
                 putExtra(EXTRA_TARGET_FORMAT, targetFormat)
-                putExtra(EXTRA_TARGET_DIR_URI, targetDirUri?.toString())
+                putExtra(EXTRA_FOLDER_URI, folderUri.toString())
+                putExtra(EXTRA_BASE_NAME, baseName)
             }
             ContextCompat.startForegroundService(context, intent)
         }

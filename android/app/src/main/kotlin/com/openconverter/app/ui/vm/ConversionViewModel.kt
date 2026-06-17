@@ -10,8 +10,9 @@ class ConversionViewModel(app: Application) : AndroidViewModel(app) {
     fun startConversion(
         uris: List<Uri>,
         targetFormat: String,
-        targetDirUri: Uri? = null,
+        folderUri: Uri,
+        baseName: String,
     ) {
-        ConversionService.start(getApplication(), uris, targetFormat, targetDirUri)
+        ConversionService.start(getApplication(), uris, targetFormat, folderUri, baseName)
     }
 }
