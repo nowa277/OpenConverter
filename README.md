@@ -1,71 +1,70 @@
+<div align="center">
+
 # OpenConverter
 
-开源加密音频格式转换器。把网易云、QQ 音乐、酷狗、酷我等平台的
-**加密音频**（NCM / QMC / KGM / KWM / MFLAC / MGG / BKC 等）转换为
-通用格式（MP3 / FLAC / WAV / M4A / OGG），全部使用纯 JavaScript
-解码器 + `ffmpeg` 转码。
+### 跨平台音频格式转换工具链
 
-Spotify 风格的深色 UI，原生支持 **Linux**（.deb / AppImage）和
-**Windows**（NSIS 安装包 / 便携版）。
+<p align="center">
+面向音频工作流的轻量级格式转换与解码工具<br/>
+基于 JavaScript 解码管线 + FFmpeg 转码后端构建
+</p>
+
+[![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)](#supported-platforms)
+[![Windows](https://img.shields.io/badge/Windows-0078D4?style=for-the-badge&logo=windows11&logoColor=white)](#supported-platforms)
+[![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=black)](#supported-platforms)
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge&color=2ea44f)](LICENSE)
+
+</div>
+
+---
 
 ## 支持的格式
 
-| 格式                 | 来源       | 说明                                                                                              |
-| -------------------- | ---------- | ------------------------------------------------------------------------------------------------- |
-| `.ncm`               | 网易云     | 与 Python `ncmdump` 参考实现逐字节对比（14/14 样本，0 差异）                                      |
-| `.qmc0` / `.qmc3`    | QQ 音乐    | 算法对照 C++/Rust 参考实现；真实 MP3 round-trip（ffprobe 2.06s）                                |
-| `.qmcflac`           | QQ 音乐    | 与 QMC0 相同算法；round-trip 已验证                                                                |
-| `.qmcogg`            | QQ 音乐    | 与 QMC0 相同算法；round-trip 已验证                                                                |
-| `.kwm`               | 酷我       | 从 `davidxuang/MusicDecrypto`（LGPL）重写；round-trip 已验证                                       |
-| `.kgm` / `.kgma`     | 酷狗       | 从 `huangbao/MyKgmWasm`（MIT）重写；round-trip 已验证                                              |
-| `.vpr`               | 酷狗       | 与 KGM 相同算法（仅 post-mask 不同）；round-trip 已验证                                            |
-| `.mflac` / `.mflac0` | QQ 音乐    | QMCv2 加密；密钥来自用户提供的 ekey。`key_compress` 对照 pyqmc-rust                                |
-| `.mgg` / `.mgg1`     | QQ 音乐    | QMCv2 加密；需要用户提供的 ekey                                                                    |
-| `.bkc*`              | QQ 音乐    | QMCv2 加密；与 MFLAC 共用 dispatcher。`.bkc, .bkcmp3, .bkcflac, .bkcogg, .bkcm4a, .bkcwav, .bkcwma, .bkcape` |
-| `.mp3` / `.flac` / `.wav` / `.m4a` / `.aac` / `.ogg` / `.opus` | 明文   | 直接复制，或用 `ffmpeg` 重编码为目标格式                                                          |
+| 格式                 | 来源       |
+| -------------------- | ---------- |
+| `.ncm`               | 网易云   |
+| `.kwm`               | 酷我   |
+| `.kgm` / `.kgma` / `.vpr` 等 | 酷狗   |
+| `.mgg` / `.mgg1` / `.bkc` 等 | QQ 音乐 |
+| `.mp3` / `.flac` / `.wav` 等 | 明文   |
 
 QMCv2 系列（`.mflac`、`.mgg`、`.bkc*`）的解密需要 **ekey** ——
 从 QQ 音乐客户端本地数据库提取的 base64 字符串。在 **设置 → QQ
 Music ekey** 里填一次，通过 `electron-store` 持久化。
 
-其他格式的解密**不需要**任何用户提供的密钥。
-
 ## 安装
+
+从 [Releases 页面](https://github.com/nowa277/OpenConverter/releases)
+下载对应最新版本：
 
 ### Debian / Ubuntu
 
 ```bash
+# AppImage（推荐）
+chmod +x release/openconverter-v***-linux-x64.AppImage
+./release/openconverter-v***-linux-x64.AppImage
+
+# Deb包安装
 sudo apt install ffmpeg   # OpenConverter 需要 ffmpeg 在 PATH 中
-sudo dpkg -i release/openconverter-v0.2.2-linux-amd64.deb
+sudo dpkg -i release/openconverter-v***-linux-amd64.deb
 sudo apt install -f       # 解决可能的依赖缺失
 openconverter
 ```
 
-### AppImage（任何 Linux 发行版）
-
-```bash
-chmod +x release/openconverter-v0.2.2-linux-x64.AppImage
-./release/openconverter-v0.2.2-linux-x64.AppImage
-```
-
-最新发布：https://github.com/nowa277/OpenConverter/releases
-
 ### Windows
 
-从 [Releases 页面](https://github.com/nowa277/OpenConverter/releases)
-下载最新版本：
-
-- **NSIS 安装包**：`openconverter-v0.2.2-windows-x64-setup.exe`
+- **NSIS 安装包**：`openconverter-v***-windows-x64-setup.exe`
   双击 `setup.exe`，按向导选择安装路径。
-- **便携版**：`openconverter-v0.2.2-windows-x64-portable.exe`
+- **便携版**（推荐）：`openconverter-v***-windows-x64-portable.exe`
   可以放在任何目录（U 盘等），双击直接运行，无需安装。
 
 两个包都内置了 `ffmpeg.exe` 和 `ffprobe.exe`，**不需要**单独安装
 ffmpeg。
 
-**首次运行提示**：Windows SmartScreen 会显示 "Windows 已保护你的
+**首次运行提示**：Windows SmartScreen 可能会显示 "Windows 已保护你的
 电脑" 和 "未知发布者"。点击 **更多信息** → **仍要运行** 即可。
-这是未签名二进制文件的正常现象，未来添加代码签名证书后警告会消失。
+这是未签名二进制文件的正常现象，因为作者没钱购买代码签名证书。
 
 ## 从源码构建
 
@@ -75,6 +74,10 @@ npm run build:renderer
 npm run build:linux    # 在 release/ 生成 4 个 Linux 产物
 npm run build:win      # 在 release/ 生成 NSIS + Portable（需要 wine64）
 ```
+
+### 声明
+
+本项目仅作为音频/文件格式转换的技术工具使用，不涉及任何版权内容的提供或分发。使用者在使用过程中应尊重音乐作品及相关内容的版权与合法权益，不得将本工具用于侵犯任何著作权或相关权利人的行为。因使用本工具产生的任何法律责任或纠纷均由使用者自行承担，与项目作者无关。
 
 ### 产物命名规范
 
@@ -137,6 +140,35 @@ node tests/kgm.test.js        # KGM / KGMA / VPR round-trip
 - **每次 commit 跑 Linux 回归检查** — `windows-installer` 分支上的
   每次 commit 都必须保持 `npm run build:linux --dir` 绿色。`macos-installer`
   分支上同样要保证不破坏 Linux 和 Windows 构建。
+
+### Android
+
+从 [Releases 页面](https://github.com/nowa277/OpenConverter/releases)
+下载最新版本：
+
+- **arm64-v8a**：`openconverter-v0.3.0-android-arm64-v8a.apk`（~28 MB，现代手机）
+- **armeabi-v7a**：`openconverter-v0.3.0-android-armeabi-v7a.apk`（~52 MB，老年机/低端机）
+- **x86_64**：`openconverter-v0.3.0-android-x86_64.apk`（~34 MB，模拟器测试用）
+
+下载后在手机上点击 APK 安装（首次需开启"安装未知来源应用"权限）。
+**APK 已用 v0.3.0 专用 keystore 签名**（非 debug 签名），手机可能提示"未知发布者"，
+点"仍要安装"即可。
+
+**功能**：11 种加密音频格式 → MP3 / FLAC / WAV / M4A / OGG 真实转码。
+**v0.3.0 起**：FormatDetector 自动识别 11 个格式（4 个 magic + 7 个 headerless
+按扩展名），选文件时**不需要**带后缀。
+**ekey 设置**：QQ Music v2 加密（MFLAC / MGG / BKC*）需要在 App 内"设置 → QQ Music ekey"里填一次。
+**首次运行**：会请求"通知"权限（用于显示转换进度）。
+
+**架构**：原生 Kotlin + Jetpack Compose，调用 **ffmpeg-kit 6.0 full-gpl**
+（FFmpeg n6.0 + libmp3lame MP3 编码器 + 4 个内置编码器），所有 5 个输出
+格式真实转码。APK 体积因 ffmpeg-kit 较大（~28-52 MB），换取 5 个格式全支持。
+
+**已知限制**：
+- BKC 8 个变体（bkc, bkcmp3, bkcflac, bkcogg, bkcm4a, bkcwav, bkcwma, bkcape）
+  v0.3.0 仍为 stub 状态（synthetic 测试通过，真实文件验证留 v0.3.1）。
+- 进度条 / 取消按钮 v0.3.0 不加（v0.3.1）。
+- APK 暂未上架 Play Store / F-Droid。
 
 ## 许可证
 
