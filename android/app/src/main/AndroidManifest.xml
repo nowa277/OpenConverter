@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Task 3.2 (ConversionService) will add:
+         - POST_NOTIFICATIONS
+         - FOREGROUND_SERVICE
+         - FOREGROUND_SERVICE_DATA_SYNC
+         - FOREGROUND_SERVICE_MEDIA_PROCESSING
+    -->
+
+    <application
+        android:name=".OpenConverterApp"
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:theme="@style/Theme.OpenConverter"
+        android:supportsRtl="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.OpenConverter">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

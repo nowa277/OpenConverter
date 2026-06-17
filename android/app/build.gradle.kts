@@ -43,6 +43,15 @@ android {
         jvmTarget = "17"
     }
 
+    buildFeatures {
+        compose = true
+    }
+
+    // Pin to 1.5.14 — the version Compose officially maps to Kotlin 1.9.24.
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.14"
+    }
+
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
@@ -75,7 +84,7 @@ dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
-    implementation(platform("androidx.compose:compose-bom:2024.10.00"))
+    implementation(platform("androidx.compose:compose-bom:2024.06.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OpenConverter</string>
+    <string name="pick_files">选文件</string>
+    <string name="start_conversion">开始转换</string>
+    <string name="no_files_selected">未选择文件</string>
+    <string name="conversion_in_progress">转换中…</string>
+    <string name="settings">设置</string>
+    <string name="ekey_label">QQ Music ekey</string>
+</resources>
