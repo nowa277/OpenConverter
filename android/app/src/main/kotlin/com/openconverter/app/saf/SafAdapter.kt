@@ -12,7 +12,11 @@ class SafAdapter {
     fun openDocumentsContract(): ActivityResultContract<Array<String>, List<Uri>> =
         ActivityResultContracts.OpenMultipleDocuments()
 
-    /** Returns a contract that creates a single document for saving. */
-    fun createDocumentContract(): ActivityResultContract<String, Uri?> =
-        ActivityResultContracts.CreateDocument("audio/mpeg")
+    /**
+     * Returns a contract that creates a document for saving.
+     * @param mime MIME type, e.g. "audio/mpeg" (MP3), "audio/flac", "audio/wav",
+     *             "audio/mp4" (M4A), "audio/ogg". Pass "" to use system default.
+     */
+    fun createDocumentContract(mime: String): ActivityResultContract<String, Uri?> =
+        ActivityResultContracts.CreateDocument(mime.ifEmpty { "*/*" })
 }
