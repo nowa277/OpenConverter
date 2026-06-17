@@ -5,19 +5,22 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.openconverter.app.R
+import com.openconverter.app.failures.FailureLog
 import com.openconverter.app.ui.vm.SettingsViewModel
 
 @Composable
 fun SettingsScreen(
     vm: SettingsViewModel = viewModel(),
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
 ) {
+    val context = LocalContext.current
     val ekey by vm.ekey.collectAsStateWithLifecycle()
     var input by rememberSaveable { mutableStateOf("") }
 
@@ -44,6 +47,17 @@ fun SettingsScreen(
                 "已保存 (长度 ${ekey.length})",
                 color = MaterialTheme.colorScheme.primary
             )
+        }
+        HorizontalDivider()
+        Text("诊断", style = MaterialTheme.typography.titleMedium)
+        OutlinedButton(
+            onClick = {
+                val log = FailureLog(context)
+                context.startActivity(log.shareIntent())
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("分享失败日志")
         }
         Spacer(modifier = Modifier.weight(1f))
         Button(onClick = onBack) { Text("返回") }

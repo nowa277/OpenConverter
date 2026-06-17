@@ -10,6 +10,7 @@ import android.os.IBinder
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.openconverter.app.ekey.EkeyStore
+import com.openconverter.app.failures.FailureLog
 import com.openconverter.app.ffmpeg.FfmpegBridge
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,6 +25,7 @@ import java.io.File
 class ConversionService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val ekeyStore by lazy { EkeyStore(applicationContext) }
+    private val failureLog by lazy { FailureLog(applicationContext) }
     private val orchestrator by lazy { ConversionOrchestrator(FfmpegBridge) }
 
     private val _progress = MutableStateFlow<Progress>(Progress.Idle)
@@ -55,6 +57,7 @@ class ConversionService : Service() {
                 }.getOrNull()
                 if (input == null) {
                     failures.add(uri to "读取失败")
+                    failureLog.record(uri.toString(), filename, "读取失败")
                     return@forEachIndexed
                 }
 
@@ -62,7 +65,9 @@ class ConversionService : Service() {
                     orchestrator.convertOneInMemory(input, ekey, targetFormat)
                 }
                 if (result.isFailure) {
-                    failures.add(uri to (result.exceptionOrNull()?.message ?: "未知错误"))
+                    val err = result.exceptionOrNull()?.message ?: "未知错误"
+                    failures.add(uri to err)
+                    failureLog.record(uri.toString(), filename, err)
                     return@forEachIndexed
                 }
 
@@ -70,6 +75,7 @@ class ConversionService : Service() {
                 val outUri = createOutputDocument(outName, targetDirUri)
                 if (outUri == null) {
                     failures.add(uri to "无法创建输出文件")
+                    failureLog.record(uri.toString(), filename, "无法创建输出文件")
                     return@forEachIndexed
                 }
 
@@ -79,7 +85,9 @@ class ConversionService : Service() {
                     }
                 }
                 if (writeResult.isFailure) {
-                    failures.add(uri to "保存失败: ${writeResult.exceptionOrNull()?.message}")
+                    val err = "保存失败: ${writeResult.exceptionOrNull()?.message}"
+                    failures.add(uri to err)
+                    failureLog.record(uri.toString(), filename, err)
                     return@forEachIndexed
                 }
 
