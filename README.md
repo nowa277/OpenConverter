@@ -1,10 +1,11 @@
 # OpenConverter
 
-Open-source audio format converter for Linux. Converts encrypted audio
-formats (NCM, QMC, KGM, KWM, MFLAC, MGG, BKC) to common formats (MP3,
-FLAC, WAV, M4A, OGG) using pure-JavaScript decoders and `ffmpeg`.
+Open-source audio format converter. Converts encrypted audio formats
+(NCM, QMC, KGM, KWM, MFLAC, MGG, BKC) to common formats (MP3, FLAC,
+WAV, M4A, OGG) using pure-JavaScript decoders and `ffmpeg`.
 
-Spotify-inspired dark UI, native Linux packages (.deb / AppImage).
+Spotify-inspired dark UI. Native packages for **Linux** (.deb /
+AppImage) and **Windows** (NSIS installer / portable).
 
 ## Supported formats
 
@@ -73,8 +74,22 @@ warning will persist until the project gets a code signing certificate.
 ```bash
 npm install
 npm run build:renderer
-npx electron-builder --linux      # produces deb + AppImage in release/
+npm run build:linux    # produces 4 Linux artifacts in release/
+npm run build:win      # produces NSIS + Portable in release/ (requires wine64)
 ```
+
+### Build artifacts (naming convention)
+
+`openconverter-v<version>-<platform>-<arch>[-<variant>].<ext>`
+
+| Platform | Artifact |
+|----------|----------|
+| Linux x64 | `openconverter-vX.Y.Z-linux-amd64.deb` / `openconverter-vX.Y.Z-linux-x64.AppImage` |
+| Linux arm64 | `openconverter-vX.Y.Z-linux-arm64.deb` / `openconverter-vX.Y.Z-linux-arm64.AppImage` |
+| Windows x64 | `openconverter-vX.Y.Z-windows-x64-setup.exe` (NSIS) / `openconverter-vX.Y.Z-windows-x64-portable.exe` |
+
+For Windows builds on Linux, install `wine64 imagemagick p7zip-full`, then run
+`./scripts/setup-win-deps.sh` once to download ffmpeg.exe + ffprobe.exe.
 
 ## Run tests
 
@@ -101,12 +116,32 @@ clients actually use; for that, real samples are needed.
 
 - **Main process** (`src/main/`): Electron main, single `process-message`
   IPC channel for all renderer requests, `electron-store` for user
-  preferences, `ffmpeg` subprocess for format conversion
+  preferences, `ffmpeg` subprocess for format conversion. On Windows,
+  ffmpeg/ffprobe are resolved to the bundled binaries in `resources/`
+  via `src/main/ffmpeg-path.js`.
 - **Preload** (`src/preload/`): exposes a sandboxed `window.api` to the renderer
 - **Renderer** (`src/renderer/`): vanilla JS + CSS, no framework,
   Spotify-inspired dark theme with macOS traffic-light window controls
+  (Linux/macOS); Windows uses the OS-native title bar
 - **Decoders** (`src/decoders/`): pure Node `crypto` implementations,
-  no native FFI, no third-party cryptography libraries
+  no native FFI, no third-party cryptography libraries. Cross-platform
+  by design — same code runs on Linux, macOS, and Windows.
+
+## Multi-platform development
+
+- **Branch-per-platform** — each platform's work happens on its own
+  feature branch (`windows-installer`, future `macos-installer`,
+  `linux-arm64-fix`).
+- **Additive-only** — new platform branches don't modify other
+  platforms' config. Per-platform `extraResources` and `artifactName`
+  are nested inside the per-platform target block.
+- **Platform conditionals in main process only** — the renderer
+  stays platform-agnostic; all `process.platform` checks live in
+  `src/main/`.
+- **Per-commit Linux regression check** — every commit on a
+  `windows-installer` branch must leave `npm run build:linux --dir`
+  green. The same check will apply to the `macos-installer` branch
+  (must not regress Linux or Windows builds).
 
 ## License
 
