@@ -122,7 +122,35 @@ class FormatDetectorTest {
 
     @Test
     fun returns_null_for_unknown_extension() {
-        assertNull(FormatDetector.detect(null, "song.mp3"))  // already MP3, not encrypted
+        // Truly unknown extension (not even plaintext audio) — should still return null.
+        // Plaintext audio (mp3/flac/wav/m4a/ogg/aac) is now detected as passthrough
+        // so FormatDetector does not gate it; ConversionOrchestrator routes plaintext
+        // bytes through ffmpeg directly without a decrypt step.
+        assertNull(FormatDetector.detect(null, "song.xyz"))
+        assertNull(FormatDetector.detect(null, "song.bin"))
+    }
+
+    @Test
+    fun detects_mp3_by_extension_as_passthrough() {
+        assertEquals("mp3", FormatDetector.detect(null, "song.mp3"))
+        assertEquals("mp3", FormatDetector.detect(ByteArray(32) { 0xFF.toByte() }, "song.mp3"))
+    }
+
+    @Test
+    fun detects_plaintext_audio_formats_by_extension_as_passthrough() {
+        for (ext in listOf("flac", "wav", "m4a", "ogg", "aac")) {
+            assertEquals(
+                ext,
+                FormatDetector.detect(null, "song.$ext"),
+                "Failed for ext=$ext",
+            )
+        }
+    }
+
+    @Test
+    fun plaintext_audio_extension_is_case_insensitive() {
+        assertEquals("mp3", FormatDetector.detect(null, "song.MP3"))
+        assertEquals("flac", FormatDetector.detect(null, "song.FLAC"))
     }
 
     @Test

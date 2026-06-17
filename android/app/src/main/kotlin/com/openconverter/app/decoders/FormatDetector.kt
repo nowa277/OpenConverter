@@ -52,7 +52,7 @@ object FormatDetector {
             }
         }
 
-        // 2. Extension-based detection (headerless QMC v1/v2)
+        // 2. Extension-based detection (headerless QMC v1/v2 + plaintext passthrough)
         val ext = extractExtension(fileName) ?: return null
         return when (ext) {
             "qmc0" -> "qmc0"
@@ -66,6 +66,9 @@ object FormatDetector {
             "bkc" -> "bkc"
             "bkcmp3", "bkcflac", "bkcogg",
             "bkcm4a", "bkcwav", "bkcwma", "bkcape" -> ext
+            // Plaintext audio: no decrypt step; ConversionOrchestrator feeds bytes
+            // directly to ffmpeg.transcode with the matched format as inputFormat.
+            "mp3", "flac", "wav", "m4a", "ogg", "aac" -> ext
             else -> null
         }
     }
