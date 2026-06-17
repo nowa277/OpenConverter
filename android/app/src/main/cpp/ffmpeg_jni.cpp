@@ -21,6 +21,7 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavutil/avutil.h>
 #include <libavutil/opt.h>
+#include "ffmpeg_transcode.h"
 }
 
 #define LOG_TAG "openconverter_ffmpeg"
@@ -216,14 +217,27 @@ Java_com_openconverter_app_ffmpeg_FfmpegBridge_transcode(
         return env->NewByteArray(0);
     }
 
+    // v0.3.0: real transcode (replaces M3 passthrough)
+    uint8_t *out_data = nullptr;
+    size_t out_size = 0;
+    int ret = transcode_main(
+        (const uint8_t *)in_data, (size_t)len,
+        in_fmt, out_fmt, (int)bitrateKbps,
+        &out_data, &out_size);
+
+    env->ReleaseByteArrayElements(inputBytes, in_data, JNI_ABORT);
     env->ReleaseStringUTFChars(inputFormat, in_fmt);
     env->ReleaseStringUTFChars(outputFormat, out_fmt);
 
-    // M3 passthrough: return input bytes unchanged (NCM decrypts to MP3;
-    // for true transcoding, ffmpeg needs encoders enabled at build time)
-    jbyteArray output = env->NewByteArray(len);
-    jbyte *in_data2 = env->GetByteArrayElements(inputBytes, nullptr);
-    env->SetByteArrayRegion(output, 0, len, in_data2);
-    env->ReleaseByteArrayElements(inputBytes, in_data2, JNI_ABORT);
+    if (ret < 0 || out_data == nullptr || out_size == 0) {
+        ALOGE("transcode_main failed: ret=%d out_size=%zu", ret, out_size);
+        if (out_data) av_free(out_data);
+        return env->NewByteArray(0);
+    }
+
+    ALOGI("transcode ok: %s -> %s, out_size=%zu bytes", in_fmt, out_fmt, out_size);
+    jbyteArray output = env->NewByteArray((jsize)out_size);
+    env->SetByteArrayRegion(output, 0, (jsize)out_size, (jbyte *)out_data);
+    av_free(out_data);
     return output;
 }

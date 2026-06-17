@@ -134,9 +134,12 @@ int transcode_main(
     enc_ctx->bit_rate = (bitrate_kbps > 0) ? bitrate_kbps * 1000 : 128000;
     enc_ctx->sample_rate = dec_ctx->sample_rate;
     enc_ctx->sample_fmt = (enc->sample_fmts ? enc->sample_fmts[0] : AV_SAMPLE_FMT_FLTP);
-    enc_ctx->channel_layout = (dec_ctx->channel_layout > 0) ?
-        dec_ctx->channel_layout : AV_CH_LAYOUT_STEREO;
-    enc_ctx->channels = av_get_channel_layout_nb_channels(enc_ctx->channel_layout);
+    // ffmpeg 7+: use AVChannelLayout instead of uint64 channel_layout
+    if (dec_ctx->ch_layout.nb_channels > 0) {
+        av_channel_layout_copy(&enc_ctx->ch_layout, &dec_ctx->ch_layout);
+    } else {
+        av_channel_layout_default(&enc_ctx->ch_layout, 2);  // stereo fallback
+    }
     enc_ctx->time_base = (AVRational){ 1, enc_ctx->sample_rate };
 
     if (target->codec_id == AV_CODEC_ID_MP3) {
@@ -165,10 +168,11 @@ int transcode_main(
 
     // === Resampler: convert decoder's sample format to encoder's ===
     SwrContext *swr = swr_alloc();
-    av_opt_set_int(swr, "in_channel_layout", dec_ctx->channel_layout, 0);
+    // ffmpeg 7+: use av_opt_set_chlayout for channel layout
+    av_opt_set_chlayout(swr, "in_chlayout", &dec_ctx->ch_layout, 0);
     av_opt_set_int(swr, "in_sample_rate", dec_ctx->sample_rate, 0);
     av_opt_set_sample_fmt(swr, "in_sample_fmt", dec_ctx->sample_fmt, 0);
-    av_opt_set_int(swr, "out_channel_layout", enc_ctx->channel_layout, 0);
+    av_opt_set_chlayout(swr, "out_chlayout", &enc_ctx->ch_layout, 0);
     av_opt_set_int(swr, "out_sample_rate", enc_ctx->sample_rate, 0);
     av_opt_set_sample_fmt(swr, "out_sample_fmt", enc_ctx->sample_fmt, 0);
     if (swr_init(swr) < 0) { swr_free(&swr); goto fail_output; }
@@ -185,11 +189,10 @@ int transcode_main(
             ret = avcodec_send_packet(dec_ctx, pkt);
             if (ret >= 0) {
                 while (avcodec_receive_frame(dec_ctx, dec_frame) >= 0) {
-                    // Resample
+                    // Resample (ffmpeg 7+ uses ch_layout + format)
                     enc_frame->sample_rate = enc_ctx->sample_rate;
-                    enc_frame->channel_layout = enc_ctx->channel_layout;
-                    enc_frame->channels = enc_ctx->channels;
-                    enc_frame->sample_fmt = enc_ctx->sample_fmt;
+                    av_channel_layout_copy(&enc_frame->ch_layout, &enc_ctx->ch_layout);
+                    enc_frame->format = enc_ctx->sample_fmt;
                     enc_frame->nb_samples = dec_frame->nb_samples;
                     enc_frame->pts = pts;
                     pts += dec_frame->nb_samples;
@@ -218,9 +221,8 @@ int transcode_main(
     avcodec_send_packet(dec_ctx, NULL);
     while (avcodec_receive_frame(dec_ctx, dec_frame) >= 0) {
         enc_frame->sample_rate = enc_ctx->sample_rate;
-        enc_frame->channel_layout = enc_ctx->channel_layout;
-        enc_frame->channels = enc_ctx->channels;
-        enc_frame->sample_fmt = enc_ctx->sample_fmt;
+        av_channel_layout_copy(&enc_frame->ch_layout, &enc_ctx->ch_layout);
+        enc_frame->format = enc_ctx->sample_fmt;
         enc_frame->nb_samples = dec_frame->nb_samples;
         enc_frame->pts = pts;
         pts += dec_frame->nb_samples;

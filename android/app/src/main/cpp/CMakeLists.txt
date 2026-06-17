@@ -1,7 +1,10 @@
 cmake_minimum_required(VERSION 3.22.1)
 project("openconverter_ffmpeg_jni")
 
-add_library(openconverter_ffmpeg_jni SHARED ffmpeg_jni.cpp)
+add_library(openconverter_ffmpeg_jni SHARED
+    ffmpeg_jni.cpp
+    ffmpeg_transcode.c
+)
 
 # Include ffmpeg headers from the cross-compile build cache. These are
 # produced by scripts/build-ffmpeg.sh and live under
