@@ -79,6 +79,9 @@ class ConversionOrchestrator(
             "kgm", "kgma" -> KgmDecoder.decrypt(input, sourceFormat)
             "vpr" -> KgmDecoder.decrypt(input, "vpr")
             "kwm" -> KwmDecoder.decrypt(input)
+            // Plaintext audio (mp3/flac/wav/m4a/ogg/aac): no decrypt step,
+            // feed the bytes straight to ffmpeg.transcode.
+            "mp3", "flac", "wav", "m4a", "ogg", "aac" -> AudioData(input, sourceFormat)
             else -> throw IllegalArgumentException("Unsupported format: $sourceFormat")
         }
 

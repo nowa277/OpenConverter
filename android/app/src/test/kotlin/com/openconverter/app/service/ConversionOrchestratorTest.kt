@@ -116,4 +116,48 @@ class ConversionOrchestratorTest {
             )
         }
     }
+
+    @Test
+    fun convertOneInMemory_plaintext_mp3_to_flac_passes_through_decoder() {
+        // Plaintext MP3 (no encryption wrapper) should be detected by extension
+        // and routed directly to ffmpeg.transcode without going through any
+        // NcmDecoder / QmcDecoder etc. — there is no decrypt step.
+        val mp3Bytes = ByteArray(32) { 0xFF.toByte() }  // arbitrary bytes; not ID3/0xFFFB
+        val fake = FakeTranscoder()
+        val orchestrator = ConversionOrchestrator(fake)
+
+        val result = orchestrator.convertOneInMemory(
+            input = mp3Bytes,
+            fileName = "song.mp3",
+            targetFormat = "flac",
+        )
+
+        assertEquals("mp3", result.sourceFormat)
+        assertEquals("flac", result.targetFormat)
+        assertEquals(1, fake.calls.size)
+        val call = fake.calls.single()
+        assertEquals(mp3Bytes.size, call.size, "passthrough should feed input bytes verbatim to ffmpeg")
+        assertEquals("mp3", call.inputFormat)
+        assertEquals("flac", call.outputFormat)
+    }
+
+    @Test
+    fun convertOneInMemory_plaintext_audio_formats_by_extension_route_through_ffmpeg() {
+        // Same as the mp3 test, parameterized over all supported plaintext formats.
+        for (ext in listOf("flac", "wav", "m4a", "ogg", "aac")) {
+            val bytes = ByteArray(16) { 0xAB.toByte() }
+            val fake = FakeTranscoder()
+            val orchestrator = ConversionOrchestrator(fake)
+
+            val result = orchestrator.convertOneInMemory(
+                input = bytes,
+                fileName = "song.$ext",
+                targetFormat = "mp3",
+            )
+
+            assertEquals(ext, result.sourceFormat, "sourceFormat for .$ext")
+            assertEquals(1, fake.calls.size, "transcode called once for .$ext")
+            assertEquals(ext, fake.calls.single().inputFormat, "inputFormat for .$ext")
+        }
+    }
 }
