@@ -8,7 +8,13 @@
 #   3. Build signed release APKs
 #   4. Copy to release/ for distribution
 #
-# Output: release/openconverter-v0.2.2-android-{arm64-v8a,armeabi-v7a,x86_64}.apk
+# v0.3.0 changes from v0.2.2:
+#   - Step 2 switched from self-build ffmpeg (decoder-only) to
+#     install-ffmpeg-kit 6.0 full-gpl (decoder + 5 encoders)
+#   - APK artifact names: v0.2.2 -> v0.3.0
+#   - Per-ABI APK size grows from ~3-4 MB to ~28-52 MB (ffmpeg-kit)
+#
+# Output: release/openconverter-v0.3.0-android-{arm64-v8a,armeabi-v7a,x86_64}.apk
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -28,11 +34,11 @@ if [ ! -d "$ANDROID_HOME/platforms/android-34" ]; then
     exit 1
 fi
 
-# 2. Build ffmpeg shared libraries (decoder-only; M1/M3 scope)
-echo "[$(date +%H:%M:%S)] Step 1/3: Building ffmpeg .so (3 ABIs)..."
+# 2. Install ffmpeg-kit 6.0 .so for 3 ABIs (decoder + encoder + libmp3lame)
+echo "[$(date +%H:%M:%S)] Step 1/3: Installing ffmpeg-kit 6.0 .so (3 ABIs)..."
 cd "$ROOT/android"
 "$ROOT/android/scripts/build-ffmpeg.sh"
-echo "ffmpeg build complete."
+echo "ffmpeg-kit install complete."
 
 # 3. Build signed release APKs
 echo "[$(date +%H:%M:%S)] Step 2/3: Building signed release APKs..."
@@ -44,10 +50,10 @@ export PATH="$JAVA_HOME/bin:$PATH"
 echo "[$(date +%H:%M:%S)] Step 3/3: Copying APKs to release/..."
 APK_DIR="$ROOT/android/app/build/outputs/apk/release"
 mkdir -p "$ROOT/release"
-cp "$APK_DIR"/openconverter-v0.2.2-android-*.apk "$ROOT/release/"
+cp "$APK_DIR"/openconverter-v0.3.0-android-*.apk "$ROOT/release/"
 
 echo ""
 echo "========================================"
-echo "BUILD COMPLETE"
+echo "BUILD COMPLETE (v0.3.0)"
 echo "========================================"
-ls -lh "$ROOT/release"/openconverter-v0.2.2-android-*.apk
+ls -lh "$ROOT/release"/openconverter-v0.3.0-android-*.apk
