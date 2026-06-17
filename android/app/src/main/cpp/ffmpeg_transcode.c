@@ -19,8 +19,13 @@
 #include <libavutil/audio_fifo.h>
 #include <libswresample/swresample.h>
 
+#include <android/log.h>
 #include <stdio.h>
 #include <string.h>
+
+#define LOG_TAG "openconverter_ffmpeg"
+#define ALOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#define ALOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
 // Read callback for in-memory input
 typedef struct {
@@ -83,15 +88,29 @@ int transcode_main(
     int bitrate_kbps,
     uint8_t **out_data, size_t *out_size
 ) {
+    char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
+
     const TargetCodec *target = find_target(out_format);
-    if (!target) return -1;
+    if (!target) {
+        ALOGE("unknown output format: %s", out_format ? out_format : "(null)");
+        return -1;
+    }
+    ALOGI("transcode start: in_format=%s out_format=%s bitrate=%dkbps in_size=%zu",
+          in_format ? in_format : "(auto)", out_format, bitrate_kbps, in_size);
 
     // === Input: open AVFormatContext with custom AVIOContext ===
     BufferData bd = { in_data, in_size, 0 };
     uint8_t *avio_buf = (uint8_t *)av_malloc(4096);
-    if (!avio_buf) return -2;
+    if (!avio_buf) {
+        ALOGE("av_malloc(4096) for avio buffer failed");
+        return -2;
+    }
     AVIOContext *avio = avio_alloc_context(avio_buf, 4096, 0, &bd, read_packet, NULL, seek_packet);
-    if (!avio) { av_free(avio_buf); return -3; }
+    if (!avio) {
+        ALOGE("avio_alloc_context failed");
+        av_free(avio_buf);
+        return -3;
+    }
 
     AVFormatContext *fmt_in = avformat_alloc_context();
     fmt_in->pb = avio;
@@ -100,10 +119,19 @@ int transcode_main(
         av_dict_set(&opts_in, "format", in_format, 0);
     }
     int ret = avformat_open_input(&fmt_in, NULL, NULL, &opts_in);
-    if (ret < 0) goto fail_input;
+    if (ret < 0) {
+        av_strerror(ret, errbuf, sizeof(errbuf));
+        ALOGE("avformat_open_input failed: %d (%s) in_format=%s", ret, errbuf,
+              in_format ? in_format : "(auto)");
+        goto fail_input;
+    }
 
     ret = avformat_find_stream_info(fmt_in, NULL);
-    if (ret < 0) goto fail_input;
+    if (ret < 0) {
+        av_strerror(ret, errbuf, sizeof(errbuf));
+        ALOGE("avformat_find_stream_info failed: %d (%s)", ret, errbuf);
+        goto fail_input;
+    }
 
     int audio_idx = -1;
     for (unsigned i = 0; i < fmt_in->nb_streams; i++) {
@@ -112,24 +140,43 @@ int transcode_main(
             break;
         }
     }
-    if (audio_idx < 0) goto fail_input;
+    if (audio_idx < 0) {
+        ALOGE("no audio stream found in input (streams=%u)", fmt_in->nb_streams);
+        goto fail_input;
+    }
 
     AVCodecParameters *dec_par = fmt_in->streams[audio_idx]->codecpar;
     const AVCodec *dec = avcodec_find_decoder(dec_par->codec_id);
-    if (!dec) goto fail_input;
+    if (!dec) {
+        ALOGE("no decoder for codec_id %d", dec_par->codec_id);
+        goto fail_input;
+    }
 
     AVCodecContext *dec_ctx = avcodec_alloc_context3(dec);
-    if (!dec_ctx) goto fail_input;
+    if (!dec_ctx) {
+        ALOGE("avcodec_alloc_context3 (decoder) failed");
+        goto fail_input;
+    }
     avcodec_parameters_to_context(dec_ctx, dec_par);
     ret = avcodec_open2(dec_ctx, dec, NULL);
-    if (ret < 0) goto fail_decoder;
+    if (ret < 0) {
+        av_strerror(ret, errbuf, sizeof(errbuf));
+        ALOGE("avcodec_open2 (decoder) failed: %d (%s) codec_id=%d", ret, errbuf, dec_par->codec_id);
+        goto fail_decoder;
+    }
 
     // === Output: find encoder + allocate context ===
     const AVCodec *enc = avcodec_find_encoder(target->codec_id);
-    if (!enc) goto fail_decoder;
+    if (!enc) {
+        ALOGE("no encoder for codec_id %d (out_format=%s)", target->codec_id, out_format);
+        goto fail_decoder;
+    }
 
     AVCodecContext *enc_ctx = avcodec_alloc_context3(enc);
-    if (!enc_ctx) goto fail_decoder;
+    if (!enc_ctx) {
+        ALOGE("avcodec_alloc_context3 (encoder) failed");
+        goto fail_decoder;
+    }
 
     enc_ctx->bit_rate = (bitrate_kbps > 0) ? bitrate_kbps * 1000 : 128000;
     enc_ctx->sample_rate = dec_ctx->sample_rate;
@@ -146,14 +193,33 @@ int transcode_main(
         enc_ctx->bit_rate = 192000;
     }
 
-    if (avcodec_open2(enc_ctx, enc, NULL) < 0) goto fail_encoder;
+    ALOGI("encoder: name=%s sample_fmts[0]=%d supported_sample_rates=%p",
+          enc->name, enc->sample_fmts ? enc->sample_fmts[0] : -1,
+          enc->supported_samplerates);
+    ALOGI("encoder setup: bit_rate=%lld sample_rate=%d sample_fmt=%d nb_channels=%d",
+          (long long)enc_ctx->bit_rate, enc_ctx->sample_rate,
+          enc_ctx->sample_fmt, enc_ctx->ch_layout.nb_channels);
+
+    ret = avcodec_open2(enc_ctx, enc, NULL);
+    if (ret < 0) {
+        av_strerror(ret, errbuf, sizeof(errbuf));
+        ALOGE("avcodec_open2 (encoder) failed: %d (%s) codec_id=%d encoder=%s",
+              ret, errbuf, target->codec_id, enc->name);
+        goto fail_encoder;
+    }
 
     // === Output muxer: write to dynamic buffer ===
     AVFormatContext *fmt_out = NULL;
     if (avformat_alloc_output_context2(&fmt_out, NULL,
-            target->muxer_short_name, NULL) < 0) goto fail_encoder;
+            target->muxer_short_name, NULL) < 0) {
+        ALOGE("avformat_alloc_output_context2 failed: muxer=%s", target->muxer_short_name);
+        goto fail_encoder;
+    }
     AVStream *out_stream = avformat_new_stream(fmt_out, NULL);
-    if (!out_stream) goto fail_output;
+    if (!out_stream) {
+        ALOGE("avformat_new_stream failed");
+        goto fail_output;
+    }
     avcodec_parameters_from_context(out_stream->codecpar, enc_ctx);
     out_stream->time_base = enc_ctx->time_base;
 
@@ -161,10 +227,21 @@ int transcode_main(
     int dyn_buf_size = 0;
     fmt_out->pb = avio_alloc_context(
         (uint8_t *)av_malloc(4096), 4096, 1, NULL, NULL, NULL, NULL);
-    if (!fmt_out->pb) goto fail_output;
-    avio_open_dyn_buf(&fmt_out->pb);  // overrides pb with dyn buf
+    if (!fmt_out->pb) {
+        ALOGE("avio_alloc_context (output) failed");
+        goto fail_output;
+    }
+    if (avio_open_dyn_buf(&fmt_out->pb) < 0) {
+        ALOGE("avio_open_dyn_buf failed");
+        goto fail_output;
+    }
 
-    if (avformat_write_header(fmt_out, NULL) < 0) goto fail_output;
+    ret = avformat_write_header(fmt_out, NULL);
+    if (ret < 0) {
+        av_strerror(ret, errbuf, sizeof(errbuf));
+        ALOGE("avformat_write_header failed: %d (%s)", ret, errbuf);
+        goto fail_output;
+    }
 
     // === Resampler: convert decoder's sample format to encoder's ===
     SwrContext *swr = swr_alloc();
@@ -175,7 +252,13 @@ int transcode_main(
     av_opt_set_chlayout(swr, "out_chlayout", &enc_ctx->ch_layout, 0);
     av_opt_set_int(swr, "out_sample_rate", enc_ctx->sample_rate, 0);
     av_opt_set_sample_fmt(swr, "out_sample_fmt", enc_ctx->sample_fmt, 0);
-    if (swr_init(swr) < 0) { swr_free(&swr); goto fail_output; }
+    ret = swr_init(swr);
+    if (ret < 0) {
+        av_strerror(ret, errbuf, sizeof(errbuf));
+        ALOGE("swr_init failed: %d (%s)", ret, errbuf);
+        swr_free(&swr);
+        goto fail_output;
+    }
 
     // === Main loop: decode → resample → encode → write ===
     AVPacket *pkt = av_packet_alloc();
@@ -187,6 +270,10 @@ int transcode_main(
     while (av_read_frame(fmt_in, pkt) >= 0) {
         if (pkt->stream_index == audio_idx) {
             ret = avcodec_send_packet(dec_ctx, pkt);
+            if (ret < 0) {
+                av_strerror(ret, errbuf, sizeof(errbuf));
+                ALOGE("avcodec_send_packet (dec) failed: %d (%s)", ret, errbuf);
+            }
             if (ret >= 0) {
                 while (avcodec_receive_frame(dec_ctx, dec_frame) >= 0) {
                     // Resample (ffmpeg 7+ uses ch_layout + format)
@@ -197,13 +284,22 @@ int transcode_main(
                     enc_frame->pts = pts;
                     pts += dec_frame->nb_samples;
 
-                    av_frame_get_buffer(enc_frame, 0);
+                    ret = av_frame_get_buffer(enc_frame, 0);
+                    if (ret < 0) {
+                        av_strerror(ret, errbuf, sizeof(errbuf));
+                        ALOGE("av_frame_get_buffer failed: %d (%s)", ret, errbuf);
+                        break;
+                    }
                     swr_convert(swr,
                         enc_frame->data, enc_frame->nb_samples,
                         (const uint8_t **)dec_frame->data, dec_frame->nb_samples);
 
                     ret = avcodec_send_frame(enc_ctx, enc_frame);
-                    if (ret < 0) break;
+                    if (ret < 0) {
+                        av_strerror(ret, errbuf, sizeof(errbuf));
+                        ALOGE("avcodec_send_frame failed: %d (%s)", ret, errbuf);
+                        break;
+                    }
                     while ((encode_ret = avcodec_receive_packet(enc_ctx, pkt)) >= 0) {
                         av_packet_rescale_ts(pkt, enc_ctx->time_base, out_stream->time_base);
                         pkt->stream_index = out_stream->index;
