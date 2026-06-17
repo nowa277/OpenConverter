@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>OpenConverter v0.4 — UI Redesign Mockups</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0a0a;
+    color: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    padding: 48px 24px;
+  }
+  h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+  .subtitle { color: #b3b3b3; font-size: 16px; margin-bottom: 48px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    gap: 32px;
+    max-width: 1800px;
+    margin: 0 auto;
+  }
+  .card {
+    background: #181818;
+    border-radius: 12px;
+    padding: 24px;
+    transition: transform 0.2s, box-shadow 0.2s;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+  }
+  .card:hover {
+    transform: translateY(-4px);
+    box-shadow: rgba(0, 0, 0, 0.5) 0px 12px 32px;
+  }
+  .card h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+  .card p { color: #b3b3b3; font-size: 14px; margin-bottom: 16px; line-height: 1.5; }
+  .iframe-wrap {
+    width: 100%;
+    height: 760px;
+    background: #121212;
+    border-radius: 24px;
+    overflow: hidden;
+    border: 1px solid #282828;
+    transform-origin: top center;
+    margin-bottom: 12px;
+  }
+  .iframe-wrap iframe {
+    width: 412px;
+    height: 760px;
+    border: 0;
+    transform: scale(0.92);
+    transform-origin: top center;
+  }
+  .tag {
+    display: inline-block;
+    background: #1f1f1f;
+    color: #b3b3b3;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    margin-right: 8px;
+  }
+  .tag.green { background: #1ed760; color: #000000; }
+  .nav-row {
+    max-width: 1800px;
+    margin: 0 auto 32px;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .nav-row a {
+    background: #1f1f1f;
+    color: #ffffff;
+    padding: 8px 16px;
+    border-radius: 9999px;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    transition: background 0.15s;
+  }
+  .nav-row a:hover { background: #2a2a2a; }
+  .nav-row a.active { background: #1ed760; color: #000000; }
+</style>
+</head>
+<body>
+  <h1>OpenConverter v0.4 — Spotify 风格 UI 重设计</h1>
+  <p class="subtitle">12 个 design decision 综合视觉化预览 · 单击任一卡片可全屏查看</p>
+  <div class="nav-row">
+    <a href="index.html" class="active">总览</a>
+    <a href="home.html">主页 (转换)</a>
+    <a href="history.html">历史</a>
+    <a href="settings.html">设置</a>
+    <a href="about.html">关于</a>
+    <a href="home-progress.html">转换中</a>
+  </div>
+  <div class="grid">
+    <a href="home.html" class="card">
+      <h2>主页 (转换) <span class="tag green">主屏</span></h2>
+      <p>顶部 brand · 文件列表 (Spotify list w/ hover lift) · 格式 chip (full pill) · 右下 FAB (Green circle) · Bottom Nav 4 Tab</p>
+      <div class="iframe-wrap"><iframe src="home.html" loading="lazy"></iframe></div>
+    </a>
+    <a href="home-progress.html" class="card">
+      <h2>转换中 (进度) <span class="tag">动态</span></h2>
+      <p>TopAppBar 进度条 · 文件卡片状态变化 (Done / Processing) · FAB 替换为取消按钮</p>
+      <div class="iframe-wrap"><iframe src="home-progress.html" loading="lazy"></iframe></div>
+    </a>
+    <a href="history.html" class="card">
+      <h2>历史 <span class="tag">Tab 2</span></h2>
+      <p>Spotify 列表卡片 · 时间分组 (今天 / 昨天 / 本周) · 单击打开系统文件管理器</p>
+      <div class="iframe-wrap"><iframe src="history.html" loading="lazy"></iframe></div>
+    </a>
+    <a href="settings.html" class="card">
+      <h2>设置 <span class="tag">Tab 3</span></h2>
+      <p>分组列表 (编码 / 文件 / 关于) · Ekey 输入框 (Spotify pill) · 重置按钮</p>
+      <div class="iframe-wrap"><iframe src="settings.html" loading="lazy"></iframe></div>
+    </a>
+    <a href="about.html" class="card">
+      <h2>关于 <span class="tag">Tab 4</span></h2>
+      <p>版本号 + 开源信息 + 捐赠入口</p>
+      <div class="iframe-wrap"><iframe src="about.html" loading="lazy"></iframe></div>
+    </a>
+  </div>
+</body>
+</html>

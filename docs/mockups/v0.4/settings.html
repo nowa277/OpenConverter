@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>设置 - OpenConverter</title>
+<link rel="stylesheet" href="_common.css">
+</head>
+<body>
+  <div class="phone">
+    <div class="statusbar"><span>20:14</span><span>5G 48%</span></div>
+
+    <div class="topbar">
+      <div class="brand">
+        <div class="brand-mark">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+            <defs>
+              <linearGradient id="lg1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#1ed760"/>
+                <stop offset="100%" stop-color="#1db954"/>
+              </linearGradient>
+              <linearGradient id="lg2" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#181818"/>
+                <stop offset="100%" stop-color="#121212"/>
+              </linearGradient>
+            </defs>
+            <circle cx="256" cy="256" r="240" fill="url(#lg2)" stroke="#282828" stroke-width="8"/>
+            <circle cx="256" cy="256" r="200" fill="none" stroke="url(#lg1)" stroke-width="12" opacity="0.8"/>
+            <rect x="120" y="180" width="40" height="120" rx="20" fill="url(#lg1)"/>
+            <rect x="180" y="140" width="40" height="180" rx="20" fill="url(#lg1)" opacity="0.9"/>
+            <rect x="240" y="100" width="40" height="240" rx="20" fill="url(#lg1)" opacity="0.85"/>
+            <rect x="300" y="140" width="40" height="180" rx="20" fill="url(#lg1)" opacity="0.9"/>
+            <rect x="360" y="180" width="40" height="120" rx="20" fill="url(#lg1)"/>
+          </svg>
+        </div>
+        <span class="brand-text">OpenConverter</span>
+        <span class="brand-version">v0.4.0</span>
+      </div>
+    </div>
+    <div class="progress-strip"></div>
+
+    <div class="content">
+      <div class="settings-group">
+        <div class="settings-group-title">QMC 加密密钥 (ekey)</div>
+        <div class="settings-list">
+          <div style="padding:14px 16px">
+            <input class="input-pill" type="password" placeholder="粘贴 QQ 音乐 ekey..." value="••••••••••••••••">
+            <div style="margin-top:8px;font-size:11px;color:var(--text-secondary);font-weight:500">
+              用于解密 QMC v2 加密音频。在设置页 QR 码扫描后粘贴。
+            </div>
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <button class="folder-change" style="background:var(--green);color:#000;border-color:var(--green)">保存</button>
+              <button class="folder-change">清空</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-group-title">编码</div>
+        <div class="settings-list">
+          <div class="settings-item">
+            <div class="marker"></div>
+            <div class="info">
+              <div class="title">默认比特率</div>
+              <div class="subtitle">MP3 / AAC 编码</div>
+            </div>
+            <span class="action">256 KBPS ›</span>
+          </div>
+          <div class="settings-item">
+            <div class="marker"></div>
+            <div class="info">
+              <div class="title">默认输出格式</div>
+              <div class="subtitle">新建转换时预选</div>
+            </div>
+            <span class="action">FLAC ›</span>
+          </div>
+          <div class="settings-item">
+            <div class="marker muted"></div>
+            <div class="info">
+              <div class="title">默认输出文件夹</div>
+              <div class="subtitle">SD 卡 / Download</div>
+            </div>
+            <span class="action">Download ›</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-group-title">行为</div>
+        <div class="settings-list">
+          <div class="settings-item">
+            <div class="marker"></div>
+            <div class="info">
+              <div class="title">转换完成通知</div>
+              <div class="subtitle">进度 / 完成 / 失败</div>
+            </div>
+            <span class="action" style="color:var(--green)">✓ 启用</span>
+          </div>
+          <div class="settings-item">
+            <div class="marker"></div>
+            <div class="info">
+              <div class="title">保留原始文件名</div>
+              <div class="subtitle">原名.mp3 → 原名.flac</div>
+            </div>
+            <span class="action" style="color:var(--green)">✓ 启用</span>
+          </div>
+          <div class="settings-item">
+            <div class="marker muted"></div>
+            <div class="info">
+              <div class="title">主题模式</div>
+              <div class="subtitle">锁定深色 (Spotify 风格)</div>
+            </div>
+            <span class="action">DARK ›</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-group-title">诊断</div>
+        <div class="settings-list">
+          <div class="settings-item">
+            <div class="marker muted"></div>
+            <div class="info">
+              <div class="title">失败日志</div>
+              <div class="subtitle">分享或清空</div>
+            </div>
+            <span class="action">查看 ›</span>
+          </div>
+          <div class="settings-item">
+            <div class="marker muted"></div>
+            <div class="info">
+              <div class="title">FFmpeg 信息</div>
+              <div class="subtitle">ffmpeg-kit 6.0-2.LTS</div>
+            </div>
+            <span class="action">查看 ›</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-nav">
+      <a class="nav-item"><span>主页</span></a>
+      <a class="nav-item"><span>历史</span></a>
+      <a class="nav-item active"><span>设置</span></a>
+      <a class="nav-item"><span>关于</span></a>
+    </div>
+  </div>
+</body>
+</html>

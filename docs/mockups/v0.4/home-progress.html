@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>转换中 - OpenConverter</title>
+<link rel="stylesheet" href="_common.css">
+</head>
+<body>
+  <div class="phone">
+    <div class="statusbar"><span>20:14</span><span>5G 48%</span></div>
+
+    <div class="topbar">
+      <div class="brand">
+        <div class="brand-mark">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+            <defs>
+              <linearGradient id="lg1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#1ed760"/>
+                <stop offset="100%" stop-color="#1db954"/>
+              </linearGradient>
+              <linearGradient id="lg2" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#181818"/>
+                <stop offset="100%" stop-color="#121212"/>
+              </linearGradient>
+            </defs>
+            <circle cx="256" cy="256" r="240" fill="url(#lg2)" stroke="#282828" stroke-width="8"/>
+            <circle cx="256" cy="256" r="200" fill="none" stroke="url(#lg1)" stroke-width="12" opacity="0.8"/>
+            <rect x="120" y="180" width="40" height="120" rx="20" fill="url(#lg1)"/>
+            <rect x="180" y="140" width="40" height="180" rx="20" fill="url(#lg1)" opacity="0.9"/>
+            <rect x="240" y="100" width="40" height="240" rx="20" fill="url(#lg1)" opacity="0.85"/>
+            <rect x="300" y="140" width="40" height="180" rx="20" fill="url(#lg1)" opacity="0.9"/>
+            <rect x="360" y="180" width="40" height="120" rx="20" fill="url(#lg1)"/>
+          </svg>
+        </div>
+        <span class="brand-text">OpenConverter</span>
+        <span class="brand-version">v0.4.0</span>
+      </div>
+      <div class="topbar-actions">
+        <span style="font-size:11px;color:var(--text-secondary);font-weight:700;letter-spacing:0.5px">2 / 3 · 64%</span>
+      </div>
+    </div>
+    <div class="progress-strip"><div class="fill"></div></div>
+
+    <div class="content">
+      <div class="section-title">
+        <span>转换队列</span>
+        <span class="count">2 / 3 · 64%</span>
+      </div>
+      <div class="file-list">
+        <div class="file-card">
+          <div class="file-info">
+            <div class="name">DJ小女孩-我知道.mp3</div>
+            <div class="meta">
+              <span class="status-badge done">已完成</span>
+              <span style="color:var(--green)">7.3 MB → 12.1 MB</span>
+            </div>
+          </div>
+        </div>
+        <div class="file-card">
+          <div class="file-info">
+            <div class="name">周杰伦-晴天.mflac</div>
+            <div class="meta">
+              <span class="status-badge processing">处理中</span>
+              <span style="color:var(--announcement)">9.8 MB · 37%</span>
+            </div>
+          </div>
+        </div>
+        <div class="file-card" style="opacity:0.5">
+          <div class="file-info">
+            <div class="name">陈奕迅-十年.ncm</div>
+            <div class="meta">
+              <span class="status-badge queued">排队中</span>
+              <span>1.3 MB</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="fab cancel" title="取消转换">取消</button>
+
+    <div class="bottom-nav">
+      <a class="nav-item active"><span>主页</span></a>
+      <a class="nav-item"><span>历史</span></a>
+      <a class="nav-item"><span>设置</span></a>
+      <a class="nav-item"><span>关于</span></a>
+    </div>
+  </div>
+</body>
+</html>
