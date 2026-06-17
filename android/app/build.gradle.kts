@@ -65,14 +65,21 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file(System.getenv("HOME") + "/keystores/openconverter.jks")
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "openc0nverter_v0.2.2_dev"
+            keyAlias = "openconverter"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "openc0nverter_v0.2.2_dev"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // M1: debug signing for fast iteration. Task 3.6 replaces with
-            // real keystore signing.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
