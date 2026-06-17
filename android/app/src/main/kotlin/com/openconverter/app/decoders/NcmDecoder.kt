@@ -1,4 +1,4 @@
-package com.openconverter.decoders
+package com.openconverter.app.decoders
 
 import javax.crypto.Cipher
 import javax.crypto.spec.SecretKeySpec

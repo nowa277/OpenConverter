@@ -1,4 +1,4 @@
-package com.openconverter.decoders
+package com.openconverter.app.decoders
 
 /**
  * Decrypted audio data, ready to be fed into ffmpeg for transcoding.

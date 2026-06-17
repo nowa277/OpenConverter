@@ -1,4 +1,4 @@
-package com.openconverter.decoders
+package com.openconverter.app.decoders
 
 import org.junit.Test
 import kotlin.test.assertEquals

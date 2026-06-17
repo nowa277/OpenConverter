@@ -1,4 +1,4 @@
-package com.openconverter.ffmpeg
+package com.openconverter.app.ffmpeg
 
 /**
  * Kotlin wrapper around the native ffmpeg libraries (libavformat, libavcodec,

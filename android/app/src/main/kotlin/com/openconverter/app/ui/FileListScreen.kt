@@ -1,4 +1,4 @@
-package com.openconverter.ui
+package com.openconverter.app.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

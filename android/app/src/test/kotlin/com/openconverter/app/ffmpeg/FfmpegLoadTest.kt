@@ -1,4 +1,4 @@
-package com.openconverter.ffmpeg
+package com.openconverter.app.ffmpeg
 
 import org.junit.Assume.assumeTrue
 import org.junit.Test

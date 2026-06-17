@@ -1,4 +1,4 @@
-package com.openconverter
+package com.openconverter.app
 
 import android.app.Application
 

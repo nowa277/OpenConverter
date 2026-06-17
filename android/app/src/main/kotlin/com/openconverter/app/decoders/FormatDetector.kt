@@ -1,4 +1,4 @@
-package com.openconverter.decoders
+package com.openconverter.app.decoders
 
 /**
  * Pure function: detect audio format from the first 16 bytes of a file.
