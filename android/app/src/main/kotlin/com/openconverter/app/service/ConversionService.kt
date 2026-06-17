@@ -37,7 +37,7 @@ class ConversionService : Service() {
         val uris = intent?.getStringArrayExtra(EXTRA_URIS)?.map(Uri::parse).orEmpty()
         val targetFormat = intent?.getStringExtra(EXTRA_TARGET_FORMAT) ?: "mp3"
         val folderUri = intent?.getStringExtra(EXTRA_FOLDER_URI)?.let(Uri::parse)
-        @Suppress("UNUSED_VARIABLE") val baseName = intent?.getStringExtra(EXTRA_BASE_NAME).orEmpty()
+        val baseName = intent?.getStringExtra(EXTRA_BASE_NAME).orEmpty()
 
         startForegroundCompat(
             ProgressNotification.build(this, "转换中…", 0, uris.size)
@@ -79,12 +79,14 @@ class ConversionService : Service() {
                     return@forEachIndexed
                 }
 
-                // Per Bug #2: preserve the source filename with just the
-                // extension swapped. baseName is a UI hint shown before write
-                // (preview) but the source stem is what we actually write so
-                // multi-file batches don't collide on a single name.
-                val sourceStem = displayName?.substringBeforeLast('.', "output_$i") ?: "output_$i"
-                val outName = "$sourceStem.$targetFormat"
+                // Single-file: honor the user-edited baseName as the output stem.
+                // Multi-file: keep each source's own stem to avoid collisions.
+                val outName = if (uris.size == 1 && baseName.isNotBlank()) {
+                    "$baseName.$targetFormat"
+                } else {
+                    val sourceStem = displayName?.substringBeforeLast('.', "output_$i") ?: "output_$i"
+                    "$sourceStem.$targetFormat"
+                }
                 val outUri = if (folderUri != null) {
                     createDocumentInFolder(folderUri, outName, targetFormat)
                 } else {
