@@ -34,14 +34,19 @@ fun FileListScreen(
     var pendingUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
 
     val pickFiles = safAdapter.openDocumentsContract()
-    val createDoc = safAdapter.createDocumentContract()
+    val createDoc = remember(targetFormat) {
+        safAdapter.createDocumentContract(getMimeForFormat(targetFormat))
+    }
 
     val pickFilesLauncher = rememberLauncherForActivityResult(pickFiles) { uris ->
         if (uris.isNotEmpty()) fileListVm.addUris(uris)
     }
     val createDocLauncher = rememberLauncherForActivityResult(createDoc) { uri ->
-        if (uri != null && pendingFormat != null) {
-            conversionVm.startConversion(pendingUris, pendingFormat!!, uri)
+        if (uri != null) {
+            fileListVm.setOutputUri(uri)
+            if (pendingFormat != null) {
+                conversionVm.startConversion(pendingUris, pendingFormat!!, uri)
+            }
         }
         pendingFormat = null
         pendingUris = emptyList()
@@ -49,6 +54,23 @@ fun FileListScreen(
 
     fun startConversion() {
         if (files.isEmpty()) return
+        val outUri = fileListVm.outputUri.value
+        if (outUri == null) {
+            // No output path set: open SAF picker first
+            pendingFormat = targetFormat
+            pendingUris = files.map { it.uri }
+            createDocLauncher.launch("output.${targetFormat}")
+        } else {
+            // Output path set: start conversion directly
+            conversionVm.startConversion(
+                files.map { it.uri },
+                targetFormat,
+                outUri
+            )
+        }
+    }
+
+    fun pickOutputPath() {
         pendingFormat = targetFormat
         pendingUris = files.map { it.uri }
         createDocLauncher.launch("output.${targetFormat}")
@@ -70,10 +92,34 @@ fun FileListScreen(
             listOf("mp3", "flac", "wav", "m4a", "ogg").forEach { fmt ->
                 FilterChip(
                     selected = targetFormat == fmt,
-                    onClick = { targetFormat = fmt },
+                    onClick = {
+                        targetFormat = fmt
+                        fileListVm.clearOutputIfFormatChanged(fmt)
+                    },
                     label = { Text(fmt.uppercase()) },
                     modifier = Modifier.padding(horizontal = 2.dp)
                 )
+            }
+        }
+
+        // Output path display + edit
+        val outputUri by fileListVm.outputUri.collectAsState()
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            val uri = outputUri
+            Text(
+                text = if (uri == null) "输出路径: 未设置"
+                       else "输出路径: ${uri.lastPathSegment ?: uri.toString()}",
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            OutlinedButton(onClick = { pickOutputPath() }) {
+                Text(if (uri == null) "选择输出路径" else "更改")
             }
         }
 
@@ -177,4 +223,22 @@ private fun formatSize(bytes: Long): String = when {
 private fun formatTotalSize(files: List<FileEntry>): String {
     val total = files.sumOf { it.sizeBytes }
     return formatSize(total)
+}
+
+private fun getMimeForFormat(format: String): String = when (format) {
+    "mp3" -> "audio/mpeg"
+    "flac" -> "audio/flac"
+    "wav" -> "audio/wav"
+    "m4a" -> "audio/mp4"
+    "ogg" -> "audio/ogg"
+    else -> "*/*"
+}
+
+private fun getMimeForFormatShort(format: String): String = when (format) {
+    "mp3" -> "MP3"
+    "flac" -> "FLAC"
+    "wav" -> "WAV"
+    "m4a" -> "M4A (AAC)"
+    "ogg" -> "OGG (Vorbis)"
+    else -> format.uppercase()
 }

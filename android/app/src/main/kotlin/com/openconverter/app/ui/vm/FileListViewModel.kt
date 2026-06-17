@@ -22,6 +22,25 @@ class FileListViewModel(app: Application) : AndroidViewModel(app) {
     private val _files = MutableStateFlow<List<FileEntry>>(emptyList())
     val files: StateFlow<List<FileEntry>> = _files
 
+    private val _outputUri = MutableStateFlow<Uri?>(null)
+    val outputUri: StateFlow<Uri?> = _outputUri
+
+    fun setOutputUri(uri: Uri) {
+        _outputUri.value = uri
+    }
+
+    /**
+     * If the user changes output format, invalidate any pre-set output path
+     * whose file extension no longer matches the new format.
+     */
+    fun clearOutputIfFormatChanged(newFormat: String) {
+        val current = _outputUri.value ?: return
+        val ext = current.lastPathSegment?.substringAfterLast('.', "")?.lowercase().orEmpty()
+        if (ext != newFormat) {
+            _outputUri.value = null
+        }
+    }
+
     fun addUris(uris: List<Uri>) {
         if (uris.isEmpty()) return
         viewModelScope.launch {
