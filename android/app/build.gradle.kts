@@ -13,8 +13,8 @@ android {
         applicationId = "com.openconverter.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.2.2"
+        versionCode = 2
+        versionName = "0.3.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -45,6 +45,9 @@ android {
 
     buildFeatures {
         compose = true
+        // Required so FileListScreen can read BuildConfig.VERSION_NAME for the
+        // header text; AGP 8+ disables BuildConfig generation by default.
+        buildConfig = true
     }
 
     // Pin to 1.5.14 — the version Compose officially maps to Kotlin 1.9.24.
