@@ -28,52 +28,43 @@ fun FileListScreen(
     val fileListVm: FileListViewModel = viewModel()
 
     val files by fileListVm.files.collectAsState()
+    val outputFolder by fileListVm.outputFolderUri.collectAsState()
+    val outputBaseName by fileListVm.outputBaseName.collectAsState()
 
     var targetFormat by rememberSaveable { mutableStateOf("mp3") }
-    var pendingFormat by remember { mutableStateOf<String?>(null) }
-    var pendingUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
 
     val pickFiles = safAdapter.openDocumentsContract()
-    val createDoc = remember(targetFormat) {
-        safAdapter.createDocumentContract(getMimeForFormat(targetFormat))
-    }
+    val openTree = safAdapter.openDocumentTreeContract()
 
     val pickFilesLauncher = rememberLauncherForActivityResult(pickFiles) { uris ->
         if (uris.isNotEmpty()) fileListVm.addUris(uris)
     }
-    val createDocLauncher = rememberLauncherForActivityResult(createDoc) { uri ->
+    val openTreeLauncher = rememberLauncherForActivityResult(openTree) { uri ->
         if (uri != null) {
-            fileListVm.setOutputUri(uri)
-            if (pendingFormat != null) {
-                conversionVm.startConversion(pendingUris, pendingFormat!!, uri)
-            }
+            val firstName = files.firstOrNull()?.displayName
+            fileListVm.setOutputFolder(uri, firstName)
         }
-        pendingFormat = null
-        pendingUris = emptyList()
     }
 
     fun startConversion() {
         if (files.isEmpty()) return
-        val outUri = fileListVm.outputUri.value
-        if (outUri == null) {
-            // No output path set: open SAF picker first
-            pendingFormat = targetFormat
-            pendingUris = files.map { it.uri }
-            createDocLauncher.launch("output.${targetFormat}")
-        } else {
-            // Output path set: start conversion directly
-            conversionVm.startConversion(
-                files.map { it.uri },
-                targetFormat,
-                outUri
-            )
+        val folderUri = fileListVm.outputFolderUri.value
+        if (folderUri == null) {
+            // No output folder yet — prompt user to pick one.
+            openTreeLauncher.launch(null)
+            return
         }
+        val baseName = fileListVm.outputBaseName.value.ifEmpty { "output" }
+        conversionVm.startConversion(
+            files.map { it.uri },
+            targetFormat,
+            folderUri,
+            baseName,
+        )
     }
 
-    fun pickOutputPath() {
-        pendingFormat = targetFormat
-        pendingUris = files.map { it.uri }
-        createDocLauncher.launch("output.${targetFormat}")
+    val derivedName = remember(outputBaseName, targetFormat) {
+        fileListVm.derivedOutputName(targetFormat)
     }
 
     Column(
@@ -102,24 +93,34 @@ fun FileListScreen(
             }
         }
 
-        // Output path display + edit
-        val outputUri by fileListVm.outputUri.collectAsState()
-        Row(
+        // Output folder preview + edit base name (v0.3.1 hotfix)
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            val uri = outputUri
             Text(
-                text = if (uri == null) "输出路径: 未设置"
-                       else "输出路径: ${uri.lastPathSegment ?: uri.toString()}",
-                modifier = Modifier.weight(1f),
+                text = "输出: " + (outputFolder?.let {
+                    "${it.lastPathSegment ?: it.toString()}/$derivedName"
+                } ?: "未设置输出文件夹"),
                 style = MaterialTheme.typography.bodySmall,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            OutlinedButton(onClick = { pickOutputPath() }) {
-                Text(if (uri == null) "选择输出路径" else "更改")
+            OutlinedButton(
+                onClick = { openTreeLauncher.launch(null) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(if (outputFolder == null) "选择输出文件夹" else "更改文件夹")
+            }
+            if (outputFolder != null) {
+                OutlinedTextField(
+                    value = outputBaseName,
+                    onValueChange = { fileListVm.setOutputBaseName(it) },
+                    label = { Text("输出文件名 (不含后缀)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    supportingText = { Text("将自动加上 .${targetFormat} 后缀") },
+                )
             }
         }
 
@@ -223,6 +224,11 @@ private fun formatSize(bytes: Long): String = when {
 private fun formatTotalSize(files: List<FileEntry>): String {
     val total = files.sumOf { it.sizeBytes }
     return formatSize(total)
+}
+
+private fun stripExt(name: String): String {
+    val lastDot = name.lastIndexOf('.')
+    return if (lastDot > 0) name.substring(0, lastDot) else name
 }
 
 private fun getMimeForFormat(format: String): String = when (format) {
