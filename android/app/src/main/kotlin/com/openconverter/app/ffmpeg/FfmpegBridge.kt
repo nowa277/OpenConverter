@@ -21,6 +21,13 @@ interface FfmpegTranscoder {
         outputFormat: String,
         bitrateKbps: Int,
     ): ByteArray
+
+    /**
+     * Probe input audio bytes; return duration in seconds, or -1.0 if the
+     * input is not valid audio. Production impl uses real ffmpeg; test
+     * fakes return a fixed duration.
+     */
+    fun probeDuration(inputBytes: ByteArray, inputFormat: String): Double
 }
 
 /**
@@ -29,9 +36,9 @@ interface FfmpegTranscoder {
  * libavfilter, libavdevice). The native implementation is in
  * app/src/main/cpp/ffmpeg_jni.cpp.
  *
- * M3.1 scope: this is still a STUB. The actual ffmpeg transcode logic is
- * filled in by Task 3.5. The stub returns the input bytes unchanged so the
- * NcmDecoder → FfmpegBridge pipeline can be exercised end-to-end.
+ * M3.5: real ffmpeg calls via JNI. transcode() probes the input and
+ * returns the input bytes unchanged (passthrough; re-encoding requires
+ * rebuilding ffmpeg with --enable-encoder, deferred).
  */
 object FfmpegBridge : FfmpegTranscoder {
     init {
@@ -44,15 +51,19 @@ object FfmpegBridge : FfmpegTranscoder {
         System.loadLibrary("avformat")
         System.loadLibrary("avfilter")
         System.loadLibrary("avdevice")
+        System.loadLibrary("openconverter_ffmpeg_jni")
     }
 
     /**
-     * JNI symbol: Java_com_openconverter_ffmpeg_FfmpegBridge_transcode.
-     * Package in C signature is the historic `com.openconverter.ffmpeg` —
-     * M3.5 will fix the JNI package binding to match our current
-     * `com.openconverter.app.ffmpeg` location. Until then, the JNI stub
-     * is not actually invoked at runtime; this code is reachable only on
-     * an emulator build with a matching JNI package.
+     * Probe input audio bytes; return duration in seconds.
+     * Returns -1.0 if input is not valid audio.
+     */
+    override fun probeDuration(inputBytes: ByteArray, inputFormat: String): Double =
+        probeDurationNative(inputBytes, inputFormat)
+
+    /**
+     * JNI symbol: Java_com_openconverter_app_ffmpeg_FfmpegBridge_transcode.
+     * M3 passthrough: probes input, then returns input bytes unchanged.
      */
     external override fun transcode(
         inputBytes: ByteArray,
@@ -60,4 +71,9 @@ object FfmpegBridge : FfmpegTranscoder {
         outputFormat: String,
         bitrateKbps: Int,
     ): ByteArray
+
+    private external fun probeDurationNative(
+        inputBytes: ByteArray,
+        inputFormat: String,
+    ): Double
 }

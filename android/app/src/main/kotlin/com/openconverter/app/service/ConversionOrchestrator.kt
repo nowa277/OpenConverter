@@ -79,12 +79,20 @@ class ConversionOrchestrator(
             else -> throw IllegalArgumentException("Unsupported format: $sourceFormat")
         }
 
-        val encoded = ffmpeg.transcode(audio.bytes, audio.format, targetFormat, bitrateKbps)
+        // Probe the decrypted audio to validate + get duration.
+        // ffmpeg.probeDuration returns -1.0 for invalid audio.
+        val probedDuration: Double = ffmpeg.probeDuration(audio.bytes, audio.format)
+        if (probedDuration < 0.0) {
+            throw IllegalArgumentException("Input is not valid ${audio.format} audio")
+        }
+        val probed = audio.copy(durationSec = probedDuration)
+
+        val encoded = ffmpeg.transcode(probed.bytes, probed.format, targetFormat, bitrateKbps)
         return Result(
             encoded = encoded,
             sourceFormat = sourceFormat,
             targetFormat = targetFormat,
-            durationSec = audio.durationSec,
+            durationSec = probed.durationSec,
         )
     }
 }

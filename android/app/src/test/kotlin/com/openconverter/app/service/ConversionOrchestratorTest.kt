@@ -24,6 +24,7 @@ class ConversionOrchestratorTest {
         )
 
         val calls = mutableListOf<Call>()
+        var probeResult: Double = 180.0
 
         override fun transcode(
             inputBytes: ByteArray,
@@ -34,6 +35,11 @@ class ConversionOrchestratorTest {
             calls.add(Call(inputBytes.size, inputFormat, outputFormat, bitrateKbps))
             return inputBytes
         }
+
+        override fun probeDuration(
+            inputBytes: ByteArray,
+            inputFormat: String,
+        ): Double = probeResult
     }
 
     @Test
