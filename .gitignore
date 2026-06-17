@@ -77,8 +77,13 @@ android/.gradle/
 android/app/build/
 android/build/
 android/local.properties
-android/app/src/main/jniLibs/*/libffmpeg.so
-android/app/src/main/jniLibs/*/libffmpeg.so.debug
+# ffmpeg shared libraries built by android/scripts/build-ffmpeg.sh.
+# 7 .so files per ABI (libavformat, libavcodec, libavutil, libswresample,
+# libswscale, libavfilter, libavdevice) = ~7.5 MB per ABI. Build locally
+# before assembling APKs; do not commit.
+android/app/src/main/jniLibs/*/libav*.so
+android/app/src/main/jniLibs/*/libsw*.so
+android/app/src/main/jniLibs/*/*.so.debug
 
 # Android signing keys
 *.jks
