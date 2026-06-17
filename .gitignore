@@ -65,3 +65,9 @@ Thumbs.db
 
 # Windows build artifacts (downloaded by scripts/setup-win-deps.sh, not committed)
 scripts/win-deps/
+
+# Generated Windows icon (created by ImageMagick during setup-win-deps.sh)
+build/icons/*.ico
+
+# Local user artifacts (test screenshots, scratch output)
+errors_screenshots/
