@@ -1,3 +1,5 @@
+import java.time.Instant
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -13,8 +15,8 @@ android {
         applicationId = "com.openconverter.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "0.4.0"
+        versionCode = 5
+        versionName = "0.4.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -26,6 +28,17 @@ android {
                 cppFlags += listOf("-std=c++17", "-fvisibility=hidden")
             }
         }
+
+        // Inject git short hash + working-tree status + build time into
+        // BuildConfig so CrashReporter can stamp crash files. Fields fall
+        // back to "unknown" when git is unavailable.
+        val gitHash: String = runGit("rev-parse", "--short=7", "HEAD").ifEmpty { "unknown" }
+        val gitClean: String = runGit("status", "--porcelain").let {
+            if (it.isEmpty()) "clean" else "dirty"
+        }
+        buildConfigField("String", "GIT_HASH", "\"$gitHash\"")
+        buildConfigField("String", "GIT_CLEAN", "\"$gitClean\"")
+        buildConfigField("String", "BUILD_TIME", "\"${Instant.now()}\"")
     }
 
     externalNativeBuild {
@@ -113,4 +126,17 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
     androidTestImplementation("org.jetbrains.kotlin:kotlin-test:1.9.24")
+}
+
+// Read git state at configure time. Returns "" on failure so callers can
+// fall back to "unknown" — must never make the build hang or fail because
+// git isn't available (CI tarball, sandbox without git, etc.).
+fun runGit(vararg args: String): String = try {
+    val proc = ProcessBuilder(listOf("git") + args.toList())
+        .directory(rootDir)
+        .redirectErrorStream(true)
+        .start()
+    proc.inputStream.bufferedReader().readText().trim().also { proc.waitFor() }
+} catch (e: Exception) {
+    ""
 }
