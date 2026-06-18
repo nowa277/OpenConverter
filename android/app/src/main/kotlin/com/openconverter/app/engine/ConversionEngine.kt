@@ -76,7 +76,10 @@ class ConversionEngine(
             // Transcode subroutine
             val tag = if (isPlain) "plain" else "dec"
             inPath = fs.cacheFile("in_${i}_$tag.$srcFormatExt", audio)
-            outPath = inPath.replaceAfterLast('.', req.targetFormat)
+            // Independent output cache name — never derived from inPath. When
+            // srcFormatExt == targetFormat, replaceAfterLast('.') would yield
+            // inPath itself, making ffmpeg refuse input==output.
+            outPath = fs.cachePath("out_${i}_$tag.${req.targetFormat}")
             coroutineContext.ensureActive()
 
             val r = ffmpeg.execute(

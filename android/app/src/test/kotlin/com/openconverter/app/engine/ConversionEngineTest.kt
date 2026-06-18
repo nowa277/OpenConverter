@@ -116,6 +116,41 @@ class ConversionEngineTest {
         assertEquals("song.flac", fs.writes[0].second)
     }
 
+    /**
+     * Regression: encrypted .ncm (sniffs mp3) → mp3 WITH bitrate.
+     * srcFormatExt == targetFormat but bitrate != null, so the direct-copy
+     * short-circuit is skipped and we go through ffmpeg. The output cache
+     * path must NOT be derived from inPath (replaceAfterLast('.') would
+     * yield inPath itself → ffmpeg refuses input==output).
+     */
+    @Test fun encrypted_same_format_with_bitrate_transcodes() = runTest {
+        val cipher = byteArrayOf(0xFF.toByte(), 0xFE.toByte())
+        val fakeNcm = object : Decoder {
+            override val supportedExtensions = setOf(".ncm")
+            override fun decrypt(input: ByteArray) = DecryptResult(audio = ID3, format = "mp3")
+        }
+        val fs = FakeFileSystemPort(reads = mapOf("uri:e" to cipher))
+        val ffmpeg = FakeFfmpegRunner(fs, outputBytes = ID3)
+        val sink = RecordingProgressSink()
+        val engine = ConversionEngine(DecoderRegistry(listOf(fakeNcm)), ffmpeg, fs, sink)
+
+        val req = ConversionRequest(
+            listOf("uri:e"), listOf("song.ncm"),
+            "mp3", "tree:out", "320k", PLAIN_EXTS,
+        )
+        val results = engine.convertAll(req)
+
+        assertNull(results[0].error)
+        assertEquals(1, ffmpeg.calls.size)
+        val call = ffmpeg.calls[0]
+        assertEquals("mp3", call.format)
+        assertEquals("320k", call.bitrate)
+        assertTrue(
+            "input and output must differ (got in=${call.input} out=${call.output})",
+            call.input != call.output,
+        )
+    }
+
     /** Test 5: per-file failure does not abort the batch. */
     @Test fun per_file_failure_continues() = runTest {
         val fs = FakeFileSystemPort(

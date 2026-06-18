@@ -17,6 +17,11 @@ android {
         vectorDrawables { useSupportLibrary = true }
     }
 
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -39,7 +44,6 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
 
-    buildFeatures { compose = true }
     composeOptions { kotlinCompilerExtensionVersion = "1.5.14" }
 
     packaging {
@@ -56,6 +60,11 @@ dependencies {
 
     // ffmpeg-kit-full-gpl 6.0-2.LTS — fetched by android/scripts/fetch-ffmpeg-kit.sh, gitignored.
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar"))))
+    // ffmpeg-kit AAR has a compile-time dep on smart-exception-java (referenced by
+    // FFmpegKitConfig.<clinit>). fileTree(*.aar) skips POM resolution, so we must
+    // declare it explicitly — otherwise every ffmpeg call dies with
+    // NoClassDefFoundError: com/arthenica/smartexception/java/Exceptions.
+    implementation("com.arthenica:smart-exception-java:0.2.1")
 
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.activity:activity-compose:1.9.3")

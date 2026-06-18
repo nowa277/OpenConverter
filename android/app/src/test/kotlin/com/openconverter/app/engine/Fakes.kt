@@ -20,6 +20,7 @@ class FakeFileSystemPort(
         cache[path] = bytes
         return path
     }
+    override fun cachePath(name: String): String = "/cache/$name"
     override fun readCache(path: String): ByteArray =
         cache[path] ?: throw NoSuchElementException("FakeFileSystemPort: cache miss $path")
     override fun writeOutput(folderUri: String, displayName: String, mime: String, bytes: ByteArray): String {
