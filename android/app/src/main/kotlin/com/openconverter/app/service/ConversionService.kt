@@ -38,6 +38,10 @@ class ConversionService : Service() {
         val targetFormat = intent?.getStringExtra(EXTRA_TARGET_FORMAT) ?: "mp3"
         val folderUri = intent?.getStringExtra(EXTRA_FOLDER_URI)?.let(Uri::parse)
         val baseName = intent?.getStringExtra(EXTRA_BASE_NAME).orEmpty()
+        com.openconverter.app.log.OCLog.i("svc.onStart",
+            "n" to uris.size, "fmt" to targetFormat,
+            "folder" to (folderUri?.lastPathSegment ?: "null"),
+            "baseName" to baseName)
 
         startForegroundCompat(
             ProgressNotification.build(this, "转换中…", 0, uris.size)
@@ -51,6 +55,8 @@ class ConversionService : Service() {
 
             uris.forEachIndexed { i, uri ->
                 val filename = uri.lastPathSegment ?: "file_$i"
+                com.openconverter.app.log.OCLog.i("svc.file.start",
+                    "i" to i, "total" to uris.size, "uri" to uri.toString())
                 _progress.value = Progress.Processing(i, uris.size, filename)
 
                 val input = runCatching {
@@ -59,6 +65,8 @@ class ConversionService : Service() {
                 if (input == null) {
                     failures.add(uri to "读取失败")
                     failureLog.record(uri.toString(), filename, "读取失败")
+                    com.openconverter.app.log.OCLog.e("svc.file.read_fail", null,
+                        "i" to i, "uri" to uri.toString())
                     return@forEachIndexed
                 }
 
@@ -76,6 +84,8 @@ class ConversionService : Service() {
                     val err = result.exceptionOrNull()?.message ?: "未知错误"
                     failures.add(uri to err)
                     failureLog.record(uri.toString(), filename, err)
+                    com.openconverter.app.log.OCLog.e("svc.file.orch_fail", result.exceptionOrNull(),
+                        "i" to i, "err" to err)
                     return@forEachIndexed
                 }
 
@@ -99,6 +109,8 @@ class ConversionService : Service() {
                 if (outUri == null) {
                     failures.add(uri to "无法创建输出文件")
                     failureLog.record(uri.toString(), filename, "无法创建输出文件")
+                    com.openconverter.app.log.OCLog.e("svc.file.create_doc_fail", null,
+                        "i" to i, "outName" to outName, "folder" to folderUri.toString())
                     return@forEachIndexed
                 }
 
@@ -117,6 +129,9 @@ class ConversionService : Service() {
                 successes.add(uri)
                 _progress.value = Progress.Done(i + 1, uris.size, filename)
             }
+
+            com.openconverter.app.log.OCLog.i("svc.complete",
+                "total" to uris.size, "ok" to successes.size, "fail" to failures.size)
 
             val title = if (failures.isEmpty()) {
                 "全部完成 (${successes.size})"

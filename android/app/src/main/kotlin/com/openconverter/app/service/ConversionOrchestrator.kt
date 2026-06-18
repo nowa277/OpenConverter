@@ -9,6 +9,7 @@ import com.openconverter.app.decoders.QmcDecoder
 import com.openconverter.app.decoders.QmcV2Decoder
 import com.openconverter.app.ffmpeg.FfmpegBridge
 import com.openconverter.app.ffmpeg.FfmpegTranscoder
+import com.openconverter.app.log.OCLog
 
 /**
  * Pure logic for converting one file's encrypted bytes to a target format.
@@ -67,6 +68,8 @@ class ConversionOrchestrator(
                     input.copyOfRange(0, minOf(16, input.size))
                         .joinToString("") { "%02x".format(it) }
             )
+        OCLog.i("orch.detect", "fmt" to sourceFormat, "fileName" to fileName,
+                "inputBytes" to input.size)
 
         val audio: AudioData = when (sourceFormat) {
             "ncm" -> NcmDecoder.decrypt(input)
@@ -94,6 +97,9 @@ class ConversionOrchestrator(
         val probed = audio.copy(durationSec = probedDuration)
 
         val encoded = ffmpeg.transcode(probed.bytes, probed.format, targetFormat, bitrateKbps)
+        OCLog.i("orch.done", "src" to sourceFormat, "dst" to targetFormat,
+                "outBytes" to encoded.size,
+                "durationSec" to (probed.durationSec ?: -1.0))
         return Result(
             encoded = encoded,
             sourceFormat = sourceFormat,
