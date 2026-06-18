@@ -17,17 +17,23 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.openconverter.app.theme.OpenConverterTheme
 import com.openconverter.app.ui.NavRoutes
 import com.openconverter.app.ui.about.AboutScreen
+import com.openconverter.app.ui.crashlog.CrashLogListScreen
+import com.openconverter.app.ui.crashlog.CrashLogPreviewScreen
 import com.openconverter.app.ui.history.HistoryScreen
 import com.openconverter.app.ui.home.HomeScreen
 import com.openconverter.app.ui.settings.SettingsScreen
+import java.io.File
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -88,8 +94,34 @@ fun OpenConverterRoot() {
         ) {
             composable(NavRoutes.HOME) { HomeScreen() }
             composable(NavRoutes.HISTORY) { HistoryScreen() }
-            composable(NavRoutes.SETTINGS) { SettingsScreen() }
+            composable(NavRoutes.SETTINGS) {
+                SettingsScreen(
+                    onOpenCrashLog = { navController.navigate(NavRoutes.CRASHLOG) },
+                )
+            }
             composable(NavRoutes.ABOUT) { AboutScreen() }
+            composable(NavRoutes.CRASHLOG) {
+                val ctx = LocalContext.current
+                val dir = File(ctx.getExternalFilesDir(null), "crash")
+                CrashLogListScreen(
+                    crashDir = dir,
+                    onBack = { navController.popBackStack() },
+                    onOpen = { name -> navController.navigate(NavRoutes.crashlogDetail(name)) },
+                )
+            }
+            composable(
+                route = NavRoutes.CRASHLOG_DETAIL,
+                arguments = listOf(navArgument("fileName") { type = NavType.StringType }),
+            ) { entry ->
+                val ctx = LocalContext.current
+                val name = entry.arguments?.getString("fileName") ?: ""
+                val dir = File(ctx.getExternalFilesDir(null), "crash")
+                CrashLogPreviewScreen(
+                    crashDir = dir,
+                    fileName = name,
+                    onBack = { navController.popBackStack() },
+                )
+            }
         }
     }
 }

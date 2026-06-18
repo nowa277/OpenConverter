@@ -1,30 +1,35 @@
 package com.openconverter.app.ui.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.openconverter.app.BuildConfig
-import com.openconverter.app.components.OpenConverterLogo
+import com.openconverter.app.crash.CrashLogStore
 import com.openconverter.app.theme.SurfaceCard
 import com.openconverter.app.theme.TextSecondary
-
-private data class SettingsGroup(val title: String, val items: List<SettingsItem>)
-private data class SettingsItem(val title: String, val subtitle: String? = null)
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(
+    onOpenCrashLog: () -> Unit = {},
+) {
     val vm: SettingsViewModel = viewModel()
     val currentEkey by vm.qmcEkey.collectAsState()
     var ekeyInput by remember(currentEkey) { mutableStateOf(currentEkey) }
+    val ctx = LocalContext.current
+    val crashCount = remember(ctx) {
+        CrashLogStore(File(ctx.getExternalFilesDir(null), "crash")).list().size
+    }
 
     Scaffold(
         topBar = { CenterAlignedTopAppBar(title = { Text("设置") }) }
@@ -92,6 +97,23 @@ fun SettingsScreen() {
                 GroupCard {
                     Column {
                         StaticRow("失败日志", "查看")
+                        Divider()
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onOpenCrashLog() }
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text("崩溃日志", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                if (crashCount == 0) "无" else "查看 ($crashCount)",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (crashCount == 0) TextSecondary
+                                        else MaterialTheme.colorScheme.primary,
+                            )
+                        }
                         Divider()
                         StaticRow("FFmpeg 信息", "ffmpeg-kit 6.0-2.LTS", valueColor = TextSecondary)
                         Divider()
