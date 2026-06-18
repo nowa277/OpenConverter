@@ -13,6 +13,8 @@ import androidx.core.content.ContextCompat
 import com.openconverter.app.ekey.EkeyStore
 import com.openconverter.app.failures.FailureLog
 import com.openconverter.app.ffmpeg.FfmpegBridge
+import com.openconverter.app.ui.history.HistoryEntry
+import com.openconverter.app.ui.history.HistoryRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -63,6 +65,16 @@ class ConversionService : Service() {
                 if (input == null) {
                     failures.add(uri to "读取失败")
                     failureLog.record(uri.toString(), filename, "读取失败")
+                    HistoryRepository.record(
+                        HistoryEntry(
+                            timestampMs = System.currentTimeMillis(),
+                            sourceName = filename,
+                            targetFormat = targetFormat,
+                            status = "FAILED",
+                            errorMessage = "读取失败",
+                            sourceUri = uri,
+                        )
+                    )
                     com.openconverter.app.log.OCLog.e("svc.file.read_fail", null,
                         "i" to i, "uri" to uri.toString())
                     return@forEachIndexed
@@ -82,6 +94,16 @@ class ConversionService : Service() {
                     val err = result.exceptionOrNull()?.message ?: "未知错误"
                     failures.add(uri to err)
                     failureLog.record(uri.toString(), filename, err)
+                    HistoryRepository.record(
+                        HistoryEntry(
+                            timestampMs = System.currentTimeMillis(),
+                            sourceName = filename,
+                            targetFormat = targetFormat,
+                            status = "FAILED",
+                            errorMessage = err,
+                            sourceUri = uri,
+                        )
+                    )
                     com.openconverter.app.log.OCLog.e("svc.file.orch_fail", result.exceptionOrNull(),
                         "i" to i, "err" to err)
                     return@forEachIndexed
@@ -100,6 +122,16 @@ class ConversionService : Service() {
                 if (outUri == null) {
                     failures.add(uri to "无法创建输出文件")
                     failureLog.record(uri.toString(), filename, "无法创建输出文件")
+                    HistoryRepository.record(
+                        HistoryEntry(
+                            timestampMs = System.currentTimeMillis(),
+                            sourceName = filename,
+                            targetFormat = targetFormat,
+                            status = "FAILED",
+                            errorMessage = "无法创建输出文件",
+                            sourceUri = uri,
+                        )
+                    )
                     com.openconverter.app.log.OCLog.e("svc.file.create_doc_fail", null,
                         "i" to i, "outName" to outName, "folder" to folderUri.toString())
                     return@forEachIndexed
@@ -114,10 +146,30 @@ class ConversionService : Service() {
                     val err = "保存失败: ${writeResult.exceptionOrNull()?.message}"
                     failures.add(uri to err)
                     failureLog.record(uri.toString(), filename, err)
+                    HistoryRepository.record(
+                        HistoryEntry(
+                            timestampMs = System.currentTimeMillis(),
+                            sourceName = filename,
+                            targetFormat = targetFormat,
+                            status = "FAILED",
+                            errorMessage = err,
+                            sourceUri = uri,
+                        )
+                    )
                     return@forEachIndexed
                 }
 
                 successes.add(uri)
+                HistoryRepository.record(
+                    HistoryEntry(
+                        timestampMs = System.currentTimeMillis(),
+                        sourceName = filename,
+                        targetFormat = targetFormat,
+                        status = "DONE",
+                        outputUri = outUri,
+                        sourceUri = uri,
+                    )
+                )
                 _progress.value = Progress.Done(i + 1, uris.size, filename)
             }
 
