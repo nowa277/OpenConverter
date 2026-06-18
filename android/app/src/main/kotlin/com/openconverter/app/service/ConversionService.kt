@@ -11,8 +11,16 @@ import android.provider.DocumentsContract
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.openconverter.app.ekey.EkeyStore
+import com.openconverter.app.engine.Clock
+import com.openconverter.app.engine.ContentResolverFacade
+import com.openconverter.app.engine.ConversionEngine
+import com.openconverter.app.engine.EkeyProvider
+import com.openconverter.app.engine.FailureSink
+import com.openconverter.app.engine.HistorySink
+import com.openconverter.app.engine.Orchestrator
 import com.openconverter.app.failures.FailureLog
 import com.openconverter.app.ffmpeg.FfmpegBridge
+import com.openconverter.app.log.OCLog
 import com.openconverter.app.ui.history.HistoryEntry
 import com.openconverter.app.ui.history.HistoryRepository
 import kotlinx.coroutines.CoroutineScope
@@ -39,7 +47,7 @@ class ConversionService : Service() {
         val uris = intent?.getStringArrayExtra(EXTRA_URIS)?.map(Uri::parse).orEmpty()
         val targetFormat = intent?.getStringExtra(EXTRA_TARGET_FORMAT) ?: "mp3"
         val folderUri = intent?.getStringExtra(EXTRA_FOLDER_URI)?.let(Uri::parse)
-        com.openconverter.app.log.OCLog.i("svc.onStart",
+        OCLog.i("svc.onStart",
             "n" to uris.size, "fmt" to targetFormat,
             "folder" to (folderUri?.lastPathSegment ?: "null"))
 
@@ -49,139 +57,35 @@ class ConversionService : Service() {
 
         scope.launch {
             val serviceContext = this@ConversionService
-            val ekey = ekeyStore.getEkey()
-            val failures = mutableListOf<Pair<Uri, String>>()
-            val successes = mutableListOf<Uri>()
+            val ekeyValue = ekeyStore.getEkey()
 
-            uris.forEachIndexed { i, uri ->
-                val filename = uri.lastPathSegment ?: "file_$i"
-                com.openconverter.app.log.OCLog.i("svc.file.start",
-                    "i" to i, "total" to uris.size, "uri" to uri.toString())
-                _progress.value = Progress.Processing(i, uris.size, filename)
+            val engine = ConversionEngine(
+                resolver = ServiceContentResolverFacade(serviceContext),
+                orchestrator = Orchestrator { input, fileName, ek, fmt, br ->
+                    orchestrator.convertOneInMemory(input, fileName, ek, fmt, br)
+                },
+                ekey = object : EkeyProvider { override fun getEkey(): String? = ekeyValue },
+                failureSink = object : FailureSink {
+                    override fun record(uri: String, filename: String, error: String) =
+                        failureLog.record(uri, filename, error)
+                },
+                historySink = HistoryRepositorySink,
+                clock = Clock.wallClock,
+            )
 
-                val input = runCatching {
-                    contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                }.getOrNull()
-                if (input == null) {
-                    failures.add(uri to "读取失败")
-                    failureLog.record(uri.toString(), filename, "读取失败")
-                    HistoryRepository.record(
-                        HistoryEntry(
-                            timestampMs = System.currentTimeMillis(),
-                            sourceName = filename,
-                            targetFormat = targetFormat,
-                            status = "FAILED",
-                            errorMessage = "读取失败",
-                            sourceUri = uri,
-                        )
-                    )
-                    com.openconverter.app.log.OCLog.e("svc.file.read_fail", null,
-                        "i" to i, "uri" to uri.toString())
-                    return@forEachIndexed
-                }
+            val result = engine.convertAll(
+                uris = uris,
+                targetFormat = targetFormat,
+                folderUri = folderUri,
+                progressSink = _progress,
+            )
 
-                val displayName = queryDisplayName(uri)
-                val result = runCatching {
-                    orchestrator.convertOneInMemory(
-                        input = input,
-                        fileName = displayName,
-                        ekey = ekey,
-                        targetFormat = targetFormat,
-                        bitrateKbps = 256,
-                    )
-                }
-                if (result.isFailure) {
-                    val err = result.exceptionOrNull()?.message ?: "未知错误"
-                    failures.add(uri to err)
-                    failureLog.record(uri.toString(), filename, err)
-                    HistoryRepository.record(
-                        HistoryEntry(
-                            timestampMs = System.currentTimeMillis(),
-                            sourceName = filename,
-                            targetFormat = targetFormat,
-                            status = "FAILED",
-                            errorMessage = err,
-                            sourceUri = uri,
-                        )
-                    )
-                    com.openconverter.app.log.OCLog.e("svc.file.orch_fail", result.exceptionOrNull(),
-                        "i" to i, "err" to err)
-                    return@forEachIndexed
-                }
-
-                // Output name: source stem + target ext. Multi-file: each
-                // source has a unique stem so no collisions. (Spec §2.5)
-                val sourceStem = displayName?.substringBeforeLast('.', displayName)
-                    ?: "output_$i"
-                val outName = "$sourceStem.$targetFormat"
-                val outUri = if (folderUri != null) {
-                    createDocumentInFolder(folderUri, outName, targetFormat)
-                } else {
-                    null
-                }
-                if (outUri == null) {
-                    failures.add(uri to "无法创建输出文件")
-                    failureLog.record(uri.toString(), filename, "无法创建输出文件")
-                    HistoryRepository.record(
-                        HistoryEntry(
-                            timestampMs = System.currentTimeMillis(),
-                            sourceName = filename,
-                            targetFormat = targetFormat,
-                            status = "FAILED",
-                            errorMessage = "无法创建输出文件",
-                            sourceUri = uri,
-                        )
-                    )
-                    com.openconverter.app.log.OCLog.e("svc.file.create_doc_fail", null,
-                        "i" to i, "outName" to outName, "folder" to folderUri.toString())
-                    return@forEachIndexed
-                }
-
-                val writeResult = runCatching {
-                    contentResolver.openOutputStream(outUri)?.use {
-                        it.write(result.getOrThrow().encoded)
-                    }
-                }
-                if (writeResult.isFailure) {
-                    val err = "保存失败: ${writeResult.exceptionOrNull()?.message}"
-                    failures.add(uri to err)
-                    failureLog.record(uri.toString(), filename, err)
-                    HistoryRepository.record(
-                        HistoryEntry(
-                            timestampMs = System.currentTimeMillis(),
-                            sourceName = filename,
-                            targetFormat = targetFormat,
-                            status = "FAILED",
-                            errorMessage = err,
-                            sourceUri = uri,
-                        )
-                    )
-                    return@forEachIndexed
-                }
-
-                successes.add(uri)
-                HistoryRepository.record(
-                    HistoryEntry(
-                        timestampMs = System.currentTimeMillis(),
-                        sourceName = filename,
-                        targetFormat = targetFormat,
-                        status = "DONE",
-                        outputUri = outUri,
-                        sourceUri = uri,
-                    )
-                )
-                _progress.value = Progress.Done(i + 1, uris.size, filename)
-            }
-
-            com.openconverter.app.log.OCLog.i("svc.complete",
-                "total" to uris.size, "ok" to successes.size, "fail" to failures.size)
-
-            val title = if (failures.isEmpty()) {
-                "全部完成 (${successes.size})"
+            val title = if (result.fail == 0) {
+                "全部完成 (${result.ok})"
             } else {
-                "完成 ${successes.size}/${uris.size}（${failures.size} 失败）"
+                "完成 ${result.ok}/${result.total}（${result.fail} 失败）"
             }
-            val finalNotification = ProgressNotification.build(serviceContext, title, uris.size, uris.size)
+            val finalNotification = ProgressNotification.build(serviceContext, title, result.total, result.total)
             NotificationManagerCompat.from(serviceContext)
                 .notify(ProgressNotification.NOTIFICATION_ID, finalNotification)
 
@@ -218,46 +122,7 @@ class ConversionService : Service() {
         }
     }
 
-    /**
-     * Create a new document inside the user-picked folder tree using
-     * DocumentsContract.createDocument, then return its URI for writing.
-     */
-    private fun createDocumentInFolder(
-        folderUri: Uri,
-        fileName: String,
-        targetFormat: String,
-    ): Uri? {
-        val mime = mimeForFormat(targetFormat)
-        val docUri = DocumentsContract.createDocument(
-            contentResolver,
-            folderUri,
-            mime,
-            fileName,
-        ) ?: return null
-        return docUri
-    }
-
-    private fun mimeForFormat(format: String): String = when (format) {
-        "mp3" -> "audio/mpeg"
-        "flac" -> "audio/flac"
-        "wav" -> "audio/wav"
-        "m4a" -> "audio/mp4"
-        "ogg" -> "audio/ogg"
-        else -> "application/octet-stream"
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        scope.cancel()
-    }
-
-    sealed class Progress {
-        object Idle : Progress()
-        data class Processing(val index: Int, val total: Int, val current: String) : Progress()
-        data class Done(val completed: Int, val total: Int, val last: String) : Progress()
-    }
-
-    private fun queryDisplayName(uri: Uri): String? = try {
+    private fun queryDisplayNameInternal(uri: Uri): String? = try {
         contentResolver.query(
             uri,
             arrayOf(android.provider.OpenableColumns.DISPLAY_NAME),
@@ -270,6 +135,37 @@ class ConversionService : Service() {
         }
     } catch (e: Exception) {
         null
+    }
+
+    /** Adapter from [ConversionEngine]'s facade to the live ContentResolver. */
+    private class ServiceContentResolverFacade(
+        private val service: ConversionService,
+    ) : ContentResolverFacade {
+        override fun read(uri: Uri): ByteArray? = runCatching {
+            service.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+        }.getOrNull()
+
+        override fun write(uri: Uri, bytes: ByteArray): Boolean = runCatching {
+            service.contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
+                ?: return@runCatching false
+            true
+        }.getOrDefault(false)
+
+        override fun createDocument(folderUri: Uri, name: String, mime: String): Uri? =
+            DocumentsContract.createDocument(service.contentResolver, folderUri, mime, name)
+
+        override fun queryDisplayName(uri: Uri): String? = service.queryDisplayNameInternal(uri)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        scope.cancel()
+    }
+
+    sealed class Progress {
+        object Idle : Progress()
+        data class Processing(val index: Int, val total: Int, val current: String) : Progress()
+        data class Done(val completed: Int, val total: Int, val last: String) : Progress()
     }
 
     companion object {
@@ -290,5 +186,12 @@ class ConversionService : Service() {
             }
             ContextCompat.startForegroundService(context, intent)
         }
+    }
+}
+
+/** File-scope adapter so [ConversionEngine] can call HistoryRepository (an `object`). */
+private object HistoryRepositorySink : HistorySink {
+    override fun record(entry: HistoryEntry) {
+        HistoryRepository.record(entry)
     }
 }
