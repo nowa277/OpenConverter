@@ -1,0 +1,5 @@
+{
+  "synthetic-kwm.kwm": "5cd5b7da3f3c5053272ecd844d80c7faf8f0c382c1b4a932f6a42298f18c3296",
+  "seed": 123456,
+  "notes": "Seed is a uint32 LE at offset 0x10 in the header. The Android decoder must derive the 32-byte XOR mask from this seed, not hard-code it."
+}

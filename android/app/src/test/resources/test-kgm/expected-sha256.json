@@ -1,0 +1,8 @@
+{
+  "synthetic-kgm.kgm": "5cd5b7da3f3c5053272ecd844d80c7faf8f0c382c1b4a932f6a42298f18c3296",
+  "synthetic-kgma.kgma": "441f5b11c32a23c78ac835ee064a6acfb789ef2269d9e6ac47ccc4ec8e087a0b",
+  "synthetic-vpr.vpr": "5cd5b7da3f3c5053272ecd844d80c7faf8f0c382c1b4a932f6a42298f18c3296",
+  "kgm_key_hex": "0102030405060708090a0b0c0d0e0f10",
+  "vpr_key_hex": "102030405060708090a0b0c0d0e0f042",
+  "notes": "Keys are 16 bytes stored at offset 0x1C in the header. The 17th byte is implicitly 0. The Android decoder must read the key from the file header, not hard-code it."
+}

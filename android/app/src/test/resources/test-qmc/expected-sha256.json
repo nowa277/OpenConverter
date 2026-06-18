@@ -1,0 +1,4 @@
+{
+  "synthetic-qmc0.qmc0": "5cd5b7da3f3c5053272ecd844d80c7faf8f0c382c1b4a932f6a42298f18c3296",
+  "notes": "QMCv1 is a headerless XOR cipher with a deterministic keystream (no per-file key). The Android decoder must reproduce the exact 8x7 state-machine keystream including the 0x8000-position skip."
+}
