@@ -71,3 +71,6 @@ build/icons/*.ico
 
 # Local user artifacts (test screenshots, scratch output)
 errors_screenshots/
+
+# Untracked v0.4.x residue (kept locally as reference, not under v1)
+android-v040-residue/
