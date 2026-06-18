@@ -63,6 +63,7 @@
 | 11 | 主题模式 | Dark only / 跟随 / 手动 | **纯深色 (锁定)** | `darkColorScheme()` only,setting 锁死 |
 | 12 | 空状态 | 插画 / 极简 / 示例 | **Spotify 风格插画 + 大按钮** | (mockup 占位,实施时用 SVG) |
 | 13 | **贴图 vs 文字** | 保留 / 全删 | **删除所有 emoji/贴图,纯文字 + SVG logo** | 全部 mockup 已无 emoji,只用 SVG logo + 文字 |
+| 14 | **输出文件名** | 用户编辑 baseName / 始终用源 stem / 模板 | **硬编码：始终保留源文件名** (用户反馈 "转之前什么名,转后什么名") | 详见 §2.5;Settings 移除「保留原始文件名」toggle |
 
 ### 2.4 Mockup 文件清单 (`docs/mockups/v0.4/`)
 
@@ -72,10 +73,48 @@
 | `home.html` | 主页 (转换) | 文件队列 + FAB + 格式 chip + 输出文件夹 |
 | `home-progress.html` | 转换中 | TopAppBar 进度条 + 文件状态 badge + 取消 FAB |
 | `history.html` | 历史 | 时间分组列表 + FAILED badge |
-| `settings.html` | 设置 | QMC ekey 输入 + 分组设置项 |
+| `settings.html` | 设置 | QMC ekey 输入 + 分组设置项(**移除「保留原始文件名」toggle**,见 §2.5) |
 | `about.html` | 关于 | 大 SVG logo + 项目信息 + 捐赠 |
 | `_common.css` | 设计系统 | Spotify 色板/几何/阴影/字号 |
 | `_logo.html` | Logo 片段 | 内联 SVG(参考) |
+
+### 2.5 输出文件名行为 (硬编码,无 toggle)
+
+**核心规则 (与 Linux/Windows 端 `src/decoders/*.js` 完全一致):**
+
+```
+outputName = `${sourceStemWithoutEncryptedExt}.${targetFormat}`
+```
+
+例:
+- `DJ小女孩-我知道.mp3` + 目标 mp3 → `DJ小女孩-我知道.mp3` (已是 mp3,直接复制)
+- `周杰伦-晴天.qmcflac` + 目标 flac → `周杰伦-晴天.flac`
+- `陈奕迅-十年.ncm` + 目标 mp3 → `陈奕迅-十年.mp3`
+- 多文件:各自独立 stem,不会冲突
+
+**实现 (Android 端):**
+
+```kotlin
+// ConversionService.kt — 替代 v0.3.x 的 baseName/sanitizeBaseName 逻辑
+val sourceStem = displayName
+    ?.substringBeforeLast('.', displayName)  // 无后缀则原样保留
+    ?: "output_$i"
+val outName = "$sourceStem.$targetFormat"
+```
+
+**为什么硬编码、无 toggle:**
+
+- 用户明确反馈 (2026-06-18): *"没有那么复杂啊!你转之前是什么名字,转完之后就是什么,只是后缀变了"*
+- v0.3.x 的 `baseName` 编辑框 + `sanitizeBaseName` 复杂度都是不需要的——desktop 没有这个功能,Android 不应该有
+- 多文件时,源 stem 天然不同,不会冲突,不需要 suffix/prefix 策略
+- Settings 移除「保留原始文件名」toggle (mockup 已无此项)
+
+**v0.4.0 实施时回滚 v0.3.x 的相关改动:**
+
+- 删除 `FileListScreen` 的 `OutlinedTextField` (输出文件名编辑框)
+- 删除 `FileListViewModel.outputBaseName` 状态 + `setOutputBaseName` + `clearOutputIfFormatChanged` + `sanitizeBaseName`
+- 删除 `ConversionViewModel.startConversion(... baseName: String, ...)` 的 `baseName` 参数
+- 简化 `ConversionService` 的 `outName` 计算 (1 行,见上)
 
 ---
 
@@ -279,26 +318,55 @@ Bottom Navigation 4 项,每项点击 = NavController.navigate(route)。Back pres
 
 ## 7. 实施里程碑
 
-### v0.3.3 hotfix (优先,本周)
-| 步骤 | 内容 | 时间 |
-|---|---|---|
-| 1 | 修 Bug A (SAF URI 权限) | 0.5 天 |
-| 2 | 修 Bug B (vivo FGS 回滚 0x200000) | 0.5 天 |
-| 3 | 修 Bug C (命名 5 个 bug) | 0.5 天 |
-| 4 | 加日志(§3) | 0.5 天 |
-| 5 | release 0.3.3 + 上传 GitHub | 0.5 天 |
+### v0.3.3 hotfix ✅ 已完成 (2026-06-18)
+| 步骤 | 内容 | 时间 | 状态 |
+|---|---|---|---|
+| 1 | 修 Bug A (SAF URI 权限) | 0.5 天 | ✅ |
+| 2 | 修 Bug B (vivo FGS 回滚 0x200000) | 0.5 天 | ✅ (vivo 真机仍闪退,留 v0.4.1) |
+| 3 | 修 Bug C (命名 5 个 bug) | 0.5 天 | ✅ (但 v0.4.0 简化为源 stem,见 §2.5) |
+| 4 | 加日志(§3) | 0.5 天 | ✅ (OCLog + 12 关键点) |
+| 5 | release 0.3.3 + 上传 GitHub | 0.5 天 | ✅ (v0.3.3 tag + 3 APK + SHA256) |
 
-### v0.4.0 redesign (2 周后)
+**v0.3.3 commits (已 cherry-pick 到 ui-redesign-v040):**
+- 83f3f61 feat(format): passthrough MP3/FLAC/WAV/M4A/OGG/AAC
+- 25c0333 feat(orchestrator): route plaintext audio direct to ffmpeg
+- 640fb0b fix(android): revert FGS type to MEDIA_PROCESSING (0x200000)
+- 19a65fe fix(android): SAF persistable URI permission via takePersistableUriPermission
+- 68b95e3 fix(android): FileListScreen invoke SAF persist helpers in launcher callbacks
+- 212b54a fix(android): SettingsScreen collectAsState (avoid STOPPED lifecycle crash)
+- 183c8c3 chore(android): use BuildConfig.VERSION_NAME + bump v0.3.3
+- 69bbf99 fix(android): remove duplicate </application> close tag
+- 111ab3f feat(android): FileListViewModel.sanitizeBaseName (v0.4.0 删除,见 §2.5)
+- 20636c0 fix(android): disable baseName edit + auto-clear when multi-file
+- d1b2e0f fix(android): clearOutputIfFormatChanged keys on format
+- 585ecf1 fix(android): ConversionService outName sanitizes single-file
+- d56102d feat(android): OCLog central logging
+- 10f9e8a feat(android): 12 critical OCLog call sites
+- 05f29e4 chore(android): bump versionName 0.3.2 → 0.3.3
+- b669e21 build(android): rename-apk.sh for v0.3.3
+
+### v0.4.0 redesign (进行中)
 | 步骤 | 内容 | 时间 |
 |---|---|---|
 | 1 | 引入 Compose Navigation + Bottom Nav | 1 天 |
-| 2 | 拆 FileListScreen → Home/History/Settings/About | 2 天 |
-| 3 | 重构 Theme.kt + Color.kt + Type.kt (Spotify 色板) | 1 天 |
-| 4 | 加 SVG logo + OpenConverterLogo Composable | 0.5 天 |
-| 5 | 改 HomeScreen 文件卡片 + FAB + Snackbar + Banner | 1.5 天 |
-| 6 | HistoryScreen + SettingsScreen 重构 + AboutScreen 新建 | 1.5 天 |
-| 7 | 联调 + 真机测试 + 修 bug | 1.5 天 |
-| 8 | release 0.4.0 + 上传 GitHub | 0.5 天 |
+| 2 | 重构 Theme.kt + Color.kt + Type.kt (Spotify 色板) | 1 天 |
+| 3 | 加 SVG logo Vector Drawable + Logo Composable | 0.5 天 |
+| 4 | 拆 FileListScreen → HomeScreen (源 stem 命名,见 §2.5) | 1.5 天 |
+| 5 | HistoryScreen + HistoryViewModel (新) | 1 天 |
+| 6 | SettingsScreen 重构 (分组列表,无「保留原始文件名」toggle) | 1 天 |
+| 7 | AboutScreen 新建 (大 SVG logo + 项目信息) | 0.5 天 |
+| 8 | 联调 + Bottom Nav + 删旧 FileListScreen | 1 天 |
+| 9 | release 0.4.0 + 真机测试 + 上传 GitHub | 1 天 |
+
+### v0.4.1 vivo 闪退修复 (deferred)
+| 步骤 | 内容 |
+|---|---|
+| 1 | vivo y78 真机 logcat 抓取 (`adb logcat -s OpenConverter` + `AndroidRuntime`) |
+| 2 | 定位 stack trace (推测: FGS startForeground 时机/参数/notification channel) |
+| 3 | 修复 + 真机验证 |
+| 4 | release v0.4.1 |
+
+**v0.4.1 不在 v0.4.0 plan 范围内**,等 v0.4.0 真机验证后,基于实际 logcat 单独开 plan。
 
 ---
 
@@ -333,11 +401,14 @@ Bottom Navigation 4 项,每项点击 = NavController.navigate(route)。Back pres
 
 ---
 
-## 10. 下一步
+## 10. 下一步 (更新于 2026-06-18)
 
-1. **等 user review** 本 spec
-2. User approve → 调 superpowers:writing-plans 写实施 plan
-3. 实施 → v0.3.3 hotfix (含日志) 先出 → 真机验证 → v0.4.0 重设计
+1. ✅ v0.3.3 hotfix 完成 (16 commits, 已在 ui-redesign-v040 branch)
+2. ✅ Spec 已根据 user 反馈完善 (加 §2.5 输出文件名行为, 移除 toggle,加 v0.4.1 vivo 延迟项)
+3. **当前**: 调 superpowers:writing-plans 写 v0.4.0 实施 plan (`docs/superpowers/plans/2026-06-18-android-v040-ui-redesign.md`)
+4. **之后**: 在 ui-redesign-v040 分支实施 plan (T1-T9, subagent-driven)
+5. **最后**: release v0.4.0 + 真机验证 + GitHub Release
+6. **deferred**: v0.4.1 vivo 闪退修复 (需真机 logcat)
 
 ---
 
