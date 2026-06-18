@@ -6,6 +6,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
+import com.openconverter.app.log.OCLog
 
 /**
  * Wraps ACTION_OPEN_DOCUMENT, ACTION_OPEN_DOCUMENT_TREE and ACTION_CREATE_DOCUMENT
@@ -53,11 +54,7 @@ class SafAdapter {
                 )
                 ok.add(uri)
             } catch (e: SecurityException) {
-                Log.w(
-                    "OpenConverter",
-                    "SafAdapter.persistReadAccess | denied | uri=$uri | " +
-                        "err=${e.message}",
-                )
+                OCLog.w("saf.persist_read_fail", e, "uri" to uri.toString())
             }
         }
         return ok
@@ -76,11 +73,7 @@ class SafAdapter {
         )
         true
     } catch (e: SecurityException) {
-        Log.w(
-            "OpenConverter",
-            "SafAdapter.persistTreeWriteAccess | denied | treeUri=$treeUri | " +
-                "err=${e.message}",
-        )
+        OCLog.w("saf.persist_tree_fail", e, "treeUri" to treeUri.toString())
         false
     }
 }
