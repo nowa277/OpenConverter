@@ -1,0 +1,6 @@
+<resources>
+    <style name="Theme.OpenConverter" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">#121212</item>
+        <item name="android:windowBackground">#121212</item>
+    </style>
+</resources>
