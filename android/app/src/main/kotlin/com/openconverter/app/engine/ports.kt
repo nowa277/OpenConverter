@@ -11,6 +11,8 @@ interface FileSystemPort {
     fun readBytes(uri: String): ByteArray
     /** Write bytes to a temp file in app cacheDir; return its absolute path. */
     fun cacheFile(name: String, bytes: ByteArray): String
+    /** Read a cached file produced by ffmpeg back into memory. */
+    fun readCache(path: String): ByteArray
     /** Write final output into the user-selected SAF folder; return its uri. */
     fun writeOutput(folderUri: String, displayName: String, mime: String, bytes: ByteArray): String
     /** Best-effort delete of a temp file. No-op if missing. */
@@ -27,3 +29,6 @@ interface ProgressSink {
 
 /** Time source (avoids System.currentTimeMillis in pure code; testable). */
 interface Clock { fun nowMs(): Long }
+
+/** Default Clock backed by System.currentTimeMillis. */
+object SystemClock : Clock { override fun nowMs(): Long = System.currentTimeMillis() }
