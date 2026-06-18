@@ -22,6 +22,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.openconverter.app.theme.OpenConverterTheme
 import com.openconverter.app.ui.NavRoutes
 import com.openconverter.app.ui.about.AboutScreen
 import com.openconverter.app.ui.history.HistoryScreen
@@ -32,8 +33,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            // T1.3 will wrap this in OpenConverterTheme(...)
-            OpenConverterRoot()
+            OpenConverterTheme {
+                OpenConverterRoot()
+            }
         }
     }
 }
