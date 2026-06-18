@@ -1,3 +1,30 @@
 <resources>
     <string name="app_name">OpenConverter</string>
+    <string name="notif_channel_name">Conversion progress</string>
+    <string name="notif_channel_desc">Shows progress while audio files are being converted.</string>
+    <string name="notif_title">Converting</string>
+    <string name="notif_cancel">Cancel</string>
+
+    <!-- HomeScreen -->
+    <string name="home_pick_files">Add files</string>
+    <string name="home_pick_folder">Output folder</string>
+    <string name="home_target_format">Target format</string>
+    <string name="home_bitrate">Bitrate</string>
+    <string name="home_bitrate_lossless">Lossless</string>
+    <string name="home_start">Start conversion</string>
+    <string name="home_no_files">No files yet — tap "Add files".</string>
+    <string name="home_no_folder">No output folder — tap "Output folder".</string>
+
+    <!-- File card states -->
+    <string name="state_pending">Pending</string>
+    <string name="state_running">Converting…</string>
+    <string name="state_done">Done ✓</string>
+    <string name="state_failed">Failed ✗</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_about">About</string>
+    <string name="settings_version">Version</string>
+    <string name="settings_supported">Supported input formats</string>
+    <string name="settings_license">MIT License — github.com/nowa277/OpenConverter</string>
 </resources>
