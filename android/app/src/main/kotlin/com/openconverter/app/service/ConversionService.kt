@@ -37,11 +37,9 @@ class ConversionService : Service() {
         val uris = intent?.getStringArrayExtra(EXTRA_URIS)?.map(Uri::parse).orEmpty()
         val targetFormat = intent?.getStringExtra(EXTRA_TARGET_FORMAT) ?: "mp3"
         val folderUri = intent?.getStringExtra(EXTRA_FOLDER_URI)?.let(Uri::parse)
-        val baseName = intent?.getStringExtra(EXTRA_BASE_NAME).orEmpty()
         com.openconverter.app.log.OCLog.i("svc.onStart",
             "n" to uris.size, "fmt" to targetFormat,
-            "folder" to (folderUri?.lastPathSegment ?: "null"),
-            "baseName" to baseName)
+            "folder" to (folderUri?.lastPathSegment ?: "null"))
 
         startForegroundCompat(
             ProgressNotification.build(this, "转换中…", 0, uris.size)
@@ -89,18 +87,11 @@ class ConversionService : Service() {
                     return@forEachIndexed
                 }
 
-                // Single-file: honor the user-edited baseName as the output stem.
-                // Multi-file: keep each source's own stem to avoid collisions.
-                val sanitizedBase = com.openconverter.app.ui.vm.FileListViewModel
-                    .sanitizeBaseName(baseName)
-                val outName = if (uris.size == 1 && sanitizedBase.isNotBlank() &&
-                                  sanitizedBase != "output") {
-                    "$sanitizedBase.$targetFormat"
-                } else {
-                    val sourceStem = displayName?.substringBeforeLast('.', "output_$i")
-                        ?: "output_$i"
-                    "$sourceStem.$targetFormat"
-                }
+                // Output name: source stem + target ext. Multi-file: each
+                // source has a unique stem so no collisions. (Spec §2.5)
+                val sourceStem = displayName?.substringBeforeLast('.', displayName)
+                    ?: "output_$i"
+                val outName = "$sourceStem.$targetFormat"
                 val outUri = if (folderUri != null) {
                     createDocumentInFolder(folderUri, outName, targetFormat)
                 } else {
@@ -233,20 +224,17 @@ class ConversionService : Service() {
         const val EXTRA_URIS = "uris"
         const val EXTRA_TARGET_FORMAT = "targetFormat"
         const val EXTRA_FOLDER_URI = "folderUri"
-        const val EXTRA_BASE_NAME = "baseName"
 
         fun start(
             context: Context,
             uris: List<Uri>,
             targetFormat: String,
             folderUri: Uri,
-            baseName: String,
         ) {
             val intent = Intent(context, ConversionService::class.java).apply {
                 putExtra(EXTRA_URIS, uris.map { it.toString() }.toTypedArray())
                 putExtra(EXTRA_TARGET_FORMAT, targetFormat)
                 putExtra(EXTRA_FOLDER_URI, folderUri.toString())
-                putExtra(EXTRA_BASE_NAME, baseName)
             }
             ContextCompat.startForegroundService(context, intent)
         }
