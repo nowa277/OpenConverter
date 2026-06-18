@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <!-- Outer dark circle -->
+    <path
+        android:fillColor="#181818"
+        android:strokeColor="#282828"
+        android:strokeWidth="8"
+        android:pathData="M256,16 A240,240 0 1,0 256,496 A240,240 0 1,0 256,16 Z" />
+    <!-- Green ring -->
+    <path
+        android:strokeColor="#1ED760"
+        android:strokeWidth="12"
+        android:strokeAlpha="0.8"
+        android:pathData="M256,56 A200,200 0 1,0 256,456 A200,200 0 1,0 256,56 Z" />
+    <!-- 5 audio waveform bars -->
+    <path android:fillColor="#1ED760" android:pathData="M120,180 h40 a20,20 0 0,1 20,20 v80 a20,20 0 0,1 -20,20 h-40 a20,20 0 0,1 -20,-20 v-80 a20,20 0 0,1 20,-20 z" />
+    <path android:fillColor="#1ED760" android:fillAlpha="0.9" android:pathData="M180,140 h40 a20,20 0 0,1 20,20 v160 a20,20 0 0,1 -20,20 h-40 a20,20 0 0,1 -20,-20 v-160 a20,20 0 0,1 20,-20 z" />
+    <path android:fillColor="#1ED760" android:fillAlpha="0.85" android:pathData="M240,100 h40 a20,20 0 0,1 20,20 v240 a20,20 0 0,1 -20,20 h-40 a20,20 0 0,1 -20,-20 v-240 a20,20 0 0,1 20,-20 z" />
+    <path android:fillColor="#1ED760" android:fillAlpha="0.9" android:pathData="M300,140 h40 a20,20 0 0,1 20,20 v160 a20,20 0 0,1 -20,20 h-40 a20,20 0 0,1 -20,-20 v-160 a20,20 0 0,1 20,-20 z" />
+    <path android:fillColor="#1ED760" android:pathData="M360,180 h40 a20,20 0 0,1 20,20 v80 a20,20 0 0,1 -20,20 h-40 a20,20 0 0,1 -20,-20 v-80 a20,20 0 0,1 20,-20 z" />
+</vector>
