@@ -174,12 +174,25 @@ fun HomeScreen(
                 onClick = { pickFiles.launch(arrayOf("audio/*", "*/*")) },
             )
             // Output folder row
-            SummaryRow(
-                label = stringResource(R.string.home_pick_folder),
-                value = state.outputFolderName ?: stringResource(R.string.home_no_folder),
-                muted = state.outputFolderUri == null,
-                onClick = { pickFolder.launch(null) },
-            )
+            val folderValue = state.folderError
+                ?: state.outputFolderName
+                ?: stringResource(R.string.home_no_folder)
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                SummaryRow(
+                    label = stringResource(R.string.home_pick_folder),
+                    value = folderValue,
+                    muted = state.outputFolderUri == null,
+                    onClick = { pickFolder.launch(null) },
+                )
+                if (state.folderError != null) {
+                    Text(
+                        text = state.folderError,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    )
+                }
+            }
             // Format / bitrate row -> opens the bottom sheet
             val fmtLabel = state.targetFormat.uppercase()
             val brLabel = state.bitrate ?: stringResource(R.string.home_bitrate_lossless)

@@ -38,6 +38,11 @@ data class HomeUiState(
     val bitrate: String? = "320k",
     val running: Boolean = false,
     val showControlsSheet: Boolean = false,
+    /** Set when the user picks a folder that Android 14 SAF rejects as
+     *  "can't use this folder" (e.g. emulator's /sdcard/Music/ or any
+     *  private-dir on Android 14). When non-null, Start is blocked and the
+     *  Output-folder row surfaces this message. */
+    val folderError: String? = null,
 )
 
 class HomeViewModel(app: Application) : AndroidViewModel(app) {
@@ -80,16 +85,57 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     }
     fun setOutputFolder(uri: Uri) {
         val ctx = getApplication<Application>()
-        runCatching {
+        val takeResult = runCatching {
             ctx.contentResolver.takePersistableUriPermission(
                 uri,
                 Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
             )
         }
+        if (takeResult.isFailure) {
+            _state.update { it.copy(
+                outputFolderUri = null,
+                outputFolderName = null,
+                folderError = "Android refused permission for this folder. Pick another (try Downloads or create a new folder in My Files).",
+            ) }
+            return
+        }
         val name = runCatching {
             DocumentsContract.getTreeDocumentId(uri).substringAfterLast(':').ifBlank { uri.lastPathSegment }
         }.getOrNull() ?: "folder"
-        _state.update { it.copy(outputFolderUri = uri.toString(), outputFolderName = name) }
+        // Write-probe: try creating + deleting a 0-byte file via the SAF tree.
+        // Catches the Android 14 "can't use this folder" case where the
+        // tree-URI persists but the underlying provider refuses creates.
+        val writeProbe = runCatching {
+            val treeDocUri = DocumentsContract.buildDocumentUriUsingTree(
+                uri, DocumentsContract.getTreeDocumentId(uri),
+            )
+            val probeName = ".oc-write-probe-${System.currentTimeMillis()}"
+            val probeUri = DocumentsContract.createDocument(
+                ctx.contentResolver, treeDocUri, "application/octet-stream", probeName,
+            )
+            if (probeUri == null) error("createDocument returned null")
+            DocumentsContract.deleteDocument(ctx.contentResolver, probeUri)
+        }
+        if (writeProbe.isFailure) {
+            // Roll back the permission so the user can re-pick freely.
+            runCatching {
+                ctx.contentResolver.releasePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                )
+            }
+            _state.update { it.copy(
+                outputFolderUri = null,
+                outputFolderName = null,
+                folderError = "Can't write to '$name'. Pick a folder you can create files in (Downloads, Documents, or a new folder).",
+            ) }
+            return
+        }
+        _state.update { it.copy(
+            outputFolderUri = uri.toString(),
+            outputFolderName = name,
+            folderError = null,
+        ) }
     }
     fun setTargetFormat(fmt: String) = _state.update { it.copy(targetFormat = fmt) }
     fun setBitrate(b: String?) = _state.update { it.copy(bitrate = b) }
@@ -100,6 +146,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     fun start(context: Context) {
         val s = _state.value
         if (s.files.isEmpty() || s.outputFolderUri == null || s.running) return
+        if (s.folderError != null) return
         _state.update { it.copy(running = true, files = it.files.map { f -> f.copy(state = FileState.Pending, percent = 0, error = null) }) }
         val intent = ConversionService.makeIntent(
             context,
