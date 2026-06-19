@@ -23,7 +23,7 @@
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>
-    <string name="settings_about">TODO: 声明文字由项目维护者填写</string>
+    <string name="settings_about">本项目仅作为音频/文件格式转换的技术工具使用，不涉及任何版权内容的提供或分发。使用者在使用过程中应尊重音乐作品及相关内容的版权与合法权益，不得将本工具用于侵犯任何著作权或相关权利人的行为。因使用本工具产生的任何法律责任或纠纷均由使用者自行承担，与项目作者无关。</string>
     <string name="settings_version">Version</string>
     <string name="settings_supported">Supported input formats</string>
     <string name="settings_license">Apache License 2.0 — github.com/nowa277/OpenConverter</string>
