@@ -239,7 +239,7 @@ class SafIo(private val context: Context) {
 ## 6. UI（Spotify 深色）
 
 ### 6.1 主题钉死
-参考 `/home/user/obsidian/AI/design/awesome-design-md/design-md/spotify/DESIGN.md`。Compose Material 3 主题：
+参考 `~/obsidian/AI/design/awesome-design-md/design-md/spotify/DESIGN.md`。Compose Material 3 主题：
 
 ```kotlin
 private val SpotifyDark = darkColorScheme(

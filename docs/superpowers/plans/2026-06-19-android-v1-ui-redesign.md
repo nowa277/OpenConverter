@@ -19,7 +19,7 @@
 - Repo URL constant: `https://github.com/nowa277/OpenConverter`.
 - Commits carry `Co-Authored-By: Claude <noreply@anthropic.com>`.
 - Do NOT regress: NCM to MP3, NCM to FLAC, MP3 to FLAC must still produce real files on emulator-5554 after the redesign; JVM tests stay 38+/0/0 plus the new ones.
-- Build env: `cd android && ./gradlew <task>`, JDK 17 at `/home/user/.local/jdk/jdk-17`, `ANDROID_HOME=/home/user/Android/Sdk`, adb at `/home/user/Android/Sdk/platform-tools/adb`.
+- Build env: `cd android && ./gradlew <task>`, JDK 17 at `$JAVA_HOME`, `ANDROID_HOME=$ANDROID_HOME`, adb at `$ANDROID_HOME/platform-tools/adb`.
 
 **Confirmed baseline (do not regress):** On emulator-5554 (x86_64), commit 60f37ab produces real files for NCM to MP3, NCM to FLAC, MP3 to FLAC. JVM tests 38/0/0.
 
@@ -1021,7 +1021,7 @@ If the grep found emoji, fix and commit; otherwise no commit here.
 
 Run:
 ```bash
-/home/user/Android/Sdk/platform-tools/adb -s emulator-5554 install -r android/app/build/outputs/apk/debug/app-x86_64-debug.apk
+$ANDROID_HOME/platform-tools/adb -s emulator-5554 install -r android/app/build/outputs/apk/debug/app-x86_64-debug.apk
 ```
 Expected: `Success`.
 
@@ -1029,8 +1029,8 @@ Expected: `Success`.
 
 Run:
 ```bash
-/home/user/Android/Sdk/platform-tools/adb -s emulator-5554 shell pm list packages | grep openconverter
-/home/user/Android/Sdk/platform-tools/adb -s emulator-5554 shell monkey -p com.openconverter.app -c android.intent.category.LAUNCHER 1
+$ANDROID_HOME/platform-tools/adb -s emulator-5554 shell pm list packages | grep openconverter
+$ANDROID_HOME/platform-tools/adb -s emulator-5554 shell monkey -p com.openconverter.app -c android.intent.category.LAUNCHER 1
 ```
 Expected: app launches. Visually confirm (screenshot via MCP `mcp__android-emulator__screenshot`) the home screen top bar shows the green waveform + "OpenConverter" + plain-text "Settings", and the launcher entry shows the waveform (adaptive icon renders on the emulator's API 34 launcher).
 

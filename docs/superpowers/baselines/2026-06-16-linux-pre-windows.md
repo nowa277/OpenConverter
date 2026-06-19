@@ -20,8 +20,8 @@ TAP version 13
 # Test 5: round-trip on real MP3 → fake .kgm → MP3...
 #   SKIP (ffmpeg not available)
 # All KGM tests passed.
-# Subtest: /home/user/obsidian/AI/claude/openconverter/tests/kgm.test.js
-ok 1 - /home/user/obsidian/AI/claude/openconverter/tests/kgm.test.js
+# Subtest: <repo-root>/tests/kgm.test.js
+ok 1 - <repo-root>/tests/kgm.test.js
   ---
   duration_ms: 170.466339
   ...
@@ -37,8 +37,8 @@ ok 1 - /home/user/obsidian/AI/claude/openconverter/tests/kgm.test.js
 # Test 5: round-trip on real MP3...
 #   SKIP (ffmpeg not available)
 # All KWM tests passed.
-# Subtest: /home/user/obsidian/AI/claude/openconverter/tests/kwm.test.js
-ok 2 - /home/user/obsidian/AI/claude/openconverter/tests/kwm.test.js
+# Subtest: <repo-root>/tests/kwm.test.js
+ok 2 - <repo-root>/tests/kwm.test.js
   ---
   duration_ms: 168.696765
   ...
@@ -58,8 +58,8 @@ ok 2 - /home/user/obsidian/AI/claude/openconverter/tests/kwm.test.js
 #   ✓ Chappell Roan - Red Wine Supernova.ncm: 7531KB audio, 192.8s, 0 byte diff
 #   ✓ Chappell Roan - Super Graphic Ultra Modern Girl.ncm: 7186KB audio, 183.9s, 0 byte diff
 # Result: 14 passed, 0 failed (14 total)
-# Subtest: /home/user/obsidian/AI/claude/openconverter/tests/ncm.test.js
-ok 3 - /home/user/obsidian/AI/claude/openconverter/tests/ncm.test.js
+# Subtest: <repo-root>/tests/ncm.test.js
+ok 3 - <repo-root>/tests/ncm.test.js
   ---
   duration_ms: 5609.304899
   ...
@@ -74,8 +74,8 @@ ok 3 - /home/user/obsidian/AI/claude/openconverter/tests/ncm.test.js
 # Test 5: round-trip on real MP3 with arbitrary ekey...
 #   SKIP (ffmpeg not available)
 # All QMCv2 tests passed.
-# Subtest: /home/user/obsidian/AI/claude/openconverter/tests/qmc-v2.test.js
-ok 4 - /home/user/obsidian/AI/claude/openconverter/tests/qmc-v2.test.js
+# Subtest: <repo-root>/tests/qmc-v2.test.js
+ok 4 - <repo-root>/tests/qmc-v2.test.js
   ---
   duration_ms: 166.755657
   ...
@@ -88,8 +88,8 @@ ok 4 - /home/user/obsidian/AI/claude/openconverter/tests/qmc-v2.test.js
 # Test 4: extension mapping...
 #   ✓ PASS
 # All QMC tests passed.
-# Subtest: /home/user/obsidian/AI/claude/openconverter/tests/qmc.test.js
-ok 5 - /home/user/obsidian/AI/claude/openconverter/tests/qmc.test.js
+# Subtest: <repo-root>/tests/qmc.test.js
+ok 5 - <repo-root>/tests/qmc.test.js
   ---
   duration_ms: 165.93782
   ...
@@ -137,13 +137,13 @@ computing gzip size...
   • building        target=AppImage arch=x64 file=release/OpenConverter-0.2.1.AppImage
   • packaging       platform=linux arch=arm64 electron=28.3.3 appOutDir=release/linux-arm64-unpacked
   • building        target=deb arch=x64 file=release/openconverter_0.2.1_amd64.deb
-  • adding autoupdate files for: deb. (Beta feature)  resourceDir=/home/user/obsidian/AI/claude/openconverter/release/linux-unpacked/resources
+  • adding autoupdate files for: deb. (Beta feature)  resourceDir=<repo-root>/release/linux-unpacked/resources
   • building        target=AppImage arch=x64 file=release/OpenConverter-0.2.1.AppImage
   • building        target=AppImage arch=arm64 file=release/OpenConverter-0.2.1-arm64.AppImage
   • building        target=deb arch=x64 file=release/openconverter_0.2.1_amd64.deb
   • building        target=deb arch=arm64 file=release/openconverter_0.2.1_arm64.deb
-  • adding autoupdate files for: deb. (Beta feature)  resourceDir=/home/user/obsidian/AI/claude/openconverter/release/linux-unpacked/resources
-  • adding autoupdate files for: deb. (Beta feature)  resourceDir=/home/user/obsidian/AI/claude/openconverter/release/linux-arm64-unpacked/resources
+  • adding autoupdate files for: deb. (Beta feature)  resourceDir=<repo-root>/release/linux-unpacked/resources
+  • adding autoupdate files for: deb. (Beta feature)  resourceDir=<repo-root>/release/linux-arm64-unpacked/resources
 ```
 
 **Result:** Linux unpacked build produced at `release/linux-unpacked/`.
