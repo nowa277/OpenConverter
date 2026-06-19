@@ -2,6 +2,7 @@ package com.openconverter.app.decoders
 
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.security.MessageDigest
 
@@ -19,6 +20,9 @@ class DecoderParityTest {
 
     private fun loadResource(path: String): ByteArray =
         javaClass.classLoader!!.getResourceAsStream(path)!!.use { it.readBytes() }
+
+    private fun resourceExists(path: String): Boolean =
+        javaClass.classLoader!!.getResource(path) != null
 
     private fun loadOracle(dir: String): JSONObject =
         JSONObject(String(loadResource("$dir/expected-sha256.json"), Charsets.UTF_8))
@@ -67,7 +71,14 @@ class DecoderParityTest {
     }
 
     // ----- NCM (real fixture, AES + RC4) -----
+    // Real NCM sample is copyrighted and not tracked in the public repo.
+    // When a maintainer drops one into test-ncm/sample.ncm + adds its sha256
+    // to expected-sha256.json, this test runs; otherwise it is skipped.
     @Test fun ncm_real_sample_matches_js_oracle() {
+        assumeTrue(
+            "test-ncm/sample.ncm not present (copyrighted fixture, not tracked)",
+            resourceExists("test-ncm/sample.ncm")
+        )
         val oracle = loadOracle("test-ncm")
         val expectedSha = oracle.getString("sample.ncm")
         val cipher = loadResource("test-ncm/sample.ncm")
