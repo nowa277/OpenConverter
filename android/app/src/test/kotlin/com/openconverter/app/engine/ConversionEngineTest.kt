@@ -205,4 +205,36 @@ class ConversionEngineTest {
         // /cache/in_0_plain.flac must have been registered for cleanup.
         assertTrue("at least one cleanup call expected", fs.cleanups.isNotEmpty())
     }
+
+    @Test
+    fun engine_probesDurationAndPassesItToFfmpeg_execute() = runTest {
+        val fs = FakeFileSystemPort(reads = mapOf("file:///song.mp3" to FLAC))
+        val fake = FakeFfmpegRunner(fs, probeDurationMsReturn = 60_000L)
+        val sink = RecordingProgressSink()
+        val engine = ConversionEngine(DecoderRegistry(emptyList()), fake, fs, sink)
+
+        val req = ConversionRequest(
+            listOf("file:///song.mp3"), listOf("song.mp3"),
+            "flac", "tree:///out", null, PLAIN_EXTS,
+        )
+        engine.convertAll(req)
+        assertEquals(60_000L, fake.lastExecutedTotalDurationMs)
+    }
+
+    @Test
+    fun engine_probeFailure_zeroDuration_heartbeatPath() = runTest {
+        val fs = FakeFileSystemPort(reads = mapOf("file:///song.mp3" to FLAC))
+        val fake = FakeFfmpegRunner(fs, probeDurationMsReturn = 0L)
+        val sink = RecordingProgressSink()
+        val engine = ConversionEngine(DecoderRegistry(emptyList()), fake, fs, sink)
+
+        val req = ConversionRequest(
+            listOf("file:///song.mp3"), listOf("song.mp3"),
+            "flac", "tree:///out", null, PLAIN_EXTS,
+        )
+        val results = engine.convertAll(req)
+        assertEquals(1, results.size)
+        assertNull(results[0].error)
+        assertEquals(0L, fake.lastExecutedTotalDurationMs)
+    }
 }

@@ -82,8 +82,10 @@ class ConversionEngine(
             outPath = fs.cachePath("out_${i}_$tag.${req.targetFormat}")
             coroutineContext.ensureActive()
 
+            val probedMs = ffmpeg.probeDurationMs(inPath!!)
             val r = ffmpeg.execute(
-                inPath!!, outPath!!, req.targetFormat, req.bitrate,
+                inPath, outPath!!, req.targetFormat, req.bitrate,
+                totalDurationMs = probedMs,
                 onProgress = { p -> sink.onFileProgress(i, p) },
             )
             if (r.isFailure) {

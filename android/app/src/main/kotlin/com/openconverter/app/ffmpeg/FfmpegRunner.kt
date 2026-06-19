@@ -1,24 +1,13 @@
 package com.openconverter.app.ffmpeg
 
-/**
- * Abstraction over ffmpeg-kit so the engine can be unit-tested with a fake.
- * Only one production impl: [FfmpegKitRunner]. Tests use FakeFfmpegRunner.
- */
 interface FfmpegRunner {
-    /**
-     * Run ffmpeg synchronously (suspending). Reports progress 0..100 as it
-     * advances; final 100 is emitted on success.
-     *
-     * @param input absolute filesystem path
-     * @param output absolute filesystem path (must NOT equal input)
-     * @param format one of "mp3"|"flac"|"wav"|"m4a"|"ogg"
-     * @param bitrate e.g. "320k"; null = codec default
-     */
+    suspend fun probeDurationMs(path: String): Long
     suspend fun execute(
         input: String,
         output: String,
         format: String,
         bitrate: String?,
+        totalDurationMs: Long = 0L,
         onProgress: (percent: Int) -> Unit = {},
     ): Result<Unit>
 }

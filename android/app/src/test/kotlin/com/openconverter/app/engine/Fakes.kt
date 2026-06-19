@@ -39,25 +39,31 @@ class FakeFileSystemPort(
  * so the engine's downstream `readCache(outPath)` works.
  */
 class FakeFfmpegRunner(
-    private val fs: FakeFileSystemPort,
-    private val outputBytes: ByteArray = byteArrayOf(0x49, 0x44, 0x33), // "ID3" header — sniffer-friendly mp3
+    private val fs: FakeFileSystemPort? = null,
+    private val outputBytes: ByteArray = byteArrayOf(0x49, 0x44, 0x33),
     private val behavior: suspend (String, String, String, String?) -> Result<Unit> = { _, _, _, _ -> Result.success(Unit) },
+    var probeDurationMsReturn: Long = 0L,
+    var lastExecutedTotalDurationMs: Long? = null,
+    private val executeResult: Result<Unit> = Result.success(Unit),
 ) : FfmpegRunner {
     data class Call(val input: String, val output: String, val format: String, val bitrate: String?)
     val calls: MutableList<Call> = mutableListOf()
 
+    override suspend fun probeDurationMs(path: String): Long = probeDurationMsReturn
     override suspend fun execute(
         input: String,
         output: String,
         format: String,
         bitrate: String?,
+        totalDurationMs: Long,
         onProgress: (percent: Int) -> Unit,
     ): Result<Unit> {
+        lastExecutedTotalDurationMs = totalDurationMs
         calls += Call(input, output, format, bitrate)
         onProgress(50)
-        val r = behavior(input, output, format, bitrate)
+        val r = if (executeResult != Result.success(Unit)) executeResult else behavior(input, output, format, bitrate)
         if (r.isSuccess) {
-            fs.cache[output] = outputBytes
+            fs?.cache?.set(output, outputBytes)
             onProgress(100)
         }
         return r

@@ -3,6 +3,7 @@ package com.openconverter.app.ffmpeg
 import android.util.Log
 import com.arthenica.ffmpegkit.FFmpegKit
 import com.arthenica.ffmpegkit.FFmpegKitConfig
+import com.arthenica.ffmpegkit.FFprobeKit
 import com.arthenica.ffmpegkit.Level
 import com.arthenica.ffmpegkit.ReturnCode
 import com.arthenica.ffmpegkit.Statistics
@@ -12,39 +13,38 @@ import kotlin.coroutines.resume
 
 /**
  * Production [FfmpegRunner]. Each `execute` call:
- *   1. Installs a process-global [StatisticsCallback] that turns ffmpeg's
- *      `time=` log into a 0..100 progress (best-effort against
- *      [setTotalDurationMs]; without a duration, reports a 50% heartbeat
- *      until completion).
- *   2. Runs `FFmpegKit.executeAsync` with the args from [FfmpegArgs.build].
+ *   1. Runs `FFmpegKit.executeAsync` with the args from [FfmpegArgs.build].
+ *   2. The stats callback turns ffmpeg's `time=` log into a 0..99 progress
+ *      when [totalDurationMs] > 0, else a 50% heartbeat.
  *   3. Resumes the coroutine with success/failure based on the return code.
  *   4. `invokeOnCancellation` cancels the ffmpeg session.
  */
 class FfmpegKitRunner : FfmpegRunner {
 
-    @Volatile private var totalDurationMs: Long = 0L
-
-    /** Called by the engine BEFORE execute() if it knows the duration. */
-    fun setTotalDurationMs(ms: Long) { totalDurationMs = ms.coerceAtLeast(0L) }
+    override suspend fun probeDurationMs(path: String): Long = try {
+        FFprobeKit.getMediaInformation(path).mediaInformation
+            ?.duration?.toDoubleOrNull()?.times(1000)?.toLong() ?: 0L
+    } catch (t: Throwable) {
+        0L
+    }
 
     override suspend fun execute(
         input: String,
         output: String,
         format: String,
         bitrate: String?,
+        totalDurationMs: Long,
         onProgress: (percent: Int) -> Unit,
     ): Result<Unit> = suspendCancellableCoroutine { cont ->
         val args = FfmpegArgs.build(input, output, format, bitrate).joinToString(" ") {
-            // ffmpeg-kit takes a single command string; quote args with spaces.
             if (it.contains(' ')) "\"$it\"" else it
         }
 
         val statsCallback = StatisticsCallback { stats: Statistics ->
-            val total = totalDurationMs
-            val pct = if (total > 0) {
-                (stats.time * 100L / total).toInt().coerceIn(0, 99)
+            val pct = if (totalDurationMs > 0) {
+                (stats.time * 100L / totalDurationMs).toInt().coerceIn(0, 99)
             } else {
-                50 // heartbeat
+                50
             }
             onProgress(pct)
         }
