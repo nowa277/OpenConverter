@@ -16,7 +16,7 @@ data class SettingsUiState(
     val deferred: String = "QMCv2 (.mflac/.mgg/.bkc) — v2 (需 ekey)",
     val githubUrl: String = "https://github.com/nowa277/OpenConverter",
     val issuesUrl: String = "https://github.com/nowa277/OpenConverter/issues/new",
-    val license: String = "MIT",
+    val license: String = "Apache-2.0",
 ) {
     companion object {
         const val REPO_URL = "https://github.com/nowa277/OpenConverter"
