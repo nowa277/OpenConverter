@@ -18,8 +18,8 @@
     <!-- File card states -->
     <string name="state_pending">Pending</string>
     <string name="state_running">Converting…</string>
-    <string name="state_done">Done ✓</string>
-    <string name="state_failed">Failed ✗</string>
+    <string name="state_done">Done</string>
+    <string name="state_failed">Failed</string>
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>

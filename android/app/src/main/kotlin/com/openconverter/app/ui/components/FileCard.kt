@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 enum class FileState { Pending, Running, Done, Failed }
@@ -25,8 +26,10 @@ enum class FileState { Pending, Running, Done, Failed }
 @Composable
 fun FileCard(
     name: String,
+    sizeBytes: Long,
     state: FileState,
     percent: Int,
+    error: String?,
     modifier: Modifier = Modifier,
 ) {
     Card(
@@ -42,8 +45,18 @@ fun FileCard(
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.bodyLarge,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(8.dp))
+                val sizeText = formatBytes(sizeBytes)
+                if (sizeText.isNotEmpty()) {
+                    Text(
+                        text = sizeText,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
                 Text(
                     text = labelFor(state, percent),
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
@@ -59,6 +72,16 @@ fun FileCard(
                     trackColor = MaterialTheme.colorScheme.surfaceVariant,
                 )
             }
+            if (state == FileState.Failed && !error.isNullOrBlank()) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = error,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
@@ -67,8 +90,8 @@ fun FileCard(
 private fun labelFor(state: FileState, percent: Int) = when (state) {
     FileState.Pending -> "Pending"
     FileState.Running -> "$percent%"
-    FileState.Done    -> "Done ✓"
-    FileState.Failed  -> "Failed ✗"
+    FileState.Done    -> "Done"
+    FileState.Failed  -> "Failed"
 }
 
 @Composable
