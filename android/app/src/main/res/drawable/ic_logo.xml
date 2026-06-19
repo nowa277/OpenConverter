@@ -1,9 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp" android:height="24dp"
-    android:viewportWidth="24" android:viewportHeight="24">
-    <path android:fillColor="#FF1ED760" android:pathData="M5,10h2v4h-2z"/>
-    <path android:fillColor="#FF1ED760" android:pathData="M8,9h2v6h-2z"/>
-    <path android:fillColor="#FF1ED760" android:pathData="M11,8h2v8h-2z"/>
-    <path android:fillColor="#FF1ED760" android:pathData="M14,9h2v6h-2z"/>
-    <path android:fillColor="#FF1ED760" android:pathData="M17,10h2v4h-2z"/>
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <aapt:attr name="android:fillColor">
+        <gradient android:type="linear"
+            android:startX="0" android:startY="0"
+            android:endX="24" android:endY="24">
+            <item android:offset="0.0" android:color="#FF1ED760"/>
+            <item android:offset="1.0" android:color="#FF1DB954"/>
+        </gradient>
+    </aapt:attr>
+
+    <!-- Outer circle -->
+    <path android:strokeColor="#FF282828" android:strokeWidth="0.375"
+        android:fillColor="#00000000"
+        android:pathData="M0.75,12 A11.25,11.25 0 1 1 23.25,12 A11.25,11.25 0 1 1 0.75,12 Z"/>
+    <!-- Inner ring -->
+    <path android:strokeWidth="0.5625" android:fillColor="#00000000"
+        android:strokeAlpha="0.8"
+        android:pathData="M2.625,12 A9.375,9.375 0 1 1 21.375,12 A9.375,9.375 0 1 1 2.625,12 Z"/>
+    <!-- 3 central bars (capsule, r=0.9375) -->
+    <path android:fillAlpha="1.0"
+        android:pathData="M7.875,9.5625 A0.9375,0.9375 0 0 1 9.75,9.5625 L9.75,14.4375 A0.9375,0.9375 0 0 1 7.875,14.4375 Z"/>
+    <path android:fillAlpha="0.85"
+        android:pathData="M11.25,8.25 A0.9375,0.9375 0 0 1 13.125,8.25 L13.125,15.75 A0.9375,0.9375 0 0 1 11.25,15.75 Z"/>
+    <path android:fillAlpha="1.0"
+        android:pathData="M14.625,9.5625 A0.9375,0.9375 0 0 1 16.5,9.5625 L16.5,14.4375 A0.9375,0.9375 0 0 1 14.625,14.4375 Z"/>
 </vector>
