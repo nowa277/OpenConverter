@@ -24,11 +24,8 @@ extracted/
 build/original-app/
 build/*.img
 
-# Documentation / reference notes (non-substantive)
-# Allow design specs (superpowers/brainstorming outputs)
-docs/*
-!docs/superpowers/
-!docs/superpowers/**
+# Documentation (internal planning/spec/notes — not part of the shipped project)
+docs/
 
 # Previous work / leftover scaffolding
 .junk/
