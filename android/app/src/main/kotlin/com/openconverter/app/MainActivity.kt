@@ -12,6 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.Composable
 import com.openconverter.app.ui.home.HomeScreen
 import com.openconverter.app.ui.home.HomeViewModel
 import com.openconverter.app.ui.settings.SettingsScreen
@@ -27,11 +28,30 @@ class MainActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     var screen by remember { mutableStateOf("home") }
                     when (screen) {
-                        "home" -> HomeScreen(viewModel = homeVm, onOpenSettings = { screen = "settings" })
+                        "home" -> HomeScreen(
+                            viewModel = homeVm,
+                            onOpenSettings = { screen = "settings" },
+                            onOpenHistory = { screen = "history" },
+                        )
                         "settings" -> SettingsScreen(onBack = { screen = "home" })
+                        "history" -> HistoryScreenPlaceholder(onBack = { screen = "home" })
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun HistoryScreenPlaceholder(onBack: () -> Unit) {
+    // Real implementation lands in Task 7. Stub here so Task 3 build is green.
+    androidx.compose.foundation.layout.Box(
+        modifier = androidx.compose.ui.Modifier.fillMaxSize(),
+        contentAlignment = androidx.compose.ui.Alignment.Center,
+    ) {
+        androidx.compose.material3.Text("History (TBD)")
+        androidx.compose.material3.TextButton(onClick = onBack) {
+            androidx.compose.material3.Text("Back")
         }
     }
 }

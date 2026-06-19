@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -28,6 +30,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -48,7 +53,11 @@ private val BITRATES = listOf("128k", "192k", "320k", null)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(viewModel: HomeViewModel, onOpenSettings: () -> Unit) {
+fun HomeScreen(
+    viewModel: HomeViewModel,
+    onOpenSettings: () -> Unit,
+    onOpenHistory: () -> Unit,
+) {
     val state by viewModel.state.collectAsState()
     val ctx = LocalContext.current
 
@@ -66,6 +75,8 @@ fun HomeScreen(viewModel: HomeViewModel, onOpenSettings: () -> Unit) {
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    var menuOpen by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -82,8 +93,29 @@ fun HomeScreen(viewModel: HomeViewModel, onOpenSettings: () -> Unit) {
                     }
                 },
                 actions = {
-                    TextButton(onClick = onOpenSettings) {
-                        Text(stringResource(R.string.settings_title))
+                    Box {
+                        TextButton(onClick = { menuOpen = true }) {
+                            Text(stringResource(R.string.more_title), color = MaterialTheme.colorScheme.onBackground)
+                        }
+                        DropdownMenu(
+                            expanded = menuOpen,
+                            onDismissRequest = { menuOpen = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.settings_menu)) },
+                                onClick = {
+                                    menuOpen = false
+                                    onOpenSettings()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.history_menu)) },
+                                onClick = {
+                                    menuOpen = false
+                                    onOpenHistory()
+                                },
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
