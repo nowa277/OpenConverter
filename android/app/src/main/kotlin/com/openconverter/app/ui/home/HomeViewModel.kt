@@ -117,6 +117,16 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         ContextCompat.startForegroundService(context, cancel)
     }
 
+    fun clearFiles() {
+        _state.update {
+            it.copy(
+                files = emptyList(),
+                running = false,
+                showControlsSheet = false,
+            )
+        }
+    }
+
     private fun onEvent(ev: ProgressEvent) {
         _state.update { s ->
             val files = s.files.toMutableList()

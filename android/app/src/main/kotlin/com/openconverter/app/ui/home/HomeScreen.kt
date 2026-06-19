@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import com.openconverter.app.R
 import com.openconverter.app.saf.SafAdapter
 import com.openconverter.app.ui.components.FileCard
+import com.openconverter.app.ui.components.FileState
 import com.openconverter.app.ui.components.FormatChip
 import com.openconverter.app.ui.components.GreenCta
 import com.openconverter.app.ui.components.PillButton
@@ -126,13 +127,45 @@ fun HomeScreen(
             )
         },
         bottomBar = {
-            val canStart = state.files.isNotEmpty() && state.outputFolderUri != null && !state.running
-            GreenCta(
-                text = if (state.running) stringResource(R.string.notif_cancel) else stringResource(R.string.home_start),
-                enabled = canStart || state.running,
-                onClick = { if (state.running) viewModel.cancel(ctx) else viewModel.start(ctx) },
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-            )
+            val s = state
+            if (s.files.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    when {
+                        s.running -> {
+                            GreenCta(
+                                text = stringResource(R.string.cancel_conversion),
+                                onClick = { viewModel.cancel(ctx) },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        s.files.any { it.state == FileState.Pending } -> {
+                            GreenCta(
+                                text = stringResource(R.string.start_conversion),
+                                onClick = { viewModel.start(ctx) },
+                                modifier = Modifier.weight(1f),
+                            )
+                            androidx.compose.material3.OutlinedButton(
+                                onClick = { viewModel.clearFiles() },
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                androidx.compose.material3.Text(stringResource(R.string.clear_queue))
+                            }
+                        }
+                        else -> {
+                            // All terminal (Done/Failed) → primary action is Clear
+                            androidx.compose.material3.OutlinedButton(
+                                onClick = { viewModel.clearFiles() },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                androidx.compose.material3.Text(stringResource(R.string.clear_queue))
+                            }
+                        }
+                    }
+                }
+            }
         },
         containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
