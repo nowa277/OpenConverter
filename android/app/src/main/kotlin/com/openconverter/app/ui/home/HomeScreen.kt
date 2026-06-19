@@ -49,8 +49,8 @@ import com.openconverter.app.ui.components.FormatChip
 import com.openconverter.app.ui.components.GreenCta
 import com.openconverter.app.ui.components.PillButton
 
-private val FORMATS = listOf("mp3", "flac", "wav", "m4a", "ogg")
-private val BITRATES = listOf("128k", "192k", "320k", null)
+private val FORMATS = listOf("mp3", "flac", "wav", "m4a")
+private val BITRATES = listOf("128k", "192k", "320k")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -129,33 +129,28 @@ fun HomeScreen(
         bottomBar = {
             val s = state
             if (s.files.isNotEmpty()) {
-                Row(
+                // Single-button tri-state CTA: Start → Cancel → Clear
+                // Hide entirely when no files queued (the empty-state message handles that).
+                Box(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     when {
                         s.running -> {
                             GreenCta(
                                 text = stringResource(R.string.cancel_conversion),
                                 onClick = { viewModel.cancel(ctx) },
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.fillMaxWidth(),
                             )
                         }
                         s.files.any { it.state == FileState.Pending } -> {
                             GreenCta(
                                 text = stringResource(R.string.start_conversion),
                                 onClick = { viewModel.start(ctx) },
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.fillMaxWidth(),
                             )
-                            androidx.compose.material3.OutlinedButton(
-                                onClick = { viewModel.clearFiles() },
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                androidx.compose.material3.Text(stringResource(R.string.clear_queue))
-                            }
                         }
                         else -> {
-                            // All terminal (Done/Failed) → primary action is Clear
+                            // All terminal (Done/Failed) → single Clear button
                             androidx.compose.material3.OutlinedButton(
                                 onClick = { viewModel.clearFiles() },
                                 modifier = Modifier.fillMaxWidth(),
@@ -231,39 +226,54 @@ fun HomeScreen(
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surface,
         ) {
+            // Generous padding + spacing so the sheet never feels cramped.
             Column(
-                modifier = Modifier.padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 28.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                Text(
-                    stringResource(R.string.home_target_format),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                )
-                Row {
-                    FORMATS.forEach { fmt ->
-                        FormatChip(
-                            label = fmt.uppercase(),
-                            selected = fmt == state.targetFormat,
-                            onClick = { viewModel.setTargetFormat(fmt) },
-                        )
+                // --- Target format section ---
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        stringResource(R.string.home_target_format),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        FORMATS.forEach { fmt ->
+                            FormatChip(
+                                label = fmt.uppercase(),
+                                selected = fmt == state.targetFormat,
+                                onClick = { viewModel.setTargetFormat(fmt) },
+                            )
+                        }
                     }
                 }
-                Text(
-                    stringResource(R.string.home_bitrate),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                )
-                Row {
-                    BITRATES.forEach { b ->
-                        FormatChip(
-                            label = b ?: stringResource(R.string.home_bitrate_lossless),
-                            selected = b == state.bitrate,
-                            onClick = { viewModel.setBitrate(b) },
-                        )
+                // --- Bitrate section (fixed options: 128k / 192k / 320k) ---
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        stringResource(R.string.home_bitrate),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        BITRATES.forEach { b ->
+                            FormatChip(
+                                label = b,
+                                selected = b == state.bitrate,
+                                onClick = { viewModel.setBitrate(b) },
+                            )
+                        }
                     }
                 }
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(12.dp))
             }
         }
     }
