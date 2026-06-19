@@ -73,7 +73,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             item {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     Icon(
-                        painterResource(R.drawable.ic_launcher_foreground),
+                        painterResource(R.drawable.ic_logo),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(96.dp),

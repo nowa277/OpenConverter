@@ -184,9 +184,9 @@ fun HomeScreen(
                     muted = state.outputFolderUri == null,
                     onClick = { pickFolder.launch(null) },
                 )
-                if (state.folderError != null) {
+                state.folderError?.let { err ->
                     Text(
-                        text = state.folderError,
+                        text = err,
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(horizontal = 4.dp),
