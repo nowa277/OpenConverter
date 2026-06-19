@@ -20,7 +20,7 @@
     "check:commercial": "bash tests/check-no-commercial.sh",
     "package:dir": "npm run build:renderer && electron-builder --linux --dir"
   },
-  "license": "MIT",
+  "license": "Apache-2.0",
   "author": {
     "name": "nowa277",
     "email": "sesleycheung@gmail.com"
