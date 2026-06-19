@@ -78,3 +78,13 @@ class RecordingProgressSink : ProgressSink {
     override fun onFileDone(index: Int, outputPath: String) { events += "done $index $outputPath" }
     override fun onFileError(index: Int, message: String) { events += "err $index $message" }
 }
+
+class FakeHistoryStore : HistoryPort {
+    private val records = mutableListOf<HistoryRecord>()
+    override suspend fun append(record: HistoryRecord) {
+        records += record
+    }
+    override suspend fun readAll(): List<HistoryRecord> = records.toList().reversed()
+    override suspend fun clear() { records.clear() }
+    fun snapshot(): List<HistoryRecord> = records.toList()
+}
