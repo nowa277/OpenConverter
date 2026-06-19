@@ -15,8 +15,14 @@ data class SettingsUiState(
     val supportedOutputs: List<String> = listOf("MP3", "FLAC", "WAV", "M4A (AAC)", "OGG (Vorbis)"),
     val deferred: String = "QMCv2 (.mflac/.mgg/.bkc) — v2 (需 ekey)",
     val githubUrl: String = "https://github.com/nowa277/OpenConverter",
+    val issuesUrl: String = "https://github.com/nowa277/OpenConverter/issues/new",
     val license: String = "MIT",
-)
+) {
+    companion object {
+        const val REPO_URL = "https://github.com/nowa277/OpenConverter"
+        const val ISSUES_URL = "https://github.com/nowa277/OpenConverter/issues/new"
+    }
+}
 
 class SettingsViewModel : ViewModel() {
     val state: SettingsUiState = SettingsUiState()

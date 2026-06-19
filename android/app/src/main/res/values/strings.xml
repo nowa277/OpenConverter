@@ -23,8 +23,12 @@
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>
-    <string name="settings_about">About</string>
+    <string name="settings_about">TODO: 声明文字由项目维护者填写</string>
     <string name="settings_version">Version</string>
     <string name="settings_supported">Supported input formats</string>
     <string name="settings_license">MIT License — github.com/nowa277/OpenConverter</string>
+    <string name="settings_project">Project</string>
+    <string name="settings_source_code">Source code</string>
+    <string name="settings_report_issue">Report an issue</string>
+    <string name="settings_about_title">About</string>
 </resources>
