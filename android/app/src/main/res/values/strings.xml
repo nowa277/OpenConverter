@@ -37,4 +37,14 @@
     <string name="start_conversion">Start</string>
     <string name="cancel_conversion">Cancel</string>
     <string name="clear_queue">Clear</string>
+
+    <!-- HistoryScreen -->
+    <string name="history_title">Conversion History</string>
+    <string name="history_clear">Clear</string>
+    <string name="history_clear_confirm_title">Clear history</string>
+    <string name="history_clear_confirm_msg">All conversion records will be deleted.</string>
+    <string name="history_empty">No conversions yet</string>
+    <string name="history_status_success">Success</string>
+    <string name="history_status_failed">Failed</string>
+    <string name="cancel_action">Cancel</string>
 </resources>
