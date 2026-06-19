@@ -1,8 +1,9 @@
 package com.openconverter.app.ui.home
 
-import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,36 +11,40 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.openconverter.app.R
 import com.openconverter.app.saf.SafAdapter
 import com.openconverter.app.ui.components.FileCard
-import com.openconverter.app.ui.components.FileState
 import com.openconverter.app.ui.components.FormatChip
 import com.openconverter.app.ui.components.GreenCta
 import com.openconverter.app.ui.components.PillButton
 
 private val FORMATS = listOf("mp3", "flac", "wav", "m4a", "ogg")
-private val BITRATES = listOf("128k", "192k", "320k", null) // null = lossless / codec default
+private val BITRATES = listOf("128k", "192k", "320k", null)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,13 +64,26 @@ fun HomeScreen(viewModel: HomeViewModel, onOpenSettings: () -> Unit) {
         if (uri != null) viewModel.setOutputFolder(uri)
     }
 
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium) },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painterResource(R.drawable.ic_logo),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.height(22.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium)
+                    }
+                },
                 actions = {
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                    TextButton(onClick = onOpenSettings) {
+                        Text(stringResource(R.string.settings_title))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -75,90 +93,134 @@ fun HomeScreen(viewModel: HomeViewModel, onOpenSettings: () -> Unit) {
                 ),
             )
         },
+        bottomBar = {
+            val canStart = state.files.isNotEmpty() && state.outputFolderUri != null && !state.running
+            GreenCta(
+                text = if (state.running) stringResource(R.string.notif_cancel) else stringResource(R.string.home_start),
+                enabled = canStart || state.running,
+                onClick = { if (state.running) viewModel.cancel(ctx) else viewModel.start(ctx) },
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+            )
+        },
         containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                PillButton(
-                    text = "+ ${stringResource(R.string.home_pick_files)}",
-                    onClick = { pickFiles.launch(arrayOf("audio/*", "*/*")) },
-                )
-                PillButton(
-                    text = stringResource(R.string.home_pick_folder),
-                    onClick = { pickFolder.launch(null) },
-                )
-            }
-
-            ChipRow(
+            Spacer(Modifier.height(8.dp))
+            PillButton(
+                text = "+ ${stringResource(R.string.home_pick_files)}",
+                onClick = { pickFiles.launch(arrayOf("audio/*", "*/*")) },
+            )
+            // Output folder row
+            SummaryRow(
+                label = stringResource(R.string.home_pick_folder),
+                value = state.outputFolderName ?: stringResource(R.string.home_no_folder),
+                muted = state.outputFolderUri == null,
+                onClick = { pickFolder.launch(null) },
+            )
+            // Format / bitrate row -> opens the bottom sheet
+            val fmtLabel = state.targetFormat.uppercase()
+            val brLabel = state.bitrate ?: stringResource(R.string.home_bitrate_lossless)
+            SummaryRow(
                 label = stringResource(R.string.home_target_format),
-                options = FORMATS,
-                selected = state.targetFormat,
-                toLabel = { it.uppercase() },
-                onSelect = viewModel::setTargetFormat,
+                value = "$fmtLabel · $brLabel",
+                muted = false,
+                onClick = { viewModel.openControlsSheet() },
             )
-
-            ChipRow(
-                label = stringResource(R.string.home_bitrate),
-                options = BITRATES,
-                selected = state.bitrate,
-                toLabel = { it ?: "Lossless" },
-                onSelect = viewModel::setBitrate,
-            )
+            Spacer(Modifier.height(4.dp))
 
             if (state.files.isEmpty()) {
-                Text(
-                    stringResource(R.string.home_no_files),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        stringResource(R.string.home_no_files),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             } else {
                 LazyColumn(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     items(state.files, key = { it.uri }) { f ->
                         FileCard(
                             name = f.displayName,
+                            sizeBytes = f.sizeBytes,
                             state = f.state,
                             percent = f.percent,
+                            error = f.error,
                         )
                     }
                 }
             }
+        }
+    }
 
-            Spacer(Modifier.height(8.dp))
-            val canStart = state.files.isNotEmpty() && state.outputFolderUri != null && !state.running
-            GreenCta(
-                text = if (state.running) "Cancel" else stringResource(R.string.home_start),
-                enabled = canStart || state.running,
-                onClick = {
-                    if (state.running) viewModel.cancel(ctx) else viewModel.start(ctx)
-                },
-                modifier = Modifier.fillMaxWidth(),
-            )
+    if (state.showControlsSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.closeControlsSheet() },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surface,
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    stringResource(R.string.home_target_format),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                )
+                Row {
+                    FORMATS.forEach { fmt ->
+                        FormatChip(
+                            label = fmt.uppercase(),
+                            selected = fmt == state.targetFormat,
+                            onClick = { viewModel.setTargetFormat(fmt) },
+                        )
+                    }
+                }
+                Text(
+                    stringResource(R.string.home_bitrate),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                )
+                Row {
+                    BITRATES.forEach { b ->
+                        FormatChip(
+                            label = b ?: stringResource(R.string.home_bitrate_lossless),
+                            selected = b == state.bitrate,
+                            onClick = { viewModel.setBitrate(b) },
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
         }
     }
 }
 
 @Composable
-private fun <T> ChipRow(
-    label: String,
-    options: List<T>,
-    selected: T,
-    toLabel: (T) -> String,
-    onSelect: (T) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(label, style = MaterialTheme.typography.titleSmall)
-        Row {
-            options.forEach { opt ->
-                FormatChip(
-                    label = toLabel(opt),
-                    selected = opt == selected,
-                    onClick = { onSelect(opt) },
-                )
-            }
+private fun SummaryRow(label: String, value: String, muted: Boolean, onClick: () -> Unit) {
+    val valueColor = if (muted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onBackground
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                value,
+                style = MaterialTheme.typography.bodyLarge,
+                color = valueColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
+        Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

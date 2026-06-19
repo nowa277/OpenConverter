@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.net.Uri
 import android.os.IBinder
+import android.provider.DocumentsContract
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -32,9 +33,11 @@ data class FileEntry(
 data class HomeUiState(
     val files: List<FileEntry> = emptyList(),
     val outputFolderUri: String? = null,
+    val outputFolderName: String? = null,
     val targetFormat: String = "mp3",
     val bitrate: String? = "320k",
     val running: Boolean = false,
+    val showControlsSheet: Boolean = false,
 )
 
 class HomeViewModel(app: Application) : AndroidViewModel(app) {
@@ -83,10 +86,16 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
             )
         }
-        _state.update { it.copy(outputFolderUri = uri.toString()) }
+        val name = runCatching {
+            DocumentsContract.getTreeDocumentId(uri).substringAfterLast(':').ifBlank { uri.lastPathSegment }
+        }.getOrNull() ?: "folder"
+        _state.update { it.copy(outputFolderUri = uri.toString(), outputFolderName = name) }
     }
     fun setTargetFormat(fmt: String) = _state.update { it.copy(targetFormat = fmt) }
     fun setBitrate(b: String?) = _state.update { it.copy(bitrate = b) }
+
+    fun openControlsSheet() = _state.update { it.copy(showControlsSheet = true) }
+    fun closeControlsSheet() = _state.update { it.copy(showControlsSheet = false) }
 
     fun start(context: Context) {
         val s = _state.value
