@@ -38,4 +38,19 @@ object SafAdapter {
         }
         return uri.lastPathSegment ?: uri.toString()
     }
+
+    /** Best-effort byte size for a SAF document/content uri, or -1 if the provider omits SIZE. */
+    fun querySize(context: Context, uri: Uri): Long {
+        val resolver = context.contentResolver
+        resolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { c ->
+            if (c.moveToFirst()) {
+                val idx = c.getColumnIndex(OpenableColumns.SIZE)
+                if (idx >= 0 && !c.isNull(idx)) {
+                    val size = c.getLong(idx)
+                    if (size > 0) return size
+                }
+            }
+        }
+        return -1L
+    }
 }

@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 data class FileEntry(
     val uri: String,
     val displayName: String,
+    val sizeBytes: Long = -1L,
     val state: FileState = FileState.Pending,
     val percent: Int = 0,
     val error: String? = null,
@@ -66,7 +67,11 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     fun setFiles(uris: List<Uri>) {
         val ctx = getApplication<Application>()
         val entries = uris.map { uri ->
-            FileEntry(uri = uri.toString(), displayName = SafAdapter.queryDisplayName(ctx, uri))
+            FileEntry(
+                uri = uri.toString(),
+                displayName = SafAdapter.queryDisplayName(ctx, uri),
+                sizeBytes = mapSize(SafAdapter.querySize(ctx, uri)),
+            )
         }
         _state.update { it.copy(files = entries) }
     }
@@ -116,4 +121,6 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             s.copy(files = files)
         }
     }
+
+    companion object { fun mapSize(raw: Long): Long = if (raw > 0) raw else -1L }
 }
