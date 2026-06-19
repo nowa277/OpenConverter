@@ -15,8 +15,15 @@ import com.openconverter.app.decoders.DefaultDecoders
 import com.openconverter.app.engine.AndroidFileSystemPort
 import com.openconverter.app.engine.ConversionEngine
 import com.openconverter.app.engine.ConversionRequest
+import com.openconverter.app.engine.FileResult
+import com.openconverter.app.engine.HistoryPort
+import com.openconverter.app.engine.HistoryRecord
+import com.openconverter.app.engine.HistoryStatus
+import com.openconverter.app.engine.JsonHistoryStore
 import com.openconverter.app.engine.ProgressEvent
 import com.openconverter.app.engine.RealClock
+import com.openconverter.app.saf.SafAdapter
+import android.net.Uri
 import com.openconverter.app.ffmpeg.FfmpegKitRunner
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -92,9 +99,13 @@ class ConversionService : Service() {
         val sink = ServiceProgressSink(this, _progress, inputs.size)
         val engine = ConversionEngine(DefaultDecoders.registry, ffmpeg, fs, sink, RealClock())
 
+        val history: HistoryPort = JsonHistoryStore(applicationContext.filesDir)
         currentJob = scope.launch {
             try {
-                engine.convertAll(req)
+                val results: List<FileResult> = engine.convertAll(req)
+                results.forEachIndexed { i, r ->
+                    history.append(toRecord(i, r, names, target))
+                }
                 sink.onBatchDone()
             } finally {
                 stopForeground(STOP_FOREGROUND_REMOVE)
@@ -148,6 +159,25 @@ class ConversionService : Service() {
 
     fun postNotification(notif: android.app.Notification) {
         NotificationManagerCompat.from(this).notify(NOTIF_ID, notif)
+    }
+
+    private fun toRecord(
+        i: Int, r: FileResult,
+        names: List<String>, target: String,
+    ): HistoryRecord {
+        val status = if (r.error == null) HistoryStatus.SUCCESS else HistoryStatus.FAILED
+        val outputName = r.outputPath?.let { p ->
+            runCatching { SafAdapter.queryDisplayName(applicationContext, Uri.parse(p)) }.getOrNull()
+        }
+        return HistoryRecord(
+            ts = System.currentTimeMillis(),
+            inputName = names.getOrNull(i) ?: "unknown",
+            targetFormat = target,
+            status = status,
+            outputName = outputName,
+            durationMs = null,
+            error = r.error,
+        )
     }
 
     companion object {
