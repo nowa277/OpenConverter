@@ -45,7 +45,6 @@
 
 * **隐私至上，完全离线**：所有的解密、转码与处理均完全在本地设备上运行。不上传任何音频数据，零网络交互，安全可靠。
 * **真实音频转码 (FFmpeg)**：并非简单重命名或提取，内置 FFmpeg / FFmpegKit 转码后端，支持转码为 MP3 / FLAC / WAV / M4A / OGG，并可根据需要自由选择输出码率（如 320k, 256k 等）。
-* **现代极致的 UI 设计**：
 * **精确的进度回显**：集成 FFprobe 媒体探测器，在转码过程中对音频长度进行深度预分析，实现平滑、真实的 0%~100% 进度回显。
 * **历史记录管理**：Android 客户端支持基于 JSONL 的轻量级本地转换历史记录（最高保留 500 条），并支持在 UI 中一键清空与二次确认。
 * **无额外存储权限 (Android)**：遵循现代 Android 隐私最佳实践，完全采用 Storage Access Framework (SAF) 存储访问框架进行输入输出，无需申请易受质疑的敏感读写存储权限。
@@ -61,11 +60,10 @@
 
 ### Android 移动端应用界面
 <p align="center">
-  <img src="assets/screenshots/android_success_queue.png" alt="Android Queue" width="30%" />
+  <img src="assets/screenshots/android_success_queue.png" alt="Android Queue" width="40%" />
   &nbsp;&nbsp;
-  <img src="assets/screenshots/android_history_screen.png" alt="Android History" width="30%" />
+  <img src="assets/screenshots/android_history_screen.png" alt="Android History" width="40%" />
   &nbsp;&nbsp;
-  <img src="assets/screenshots/android_app_drawer.png" alt="Android App Icon" width="30%" />
 </p>
 
 ---
