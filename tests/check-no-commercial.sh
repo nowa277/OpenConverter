@@ -61,7 +61,7 @@ found=0
 for d in $DIRS; do
   if [ ! -d "$d" ]; then continue; fi
   for pat in "${PATTERNS[@]}"; do
-    hits=$(grep -rEn "$pat" "$d" 2>/dev/null | grep -v '\.map$' | grep -v 'node_modules' || true)
+    hits=$(grep -rIEn "$pat" "$d" 2>/dev/null | grep -v '\.map$' | grep -v 'node_modules' || true)
     if [ -n "$hits" ]; then
       echo "❌ Found commercial pattern: $pat"
       echo "$hits" | head -5
