@@ -26,6 +26,8 @@
 
 ### 跨平台轻量级音频格式转换与本地解码工具链
 
+[English](./README_EN.md) | 简体中文
+
 <p align="center">
 面向音频工作流的轻量级格式转换与解密工具。<br/>
 <b>桌面端</b>基于 JavaScript 解码管线 + Electron + FFmpeg 转码后端构建；<br/>
