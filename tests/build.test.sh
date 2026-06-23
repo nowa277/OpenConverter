@@ -35,7 +35,7 @@ echo "  Portable: $PORTABLE ($(du -h "$PORTABLE" | cut -f1))"
 # with "Data Error", but the actual payload ($PLUGINSDIR/app-64.7z) extracts
 # cleanly. Extract just the payload archive directly to avoid the noisy error.
 CHECK_DIR="$(mktemp -d)"
-trap 'rm -rf "$CHECK_DIR"' EXIT
+trap 'rm -rf "$CHECK_DIR"; wineserver -k >/dev/null 2>&1 || true' EXIT
 7z x -y "$NSIS" "\$PLUGINSDIR/app-64.7z" -o"$CHECK_DIR" >/dev/null 2>&1 || true
 if [ ! -f "$CHECK_DIR/\$PLUGINSDIR/app-64.7z" ]; then
   echo "FAIL: could not extract NSIS payload"
