@@ -23,6 +23,16 @@ const { run: ffmpegRunRaw, probeDuration: probeDurationRaw } = require('./ffmpeg
 const config = require('./config');
 const decoders = require('../decoders');
 const { resolveFfmpegPath, resolveFfprobePath } = require('./ffmpeg-path');
+const HistoryStore = require('./history');
+
+let historyStore = null;
+function getHistoryStore() {
+  if (!historyStore) {
+    historyStore = new HistoryStore(app.getPath('userData'));
+  }
+  return historyStore;
+}
+
 
 // Wrap ffmpegRun so the resolved paths are used at call time. Done in
 // main (not ffmpeg.js) so ffmpeg.js stays a thin subprocess wrapper
@@ -106,7 +116,7 @@ async function convertOne(jobId, inputPath, format, outputDir, quality) {
     await ffmpegRun(inputPath, targetPath, {
       format, quality,
       onProgress: ({ percent }) => {
-        if (mainWindow) mainWindow.webContents.send('convert:progress', { jobId, percent });
+        if (mainWindow) mainWindow.webContents.send('convert:progress', { jobId, filePath: inputPath, percent });
       },
       signal: activeJobs.get(jobId)?.signal,
     });
@@ -149,7 +159,7 @@ async function convertOne(jobId, inputPath, format, outputDir, quality) {
     quality,
     onProgress: ({ percent }) => {
       if (mainWindow) {
-        mainWindow.webContents.send('convert:progress', { jobId, percent });
+        mainWindow.webContents.send('convert:progress', { jobId, filePath: inputPath, percent });
       }
     },
     signal: activeJobs.get(jobId)?.signal,
@@ -169,6 +179,7 @@ const HANDLERS = {
 
     fs.mkdirSync(outputDir, { recursive: true });
     const results = [];
+    const history = getHistoryStore();
     for (const f of files) {
       const jobId = `job-${++jobCounter}`;
       const controller = new AbortController();
@@ -176,14 +187,42 @@ const HANDLERS = {
       try {
         const r = await convertOne(jobId, f, format, outputDir, quality);
         results.push(r);
+        await history.append({
+          ts: Date.now(),
+          inputName: path.basename(f),
+          targetFormat: format,
+          status: 'success',
+          outputName: path.basename(r.outputPath),
+          durationMs: null,
+          error: null,
+        });
       } catch (e) {
         results.push({ jobId, inputPath: f, error: e.message });
+        await history.append({
+          ts: Date.now(),
+          inputName: path.basename(f),
+          targetFormat: format,
+          status: 'failed',
+          outputName: null,
+          durationMs: null,
+          error: e.message,
+        });
       } finally {
         activeJobs.delete(jobId);
       }
     }
     return { results };
   },
+
+  'history:get': async () => {
+    return getHistoryStore().readAll();
+  },
+
+  'history:clear': async () => {
+    await getHistoryStore().clear();
+    return { ok: true };
+  },
+
 
   'convert:cancel': async (data) => {
     const job = activeJobs.get(data?.jobId);

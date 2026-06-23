@@ -56,6 +56,7 @@
       </div>
       <nav class="nav">
         <button class="nav-item active" data-view="convert">Convert</button>
+        <button class="nav-item" data-view="history">History</button>
         <button class="nav-item" data-view="about">About</button>
       </nav>
       <div class="sidebar-footer">
@@ -137,6 +138,19 @@
           </div>
         </div>
 
+        <div id="view-history" class="view">
+          <div class="history-container">
+            <div class="history-header">
+              <h2>History</h2>
+              <button id="clear-history-btn" class="btn btn-text">Clear history</button>
+            </div>
+            <div id="history-empty" class="history-empty" hidden>
+              No conversion history yet
+            </div>
+            <ul id="history-list" class="history-list"></ul>
+          </div>
+        </div>
+
         <div id="view-about" class="view">
           <div class="card">
             <h2>About</h2>
@@ -153,6 +167,15 @@
 
     <div id="toast" class="toast" hidden></div>
   </div>
+
+  <dialog id="clear-confirm-dialog" class="confirm-dialog" aria-labelledby="dialog-title">
+    <h3 id="dialog-title">Clear history?</h3>
+    <p>This will delete all conversion records. Converted files will not be deleted.</p>
+    <div class="dialog-actions">
+      <button id="confirm-clear-cancel" class="btn btn-secondary">Cancel</button>
+      <button id="confirm-clear-ok" class="btn btn-primary">Clear</button>
+    </div>
+  </dialog>
   <script type="module" src="./main.js"></script>
 </body>
 </html>

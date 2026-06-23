@@ -95,6 +95,21 @@ function bindEvents() {
     winMaxBtn.title = maximized ? 'Restore' : 'Maximize';
   });
 
+  api.on('convert:progress', ({ filePath, percent }) => {
+    const f = state.files.find((x) => x.path === filePath);
+    if (f) {
+      f.progress = percent;
+      const idx = state.files.indexOf(f);
+      const itemEl = document.querySelector(`.queue-item[data-i="${idx}"]`);
+      if (itemEl) {
+        const progressDiv = itemEl.querySelector('.progress > div');
+        if (progressDiv) progressDiv.style.width = `${percent}%`;
+        const statusDiv = itemEl.querySelector('.status');
+        if (statusDiv) statusDiv.textContent = `${percent.toFixed(0)}%`;
+      }
+    }
+  });
+
   // Output dir
   $('pick-output-btn').addEventListener('click', async () => {
     const r = await api.invoke('file:pickOutputDir');
@@ -141,6 +156,44 @@ function bindEvents() {
   // Clear queue
   $('clear-queue-btn').addEventListener('click', () => { state.files = []; updateQueue(); });
 
+  // Clear history dialog & actions
+  const clearHistoryBtn = $('clear-history-btn');
+  const clearDialog = $('clear-confirm-dialog');
+  const confirmClearCancel = $('confirm-clear-cancel');
+  const confirmClearOk = $('confirm-clear-ok');
+
+  clearHistoryBtn.addEventListener('click', () => {
+    clearDialog.showModal();
+  });
+
+  confirmClearCancel.addEventListener('click', () => {
+    clearDialog.close();
+  });
+
+  confirmClearOk.addEventListener('click', async () => {
+    clearDialog.close();
+    await api.invoke('history:clear');
+    toast('History cleared', 'ok');
+    loadHistory();
+  });
+
+  // Fallback for browsers without closedby support
+  if (!('closedBy' in HTMLDialogElement.prototype)) {
+    clearDialog.addEventListener('click', (event) => {
+      if (event.target !== clearDialog) return;
+      const rect = clearDialog.getBoundingClientRect();
+      const isDialogContent = (
+        rect.top <= event.clientY &&
+        event.clientY <= rect.top + rect.height &&
+        rect.left <= event.clientX &&
+        event.clientX <= rect.left + rect.width
+      );
+      if (!isDialogContent) {
+        clearDialog.close();
+      }
+    });
+  }
+
   // Nav
   document.querySelectorAll('.nav-item').forEach((b) => {
     b.addEventListener('click', () => switchView(b.dataset.view));
@@ -159,6 +212,10 @@ function switchView(name) {
     v.classList.toggle('active', v.id === 'view-' + name);
   });
   if (location.hash !== '#' + name) location.hash = name;
+
+  if (name === 'history') {
+    loadHistory();
+  }
 }
 
 function addFiles(paths) {
@@ -242,3 +299,63 @@ async function convert() {
 }
 
 init().catch((e) => { console.error(e); toast('Init failed: ' + e.message, 'error'); });
+
+async function loadHistory() {
+  try {
+    const records = await api.invoke('history:get');
+    const listEl = $('history-list');
+    const emptyEl = $('history-empty');
+    const clearBtn = $('clear-history-btn');
+
+    if (records.length === 0) {
+      listEl.innerHTML = '';
+      emptyEl.hidden = false;
+      clearBtn.disabled = true;
+    } else {
+      emptyEl.hidden = true;
+      clearBtn.disabled = false;
+      listEl.innerHTML = records.map((r) => {
+        const statusClass = r.status === 'success' ? 'done' : 'error';
+        const statusText = r.status === 'success' ? 'Success' : 'Failed';
+        const timeText = formatRelativeTime(r.ts);
+        const subText = r.status === 'success'
+          ? `→ ${escapeHtml(r.targetFormat)}`
+          : `→ ${escapeHtml(r.targetFormat)} (${escapeHtml(r.error)})`;
+
+        const iconSvg = r.status === 'success'
+          ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>`
+          : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>`;
+
+        return `
+          <li class="queue-item ${statusClass}">
+            <div class="icon">${iconSvg}</div>
+            <div class="meta">
+              <div class="name">${escapeHtml(r.inputName)}</div>
+              <div class="sub">${subText}</div>
+            </div>
+            <div class="time-status-container" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+              <div class="status" style="margin-bottom: 0;">${statusText}</div>
+              <div class="time" style="font-size: 11px; color: var(--text-dim);">${timeText}</div>
+            </div>
+          </li>
+        `;
+      }).join('');
+    }
+  } catch (e) {
+    console.error('Failed to load history:', e);
+    toast('Failed to load history', 'error');
+  }
+}
+
+function formatRelativeTime(ts) {
+  const diff = Date.now() - ts;
+  const secs = Math.floor(diff / 1000);
+  if (secs < 60) return 'Just now';
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(ts).toLocaleDateString();
+}

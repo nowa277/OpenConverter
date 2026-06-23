@@ -15,7 +15,7 @@
     "build:linux": "npm run build:renderer && electron-builder --linux && bash scripts/rename-linux-artifacts.sh",
     "build:win": "npm run build:renderer && electron-builder --win --x64",
     "cli": "node src/cli.js",
-    "test": "node --test tests/",
+    "test": "node --test --test-concurrency=1 tests/*.test.js",
     "test:ncm": "node tests/ncm.test.js",
     "check:commercial": "bash tests/check-no-commercial.sh",
     "package:dir": "npm run build:renderer && electron-builder --linux --dir"
