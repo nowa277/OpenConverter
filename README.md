@@ -24,101 +24,142 @@
 
 # OpenConverter
 
-### 跨平台音频格式转换工具链
+### 🎵 跨平台轻量级音频格式转换与本地解码工具链
 
 <p align="center">
-面向音频工作流的轻量级格式转换与解码工具<br/>
-基于 JavaScript 解码管线 + FFmpeg 转码后端构建
+面向音频工作流的轻量级格式转换与解密工具。<br/>
+<b>桌面端</b>基于 JavaScript 解码管线 + Electron + FFmpeg 转码后端构建；<br/>
+<b>Android 端</b>基于 Jetpack Compose + 纯 Kotlin 解码器 + FFmpegKit 架构实现。
 </p>
 
-[![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)](#supported-platforms)
-[![Windows](https://img.shields.io/badge/Windows-0078D4?style=for-the-badge&logo=windows11&logoColor=white)](#supported-platforms)
-[![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=black)](#supported-platforms)
-
+[![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)](#desktop-安装)
+[![Windows](https://img.shields.io/badge/Windows-0078D4?style=for-the-badge&logo=windows11&logoColor=white)](#desktop-安装)
+[![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=black)](#android-安装)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-D22128?style=for-the-badge)](LICENSE)
 
 </div>
 
 ---
 
-## 介绍
+## 🌟 项目亮点
 
-**功能**：11 种加密音频格式 → MP3 / FLAC / WAV / M4A / OGG 真实转码。
+* 🔒 **隐私至上，完全离线**：所有的解密、转码与处理均完全在本地设备上运行。不上传任何音频数据，零网络交互，安全可靠。
+* 🎼 **真实音频转码 (FFmpeg)**：并非简单重命名或提取，内置 FFmpeg / FFmpegKit 转码后端，支持转码为 MP3 / FLAC / WAV / M4A / OGG，并可根据需要自由选择输出码率（如 320k, 256k 等）。
+* 🎨 **现代极致的 UI 设计**：
+  * **桌面端**：融入 Spotify 风格深色美学，支持 frameless 窗口与原生拖拽，极致交互。
+  * **Android 端**：采用全新 Jetpack Compose 与 Material 3 规范构建，完美契合自适应 SVG 矢量图表的新版启动器图标，并支持转换进度前台服务通知。
+* 📊 **精确的进度回显**：集成 FFprobe 媒体探测器，在转码过程中对音频长度进行深度预分析，实现平滑、真实的 0%~100% 进度回显。
+* 📝 **历史记录管理**：Android 客户端支持基于 JSONL 的轻量级本地转换历史记录（最高保留 500 条），并支持在 UI 中一键清空与二次确认。
+* 📂 **无额外存储权限 (Android)**：遵循现代 Android 隐私最佳实践，完全采用 Storage Access Framework (SAF) 存储访问框架进行输入输出，无需申请易受质疑的敏感读写存储权限。
 
-## 支持的格式
+---
 
-| 格式                 | 来源       |
-| -------------------- | ---------- |
-| `.ncm`               | 网易云   |
-| `.kwm`               | 酷我   |
-| `.kgm` / `.kgma` / `.vpr` 等 | 酷狗   |
-| `.mgg` / `.mgg1` / `.bkc` 等 | QQ 音乐 |
-| `.mp3` / `.flac` / `.wav` 等 | 明文   |
+## 📸 界面预览
 
-QMCv2 系列（`.mflac`、`.mgg`、`.bkc*`）的解密需要 **ekey** ——
-从 QQ 音乐客户端本地数据库提取的 base64 字符串。在 **设置 → QQ
-Music ekey** 里填一次，通过 `electron-store` 持久化。
+### 💻 桌面端应用界面
+<p align="center">
+  <img src="assets/screenshots/desktop_ui.png" alt="Desktop App UI" width="85%" />
+</p>
 
-## 安装
+### 📱 Android 移动端应用界面
+<p align="center">
+  <img src="assets/screenshots/android_success_queue.png" alt="Android Queue" width="30%" />
+  &nbsp;&nbsp;
+  <img src="assets/screenshots/android_history_screen.png" alt="Android History" width="30%" />
+  &nbsp;&nbsp;
+  <img src="assets/screenshots/android_app_drawer.png" alt="Android App Icon" width="30%" />
+</p>
 
-从 [Releases 页面](https://github.com/nowa277/OpenConverter/releases)
-下载对应最新版本：
+---
 
-### Debian / Ubuntu
+## 📋 支持的加密格式
 
+| 格式扩展名 | 对应来源平台 | 解密方式与要求 |
+|:---|:---|:---|
+| `.ncm` | 网易云音乐 | 本地算法直接解密 |
+| `.kwm` | 酷我音乐 | 本地算法直接解密 |
+| `.kgm` / `.kgma` / `.vpr` 等 | 酷狗音乐 / Viper | 本地算法直接解密 |
+| `.mgg` / `.mgg1` / `.bkc` 等 | QQ 音乐 | 需在 **设置/更多** 中配置一次 **ekey**（从本地 QQ 音乐客户端数据库提取的 base64 字符串），程序通过安全存储进行持久化 |
+| `.mp3` / `.flac` / `.wav` 等明文音频 | 任何平台 | 直接导入进行通用格式或码率转码 |
+
+---
+
+## 🚀 安装指南
+
+### Desktop 安装
+
+从 [Releases 页面](https://github.com/nowa277/OpenConverter/releases) 下载对应系统的最新安装包：
+
+#### Debian / Ubuntu
 ```bash
-# AppImage（推荐）
+# AppImage 安装与运行（推荐）
 chmod +x release/openconverter-v***-linux-x64.AppImage
 ./release/openconverter-v***-linux-x64.AppImage
 
-# Deb包安装
-sudo apt install ffmpeg   # OpenConverter 需要 ffmpeg 在 PATH 中
+# Deb包安装 (注意：OpenConverter 在 Linux 下需要系统 PATH 存在 ffmpeg)
+sudo apt install ffmpeg
 sudo dpkg -i release/openconverter-v***-linux-amd64.deb
-sudo apt install -f       # 解决可能的依赖缺失
+sudo apt install -f  # 修复可能缺失的依赖
 openconverter
 ```
 
-### Windows
+#### Windows
+* **便携版（推荐）**：`openconverter-v***-windows-x64-portable.exe`
+  双击直接运行，可随身携带。
+* **NSIS 安装包**：`openconverter-v***-windows-x64-setup.exe`
+  双击根据向导安装。
+* *提示：Windows 端已内置 `ffmpeg.exe` 与 `ffprobe.exe`，无需手动安装 FFmpeg。首次启动若弹出 Windows Defender 未签名提示，点击“更多信息” -> “仍要运行”即可。*
 
-- **NSIS 安装包**：`openconverter-v***-windows-x64-setup.exe`
-  双击 `setup.exe`，按向导选择安装路径。
-- **便携版**（推荐）：`openconverter-v***-windows-x64-portable.exe`
-  可以放在任何目录（U 盘等），双击直接运行，无需安装。
+---
 
-两个包都内置了 `ffmpeg.exe` 和 `ffprobe.exe`，**不需要**单独安装
-ffmpeg。
+### Android 安装
 
-**首次运行提示**：Windows SmartScreen 可能会显示 "Windows 已保护你的
-电脑" 和 "未知发布者"。点击 **更多信息** → **仍要运行** 即可。
-这是未签名二进制文件的正常现象，因为作者没钱购买代码签名证书。
+从 [Releases 页面](https://github.com/nowa277/OpenConverter/releases) 下载最新的 APK 文件安装：
 
-### Android
+* **arm64-v8a**：`openconverter-v***-android-arm64-v8a.apk` (推荐，适合绝大多数现代智能手机)
+* **armeabi-v7a**：`openconverter-v***-android-armeabi-v7a.apk` (适合旧款设备或低端手机)
+* **x86_64**：`openconverter-v***-android-x86_64.apk` (适合在 Android 模拟器上运行与调试)
 
-从 [Releases 页面](https://github.com/nowa277/OpenConverter/releases)
-下载最新版本：
+---
 
-- **arm64-v8a**：`openconverter-v0.3.0-android-arm64-v8a.apk`（~28 MB，现代手机）
-- **armeabi-v7a**：`openconverter-v0.3.0-android-armeabi-v7a.apk`（~52 MB，老年机/低端机）
-- **x86_64**：`openconverter-v0.3.0-android-x86_64.apk`（~34 MB，模拟器测试用）
+## 🛠️ 源码编译开发
 
-下载后在手机上点击 APK 安装（首次需开启"安装未知来源应用"权限）。
-**APK 已用 v0.3.0 专用 keystore 签名**（非 debug 签名），手机可能提示"未知发布者"，
-点"仍要安装"即可。
-**首次运行**：会请求"通知"权限（用于显示转换进度）。
+如果你需要从源码构建本项目，请确保您的计算机上配置了 Node.js 18+ 与 Android SDK（如果编译 Android 版本）。
 
-## 从源码构建
-
+### 编译桌面端 (Electron)
 ```bash
+# 安装依赖
 npm install
+
+# 编译前端静态资源
 npm run build:renderer
-npm run build:linux    # 在 release/ 生成 4 个 Linux 产物
-npm run build:win      # 在 release/ 生成 NSIS + Portable（需要 wine64）
+
+# 编译 Linux 软件包 (AppImage/Deb)
+npm run build:linux
+
+# 编译 Windows 软件包 (需要 wine64 环境)
+npm run build:win
 ```
 
-### 声明
+### 编译 Android 端
+```bash
+cd android
 
-本项目仅作为音频/文件格式转换的技术工具使用，不涉及任何版权内容的提供或分发。使用者在使用过程中应尊重音乐作品及相关内容的版权与合法权益，不得将本工具用于侵犯任何著作权或相关权利人的行为。因使用本工具产生的任何法律责任或纠纷均由使用者自行承担，与项目作者无关。
+# 运行本地单元测试
+./gradlew :app:test
 
-## LICENSE
+# 编译并打包 Debug/Release APK
+./gradlew :app:assembleRelease
+```
 
-[Apache License 2.0](./LICENSE)
+---
+
+## ⚖️ 免责声明
+
+本项目仅作为个人音频学习、文件格式整理及兼容性研究的技术工具使用，不涉及任何版权音频内容的提供、分发或存储。使用者在使用过程中应严格遵守相关法律法规，尊重音乐作品著作权人的合法权益，不得将本工具用于任何侵犯著作权的行为。由于使用本工具引发的任何法律争议或纠纷，均由使用者自行承担，与本项目作者及贡献者无关。
+
+---
+
+## 📄 开源许可证
+
+本项目基于 [Apache License 2.0](./LICENSE) 协议开源。
