@@ -35,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -86,7 +87,7 @@ fun HomeScreen(
                         Icon(
                             painterResource(R.drawable.ic_logo),
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = Color.Unspecified,
                             modifier = Modifier.height(22.dp),
                         )
                         Spacer(Modifier.width(8.dp))
