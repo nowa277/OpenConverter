@@ -33,12 +33,12 @@
           <svg viewBox="0 0 512 512" width="40" height="40" aria-label="OpenConverter logo">
             <defs>
               <linearGradient id="bgG" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" style="stop-color:#181818"/>
-                <stop offset="100%" style="stop-color:#121212"/>
+                <stop offset="0%" style="stop-color: var(--bg-elevated)"/>
+                <stop offset="100%" style="stop-color: var(--bg)"/>
               </linearGradient>
               <linearGradient id="gG" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" style="stop-color:#1ed760"/>
-                <stop offset="100%" style="stop-color:#1db954"/>
+                <stop offset="0%" style="stop-color: var(--accent-hover)"/>
+                <stop offset="100%" style="stop-color: var(--accent)"/>
               </linearGradient>
             </defs>
             <circle cx="256" cy="256" r="240" fill="url(#bgG)" stroke="#282828" stroke-width="8"/>
@@ -93,6 +93,13 @@
               <option value="auto" data-i18n="lang_auto">Auto</option>
               <option value="en">English</option>
               <option value="zh">简体中文</option>
+            </select>
+          </label>
+          <label class="select">
+            <span class="select-label" data-i18n="label_theme">Theme</span>
+            <select id="theme-select">
+              <option value="dark" data-i18n="theme_dark">Dark</option>
+              <option value="light" data-i18n="theme_light">Light</option>
             </select>
           </label>
         </div>

@@ -1,25 +1,42 @@
 /* OpenConverter — Spotify-inspired dark theme. No external CSS frameworks. */
 
 :root {
-  --bg: #121212;
-  --bg-elevated: #181818;
-  --bg-elevated-2: #282828;
-  --bg-hover: #1f1f1f;
-  --border: #2a2a2a;
-  --text: #ffffff;
-  --text-secondary: #b3b3b3;
-  --text-dim: #6a6a6a;
-  --accent: #1db954;
-  --accent-hover: #1ed760;
-  --accent-dim: #1aa34a;
-  --danger: #e22134;
-  --warn: #ffa42b;
-  --ok: #1db954;
+  --bg: #010102; /* Linear deep black */
+  --bg-elevated: #0f1011; /* Linear surface-1 */
+  --bg-elevated-2: #18191a; /* Linear surface-3 */
+  --bg-hover: #141516; /* Linear surface-2 */
+  --border: #23252a; /* Linear hairline */
+  --text: #f7f8f8; /* Linear ink */
+  --text-secondary: #d0d6e0; /* Linear ink-muted */
+  --text-dim: #8a8f98; /* Linear ink-subtle */
+  --accent: #5e6ad2; /* Linear lavender-blue */
+  --accent-hover: #828fff;
+  --accent-dim: #5e69d1;
+  --text-on-accent: #ffffff; /* white text on lavender button */
+  --danger: #ff6161; /* Raycast accent-red */
+  --warn: #ffc533; /* Raycast accent-yellow */
+  --ok: #59d499; /* Raycast accent-green */
   --radius: 8px;
   --radius-lg: 12px;
-  --shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   --transition: 200ms ease;
   --window-bar-h: 32px;
+}
+
+body.light {
+  --bg: #f5f6f6; /* off-white canvas */
+  --bg-elevated: #ffffff; /* pure white cards */
+  --bg-elevated-2: #eeeeee; /* gray surface */
+  --bg-hover: #eaebeb;
+  --border: #dcdcdc; /* visible borders */
+  --text: #000000; /* dark charcoal */
+  --text-secondary: #555555;
+  --text-dim: #888888;
+  --accent: #5e6ad2; /* keep lavender accent */
+  --accent-hover: #828fff;
+  --accent-dim: #5e69d1;
+  --text-on-accent: #ffffff;
+  --shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -90,7 +107,7 @@ body {
   display: grid;
   grid-template-columns: 240px 1fr;
   height: calc(100vh - var(--window-bar-h));
-  background: linear-gradient(180deg, #1a1a1a 0%, #0d0d0d 100%);
+  background: linear-gradient(180deg, var(--bg-elevated) 0%, var(--bg) 100%);
 }
 
 /* ---------- Sidebar ---------- */
@@ -208,14 +225,14 @@ body {
   cursor: pointer;
   transition: var(--transition);
 }
-.btn-primary { background: var(--accent); color: #000; }
+.btn-primary { background: var(--accent); color: var(--text-on-accent); }
 .btn-primary:hover:not(:disabled) { background: var(--accent-hover); transform: scale(1.02); }
 .btn-primary:disabled { background: var(--bg-elevated-2); color: var(--text-dim); cursor: not-allowed; }
 .btn-secondary { background: var(--bg-elevated-2); color: var(--text); }
-.btn-secondary:hover { background: #3a3a3a; }
+.btn-secondary:hover { background: var(--bg-hover); }
 .btn-spotify {
   background: var(--accent);
-  color: #000;
+  color: var(--text-on-accent);
   font-weight: 700;
   letter-spacing: 0.3px;
 }
@@ -360,14 +377,14 @@ body {
   animation: slideUp 200ms ease;
 }
 .toast.error { background: var(--danger); }
-.toast.ok { background: var(--accent); color: #000; }
+.toast.ok { background: var(--accent); color: var(--text-on-accent); }
 @keyframes slideUp { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
 /* ---------- Scrollbar ---------- */
 .content::-webkit-scrollbar { width: 10px; }
 .content::-webkit-scrollbar-track { background: transparent; }
 .content::-webkit-scrollbar-thumb { background: var(--bg-elevated-2); border-radius: 5px; }
-.content::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
+.content::-webkit-scrollbar-thumb:hover { background: var(--bg-hover); }
 
 /* ---------- History & Dialog ---------- */
 .history-header {

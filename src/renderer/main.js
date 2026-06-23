@@ -10,6 +10,7 @@ const state = {
   format: 'mp3',
   quality: '320k',
   language: 'auto',
+  theme: 'dark',
   decoders: null,
   ffmpegStatus: '',
 };
@@ -25,6 +26,9 @@ const TRANSLATIONS = {
     label_quality: 'Quality',
     label_language: 'Language',
     lang_auto: 'Auto',
+    label_theme: 'Theme',
+    theme_dark: 'Dark',
+    theme_light: 'Light',
     label_output: 'Output:',
     btn_choose_folder: 'Choose folder',
     ekey_panel_title: 'QQ Music ekey (required for .mflac / .mgg / .bkc)',
@@ -89,6 +93,9 @@ const TRANSLATIONS = {
     label_quality: '音质',
     label_language: '语言',
     lang_auto: '自动 (Auto)',
+    label_theme: '主题',
+    theme_dark: '深色',
+    theme_light: '浅色',
     label_output: '输出目录：',
     btn_choose_folder: '选择目录',
     ekey_panel_title: 'QQ 音乐 ekey (解密 .mflac / .mgg / .bkc 必需)',
@@ -235,10 +242,12 @@ async function init() {
   if (cfg.quality) state.quality = cfg.quality;
   if (cfg.outputDir) state.outputDir = cfg.outputDir;
   if (cfg.language) state.language = cfg.language;
+  if (cfg.theme) state.theme = cfg.theme;
   if (cfg.qmcEkey) $('ekey-input').value = cfg.qmcEkey;
   $('format-select').value = state.format;
   $('quality-select').value = state.quality;
   $('language-select').value = state.language;
+  $('theme-select').value = state.theme;
 
   state.decoders = await api.invoke('decoders:list');
   state.ffmpegStatus = await checkFfmpeg();
@@ -249,6 +258,7 @@ async function init() {
   }
 
   bindEvents();
+  applyTheme();
   applyLanguage();
 }
 
@@ -259,14 +269,23 @@ async function checkFfmpeg() {
   } catch { return 'not_detected'; }
 }
 
+function applyTheme() {
+  document.body.classList.toggle('light', state.theme === 'light');
+}
+
 function bindEvents() {
-  // Format/quality/language
+  // Format/quality/language/theme
   $('format-select').addEventListener('change', (e) => { state.format = e.target.value; api.invoke('config:set', { patch: { format: e.target.value } }); });
   $('quality-select').addEventListener('change', (e) => { state.quality = e.target.value; api.invoke('config:set', { patch: { quality: e.target.value } }); });
   $('language-select').addEventListener('change', (e) => {
     state.language = e.target.value;
     api.invoke('config:set', { patch: { language: e.target.value } });
     applyLanguage();
+  });
+  $('theme-select').addEventListener('change', (e) => {
+    state.theme = e.target.value;
+    api.invoke('config:set', { patch: { theme: e.target.value } });
+    applyTheme();
   });
 
   // ekey (QQ Music)
