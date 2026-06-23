@@ -1,26 +1,102 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  ic_logo.xml  —  24dp in-app header icon
+  Mirrors the canonical assets/icon-source.svg exactly:
+    • Dark background circle  (#181818 → #121212 gradient, approximated as flat #181818 for VectorDrawable)
+    • Outer stroke circle      (#282828)
+    • Inner ring               (green #1ED760, opacity 0.8)
+    • 5 waveform bars          (green #1ED760, per-bar opacity: 1.0, 0.9, 0.85, 0.9, 1.0)
+
+  SVG viewport: 512×512.  Scale factor s = 24/512 = 0.046875
+    Positions (x * s, y * s) and sizes (w * s, h * s):
+      bg circle  cx=12 cy=12 r=11.25  stroke-width=0.375
+      ring       cx=12 cy=12 r=9.375  stroke-width=0.5625
+      bars (x_scaled, y_scaled, w_scaled, h_scaled, rx_scaled):
+        bar1: 5.625, 8.4375, 1.875, 5.625,  rx=0.9375
+        bar2: 8.4375, 6.5625, 1.875, 8.4375, rx=0.9375
+        bar3: 11.25, 4.6875, 1.875, 11.25,  rx=0.9375
+        bar4: 14.0625, 6.5625, 1.875, 8.4375, rx=0.9375
+        bar5: 16.875, 8.4375, 1.875, 5.625,  rx=0.9375
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
 
-    <!-- Outer circle outline -->
-    <path android:strokeColor="#FF282828" android:strokeWidth="0.375"
-        android:fillColor="#00000000"
-        android:pathData="M0.75,12 A11.25,11.25 0 1 1 23.25,12 A11.25,11.25 0 1 1 0.75,12 Z"/>
+    <!-- Background circle -->
+    <path
+        android:fillColor="#FF181818"
+        android:pathData="M12,12 m-11.25,0 a11.25,11.25 0 1,0 22.5,0 a11.25,11.25 0 1,0 -22.5,0"/>
 
-    <!-- Inner ring (solid green) -->
-    <path android:strokeColor="#FF1ED760" android:strokeWidth="0.5625"
+    <!-- Outer border circle -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF282828"
+        android:strokeWidth="0.375"
+        android:pathData="M12,12 m-11.25,0 a11.25,11.25 0 1,0 22.5,0 a11.25,11.25 0 1,0 -22.5,0"/>
+
+    <!-- Inner green ring -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF1ED760"
+        android:strokeWidth="0.5625"
         android:strokeAlpha="0.8"
-        android:fillColor="#00000000"
-        android:pathData="M2.625,12 A9.375,9.375 0 1 1 21.375,12 A9.375,9.375 0 1 1 2.625,12 Z"/>
+        android:pathData="M12,12 m-9.375,0 a9.375,9.375 0 1,0 18.75,0 a9.375,9.375 0 1,0 -18.75,0"/>
 
-    <!-- 3 central waveform bars (solid green) -->
-    <path android:fillColor="#FF1ED760" android:fillAlpha="1.0"
-        android:pathData="M7.875,9.5625 A0.9375,0.9375 0 0 1 9.75,9.5625 L9.75,14.4375 A0.9375,0.9375 0 0 1 7.875,14.4375 Z"/>
-    <path android:fillColor="#FF1ED760" android:fillAlpha="0.85"
-        android:pathData="M11.25,8.25 A0.9375,0.9375 0 0 1 13.125,8.25 L13.125,15.75 A0.9375,0.9375 0 0 1 11.25,15.75 Z"/>
-    <path android:fillColor="#FF1ED760" android:fillAlpha="1.0"
-        android:pathData="M14.625,9.5625 A0.9375,0.9375 0 0 1 16.5,9.5625 L16.5,14.4375 A0.9375,0.9375 0 0 1 14.625,14.4375 Z"/>
+    <!-- Bar 1 (leftmost): x=5.625, y=8.4375, w=1.875, h=5.625, rx=0.9375 -->
+    <path
+        android:fillColor="#FF1ED760"
+        android:fillAlpha="1.0"
+        android:pathData="M6.5625,8.4375
+            a0.9375,0.9375 0 0,1 0.9375,0.9375
+            l0,3.75
+            a0.9375,0.9375 0 0,1 -1.875,0
+            l0,-3.75
+            a0.9375,0.9375 0 0,1 0.9375,-0.9375 Z"/>
+
+    <!-- Bar 2: x=8.4375, y=6.5625, w=1.875, h=8.4375, rx=0.9375 -->
+    <path
+        android:fillColor="#FF1ED760"
+        android:fillAlpha="0.9"
+        android:pathData="M9.375,6.5625
+            a0.9375,0.9375 0 0,1 0.9375,0.9375
+            l0,6.5625
+            a0.9375,0.9375 0 0,1 -1.875,0
+            l0,-6.5625
+            a0.9375,0.9375 0 0,1 0.9375,-0.9375 Z"/>
+
+    <!-- Bar 3 (center tallest): x=11.25, y=4.6875, w=1.875, h=11.25, rx=0.9375 -->
+    <path
+        android:fillColor="#FF1ED760"
+        android:fillAlpha="0.85"
+        android:pathData="M12.1875,4.6875
+            a0.9375,0.9375 0 0,1 0.9375,0.9375
+            l0,9.375
+            a0.9375,0.9375 0 0,1 -1.875,0
+            l0,-9.375
+            a0.9375,0.9375 0 0,1 0.9375,-0.9375 Z"/>
+
+    <!-- Bar 4: x=14.0625, y=6.5625, w=1.875, h=8.4375, rx=0.9375 -->
+    <path
+        android:fillColor="#FF1ED760"
+        android:fillAlpha="0.9"
+        android:pathData="M15,6.5625
+            a0.9375,0.9375 0 0,1 0.9375,0.9375
+            l0,6.5625
+            a0.9375,0.9375 0 0,1 -1.875,0
+            l0,-6.5625
+            a0.9375,0.9375 0 0,1 0.9375,-0.9375 Z"/>
+
+    <!-- Bar 5 (rightmost): x=16.875, y=8.4375, w=1.875, h=5.625, rx=0.9375 -->
+    <path
+        android:fillColor="#FF1ED760"
+        android:fillAlpha="1.0"
+        android:pathData="M17.8125,8.4375
+            a0.9375,0.9375 0 0,1 0.9375,0.9375
+            l0,3.75
+            a0.9375,0.9375 0 0,1 -1.875,0
+            l0,-3.75
+            a0.9375,0.9375 0 0,1 0.9375,-0.9375 Z"/>
+
 </vector>
