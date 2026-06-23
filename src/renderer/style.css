@@ -428,3 +428,11 @@ body {
   to { opacity: 1; }
 }
 
+/* Hide custom window bar on Windows */
+.platform-win32 .window-bar {
+  display: none !important;
+}
+.platform-win32 #app {
+  height: 100vh;
+}
+

@@ -1,7 +1,7 @@
 {
   "name": "openconverter",
   "productName": "OpenConverter",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Open-source audio converter for Linux. Converts encrypted formats (NCM/QMC0/KGM/KWM) to common audio formats.",
   "homepage": "https://github.com/nowa277/OpenConverter",
   "main": "src/main/index.js",

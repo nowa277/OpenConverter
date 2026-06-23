@@ -32,6 +32,9 @@ function toast(msg, kind = '') {
 // ---------- init ----------
 async function init() {
   const os = await api.invoke('os:info');
+  if (os.platform === 'win32') {
+    document.body.classList.add('platform-win32');
+  }
   $('os-info').textContent = `OpenConverter v${os.appVersion}`;
 
   const cfg = await api.invoke('config:get');
