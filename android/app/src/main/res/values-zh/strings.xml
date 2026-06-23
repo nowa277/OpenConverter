@@ -1,0 +1,50 @@
+<resources>
+    <string name="app_name">OpenConverter</string>
+    <string name="notif_channel_name">转换进度</string>
+    <string name="notif_channel_desc">显示音频文件转换的实时进度。</string>
+    <string name="notif_title">正在转换</string>
+    <string name="notif_cancel">取消</string>
+
+    <!-- HomeScreen -->
+    <string name="home_pick_files">添加文件</string>
+    <string name="home_pick_folder">输出目录</string>
+    <string name="home_target_format">目标格式</string>
+    <string name="home_bitrate">比特率</string>
+    <string name="home_bitrate_lossless">无损</string>
+    <string name="home_start">开始转换</string>
+    <string name="home_no_files">暂无文件 — 请点击“添加文件”。</string>
+    <string name="home_no_folder">未设置输出目录 — 请点击“输出目录”。</string>
+
+    <!-- File card states -->
+    <string name="state_pending">等待中</string>
+    <string name="state_running">正在转换…</string>
+    <string name="state_done">已完成</string>
+    <string name="state_failed">失败</string>
+
+    <!-- Settings -->
+    <string name="settings_title">设置</string>
+    <string name="settings_about">本项目仅作为音频/文件格式转换的技术工具使用，不涉及任何版权内容的提供或分发。使用者在使用过程中应尊重音乐作品及相关内容的版权与合法权益，不得将本工具用于侵犯任何著作权或相关权利人的行为。因使用本工具产生的任何法律责任或纠纷均由使用者自行承担，与项目作者无关。</string>
+    <string name="settings_version">版本</string>
+    <string name="settings_supported">支持的导入格式</string>
+    <string name="settings_license">Apache License 2.0 — github.com/nowa277/OpenConverter</string>
+    <string name="settings_project">项目</string>
+    <string name="settings_source_code">源码仓库</string>
+    <string name="settings_report_issue">报告问题</string>
+    <string name="settings_about_title">关于</string>
+    <string name="more_title">更多</string>
+    <string name="history_menu">历史记录</string>
+    <string name="settings_menu">设置</string>
+    <string name="start_conversion">开始</string>
+    <string name="cancel_conversion">取消</string>
+    <string name="clear_queue">清空</string>
+
+    <!-- HistoryScreen -->
+    <string name="history_title">转换历史</string>
+    <string name="history_clear">清除</string>
+    <string name="history_clear_confirm_title">清除历史记录</string>
+    <string name="history_clear_confirm_msg">所有转换记录都将被彻底删除。</string>
+    <string name="history_empty">暂无转换记录</string>
+    <string name="history_status_success">成功</string>
+    <string name="history_status_failed">失败</string>
+    <string name="cancel_action">取消</string>
+</resources>

@@ -12,6 +12,7 @@ const DEFAULTS = {
   quality: '320k',
   outputDir: '', // empty = let user pick each session
   theme: 'dark',
+  language: 'auto',
   qmcEkey: '', // base64 string from QQ Music client DB
 };
 
@@ -28,6 +29,7 @@ function get() {
     quality: s.get('quality'),
     outputDir: s.get('outputDir'),
     theme: s.get('theme'),
+    language: s.get('language'),
     qmcEkey: s.get('qmcEkey'),
   };
 }
