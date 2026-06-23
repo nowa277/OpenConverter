@@ -113,7 +113,6 @@ openconverter
 从 [Releases 页面](https://github.com/nowa277/OpenConverter/releases) 下载最新的 APK 文件安装：
 
 * **arm64-v8a**：`openconverter-v***-android-arm64-v8a.apk` (推荐，适合绝大多数现代智能手机)
-* **armeabi-v7a**：`openconverter-v***-android-armeabi-v7a.apk` (适合旧款设备或低端手机)
 * **x86_64**：`openconverter-v***-android-x86_64.apk` (适合在 Android 模拟器上运行与调试)
 
 ---
