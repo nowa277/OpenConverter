@@ -182,25 +182,69 @@ function inferFormat(audio, fallback = 'mp3') {
   return fallback;
 }
 
+function detectKey(buf) {
+  const len = buf.length;
+  if (len < 8) return null;
+
+  // 1. Check QTag tail
+  const qTag = buf.slice(len - 4).toString('ascii');
+  if (qTag === 'QTag') {
+    const metaLen = buf.readUInt32BE(len - 8);
+    if (metaLen > 0 && metaLen < len - 8) {
+      const rawMeta = buf.slice(len - 8 - metaLen, len - 8).toString('utf-8');
+      const parts = rawMeta.split(',');
+      if (parts.length > 0 && parts[0]) {
+        return {
+          ekey: parts[0],
+          audioLen: len - 8 - metaLen,
+        };
+      }
+    }
+  }
+
+  // 2. Check Numeric tail
+  const keyLen = buf.readUInt32LE(len - 4);
+  if (keyLen > 0 && keyLen < 0xFFFF && keyLen < len - 4) {
+    const ekey = buf.slice(len - 4 - keyLen, len - 4).toString('ascii').trim();
+    if (/^[A-Za-z0-9+/=\s]+$/.test(ekey)) {
+      return {
+        ekey,
+        audioLen: len - 4 - keyLen,
+      };
+    }
+  }
+
+  return null;
+}
+
 function decodeV1File(inputPath, outputDir) {
   const ext = path.extname(inputPath).toLowerCase();
-  const outExt = EXT_MAP_V1[ext];
-  if (!outExt) throw new Error(`QMCv1: unsupported extension ${ext}`);
+  const outExtHint = EXT_MAP_V1[ext] || 'mp3';
   const input = fs.readFileSync(inputPath);
   const audio = decryptV1Buffer(input);
+  const fmt = inferFormat(audio, outExtHint);
   const base = inputPath.replace(/\.[^./]+$/, '');
   const name = base.split(/[\\/]/).pop();
-  const outPath = outputDir ? path.join(outputDir, `${name}.${outExt}`) : `${base}.${outExt}`;
+  const outPath = outputDir ? path.join(outputDir, `${name}.${fmt}`) : `${base}.${fmt}`;
   fs.mkdirSync(outputDir || '.', { recursive: true });
   fs.writeFileSync(outPath, audio);
-  return { outputPath: outPath, format: outExt };
+  return { outputPath: outPath, format: fmt };
 }
 
 function decodeV2File(inputPath, outputDir, opts = {}) {
   const ext = path.extname(inputPath).toLowerCase();
   const outExtHint = EXT_MAP_V2[ext] || 'mp3';
   const input = fs.readFileSync(inputPath);
-  const audio = decryptV2Buffer(input, opts.ekey);
+  
+  const detected = detectKey(input);
+  let audio;
+  if (detected) {
+    const cipherText = input.slice(0, detected.audioLen);
+    audio = decryptV2Buffer(cipherText, detected.ekey);
+  } else {
+    audio = decryptV2Buffer(input, opts.ekey);
+  }
+  
   const fmt = inferFormat(audio, outExtHint);
   const base = inputPath.replace(/\.[^./]+$/, '');
   const name = base.split(/[\\/]/).pop();

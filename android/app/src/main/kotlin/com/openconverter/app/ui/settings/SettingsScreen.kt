@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,6 +16,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -24,7 +27,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -38,7 +44,13 @@ import com.openconverter.app.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onBack: () -> Unit) {
+fun SettingsScreen(
+    onBack: () -> Unit,
+    themeMode: String,
+    languageMode: String,
+    onThemeChanged: (String) -> Unit,
+    onLanguageChanged: (String) -> Unit
+) {
     val vm = remember { SettingsViewModel() }
     val s = vm.state
     val ctx = LocalContext.current
@@ -85,6 +97,112 @@ fun SettingsScreen(onBack: () -> Unit) {
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+            }
+            item {
+                Text(stringResource(R.string.settings_appearance), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Card(
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column {
+                        var showThemeMenu by remember { mutableStateOf(false) }
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(stringResource(R.string.settings_theme), style = MaterialTheme.typography.bodyLarge)
+                            Box {
+                                val themeText = when (themeMode) {
+                                    "dark" -> stringResource(R.string.theme_dark)
+                                    "light" -> stringResource(R.string.theme_light)
+                                    else -> stringResource(R.string.theme_system)
+                                }
+                                Text(
+                                    text = "$themeText  ▼",
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.clickable { showThemeMenu = true }
+                                )
+                                DropdownMenu(
+                                    expanded = showThemeMenu,
+                                    onDismissRequest = { showThemeMenu = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.theme_system)) },
+                                        onClick = {
+                                            onThemeChanged("system")
+                                            showThemeMenu = false
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.theme_dark)) },
+                                        onClick = {
+                                            onThemeChanged("dark")
+                                            showThemeMenu = false
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.theme_light)) },
+                                        onClick = {
+                                            onThemeChanged("light")
+                                            showThemeMenu = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        var showLangMenu by remember { mutableStateOf(false) }
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(stringResource(R.string.settings_language), style = MaterialTheme.typography.bodyLarge)
+                            Box {
+                                val langText = when (languageMode) {
+                                    "zh" -> stringResource(R.string.lang_zh)
+                                    "en" -> stringResource(R.string.lang_en)
+                                    else -> stringResource(R.string.lang_system)
+                                }
+                                Text(
+                                    text = "$langText  ▼",
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.clickable { showLangMenu = true }
+                                )
+                                DropdownMenu(
+                                    expanded = showLangMenu,
+                                    onDismissRequest = { showLangMenu = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.lang_system)) },
+                                        onClick = {
+                                            onLanguageChanged("system")
+                                            showLangMenu = false
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.lang_zh)) },
+                                        onClick = {
+                                            onLanguageChanged("zh")
+                                            showLangMenu = false
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.lang_en)) },
+                                        onClick = {
+                                            onLanguageChanged("en")
+                                            showLangMenu = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
             item {

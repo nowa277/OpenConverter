@@ -4,7 +4,12 @@ import com.openconverter.app.decoders.Decoder
 import com.openconverter.app.decoders.DecoderRegistry
 import com.openconverter.app.ffmpeg.FfmpegRunner
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlin.coroutines.coroutineContext
 
 /**
@@ -24,15 +29,19 @@ class ConversionEngine(
     private val sink: ProgressSink,
     private val clock: Clock = SystemClock,
 ) {
-    suspend fun convertAll(req: ConversionRequest): List<FileResult> {
-        val results = mutableListOf<FileResult>()
+    suspend fun convertAll(req: ConversionRequest): List<FileResult> = coroutineScope {
         val total = req.inputUris.size
-        for (i in 0 until total) {
-            val uri = req.inputUris[i]
-            val displayName = req.inputDisplayNames[i]
-            results += runOne(i, total, uri, displayName, req)
+        val semaphore = Semaphore(2)
+        val deferreds = (0 until total).map { i ->
+            async {
+                semaphore.withPermit {
+                    val uri = req.inputUris[i]
+                    val displayName = req.inputDisplayNames[i]
+                    runOne(i, total, uri, displayName, req)
+                }
+            }
         }
-        return results
+        deferreds.awaitAll()
     }
 
     private suspend fun runOne(

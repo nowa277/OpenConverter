@@ -59,7 +59,7 @@ function listImplemented() {
   // Only formats where decodeFile actually does something (not stubs)
   return [
     '.ncm',
-    '.qmc0', '.qmc3', '.qmcflac', '.qmcogg',
+    '.qmc0', '.qmc3', '.qmcflac', '.qmcogg', '.qmc1', '.qmc2', '.tkm',
     '.mflac', '.mflac0', '.mgg', '.mgg1',
     '.kgm', '.kgma', '.vpr',
     '.kwm',

@@ -171,6 +171,21 @@ async function convertOne(jobId, inputPath, format, outputDir, quality) {
   return { jobId, inputPath, outputPath: ffmpegOut, format };
 }
 
+async function parallelLimit(limit, tasks) {
+  const executing = [];
+  const results = [];
+  for (const task of tasks) {
+    const p = Promise.resolve().then(() => task());
+    results.push(p);
+    const e = p.then(() => executing.splice(executing.indexOf(e), 1));
+    executing.push(e);
+    if (executing.length >= limit) {
+      await Promise.race(executing);
+    }
+  }
+  return Promise.all(results);
+}
+
 const HANDLERS = {
   'convert:start': async (data) => {
     const { files, format = 'mp3', outputDir, quality = '320k' } = data || {};
@@ -178,16 +193,24 @@ const HANDLERS = {
     if (!outputDir) throw new Error('outputDir required');
 
     fs.mkdirSync(outputDir, { recursive: true });
-    const results = [];
+    const results = new Array(files.length);
     const history = getHistoryStore();
-    for (const f of files) {
+
+    const limit = Math.min(4, Math.max(2, os.cpus()?.length || 2));
+
+    let historyChain = Promise.resolve();
+    const appendToHistory = (record) => {
+      historyChain = historyChain.then(() => history.append(record));
+    };
+
+    const tasks = files.map((f, index) => async () => {
       const jobId = `job-${++jobCounter}`;
       const controller = new AbortController();
       activeJobs.set(jobId, { signal: controller.signal });
       try {
         const r = await convertOne(jobId, f, format, outputDir, quality);
-        results.push(r);
-        await history.append({
+        results[index] = r;
+        appendToHistory({
           ts: Date.now(),
           inputName: path.basename(f),
           targetFormat: format,
@@ -197,8 +220,8 @@ const HANDLERS = {
           error: null,
         });
       } catch (e) {
-        results.push({ jobId, inputPath: f, error: e.message });
-        await history.append({
+        results[index] = { jobId, inputPath: f, error: e.message };
+        appendToHistory({
           ts: Date.now(),
           inputName: path.basename(f),
           targetFormat: format,
@@ -210,7 +233,10 @@ const HANDLERS = {
       } finally {
         activeJobs.delete(jobId);
       }
-    }
+    });
+
+    await parallelLimit(limit, tasks);
+    await historyChain;
     return { results };
   },
 

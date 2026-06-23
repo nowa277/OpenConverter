@@ -237,4 +237,43 @@ class ConversionEngineTest {
         assertNull(results[0].error)
         assertEquals(0L, fake.lastExecutedTotalDurationMs)
     }
+
+    @Test
+    fun convertAll_runsConcurrently_boundedBySemaphore() = runTest {
+        val fs = FakeFileSystemPort(
+            reads = mapOf(
+                "uri:1" to FLAC,
+                "uri:2" to FLAC,
+                "uri:3" to FLAC,
+            )
+        )
+        val activeCount = java.util.concurrent.atomic.AtomicInteger(0)
+        val maxActive = java.util.concurrent.atomic.AtomicInteger(0)
+
+        val ffmpeg = FakeFfmpegRunner(fs, behavior = { _, _, _, _ ->
+            val active = activeCount.incrementAndGet()
+            synchronized(maxActive) {
+                if (active > maxActive.get()) {
+                    maxActive.set(active)
+                }
+            }
+            delay(100) // Keep the task running for a bit to measure concurrency
+            activeCount.decrementAndGet()
+            Result.success(Unit)
+        })
+        val sink = RecordingProgressSink()
+        val engine = ConversionEngine(DecoderRegistry(emptyList()), ffmpeg, fs, sink)
+
+        val req = ConversionRequest(
+            listOf("uri:1", "uri:2", "uri:3"),
+            listOf("a.flac", "b.flac", "c.flac"),
+            "mp3", "tree:out", "320k", PLAIN_EXTS
+        )
+
+        engine.convertAll(req)
+
+        assertEquals(3, ffmpeg.calls.size)
+        // Concurrency should have reached exactly 2 (as Semaphore(2) limits it to 2)
+        assertEquals(2, maxActive.get())
+    }
 }

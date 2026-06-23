@@ -1,7 +1,7 @@
 {
   "name": "openconverter",
   "productName": "OpenConverter",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Open-source audio converter for Linux. Converts encrypted formats (NCM/QMC0/KGM/KWM) to common audio formats.",
   "homepage": "https://github.com/nowa277/OpenConverter",
   "main": "src/main/index.js",
@@ -73,14 +73,30 @@
     },
     "win": {
       "target": [
-        { "target": "nsis",     "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "build/icons/icon.ico",
       "artifactName": "${name}-v${version}-windows-${arch}.${ext}",
       "extraResources": [
-        { "from": "scripts/win-deps/ffmpeg.exe",  "to": "ffmpeg.exe" },
-        { "from": "scripts/win-deps/ffprobe.exe", "to": "ffprobe.exe" }
+        {
+          "from": "scripts/win-deps/ffmpeg.exe",
+          "to": "ffmpeg.exe"
+        },
+        {
+          "from": "scripts/win-deps/ffprobe.exe",
+          "to": "ffprobe.exe"
+        }
       ]
     },
     "nsis": {

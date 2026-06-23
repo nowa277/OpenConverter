@@ -23,7 +23,7 @@
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>
-    <string name="settings_about">本项目仅作为音频/文件格式转换的技术工具使用，不涉及任何版权内容的提供或分发。使用者在使用过程中应尊重音乐作品及相关内容的版权与合法权益，不得将本工具用于侵犯任何著作权或相关权利人的行为。因使用本工具产生的任何法律责任或纠纷均由使用者自行承担，与项目作者无关。</string>
+    <string name="settings_about">This project is intended solely as a technical tool for audio/file format conversion and does not involve the provision or distribution of any copyrighted content. Users must respect the copyright and legal rights of music works and related content during use. Under no circumstances should this tool be used for actions that infringe upon any copyright or related rights. Any legal liabilities or disputes arising from the use of this tool shall be borne by the user themselves and have no relation to the project authors.</string>
     <string name="settings_version">Version</string>
     <string name="settings_supported">Supported input formats</string>
     <string name="settings_license">Apache License 2.0 — github.com/nowa277/OpenConverter</string>
@@ -47,4 +47,14 @@
     <string name="history_status_success">Success</string>
     <string name="history_status_failed">Failed</string>
     <string name="cancel_action">Cancel</string>
+    <!-- Settings Appearance -->
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_language">Language</string>
+    <string name="theme_system">System Default</string>
+    <string name="theme_dark">Dark Mode</string>
+    <string name="theme_light">Light Mode</string>
+    <string name="lang_system">System Default</string>
+    <string name="lang_zh">简体中文</string>
+    <string name="lang_en">English</string>
 </resources>

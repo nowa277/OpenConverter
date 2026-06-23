@@ -5,6 +5,8 @@ import com.openconverter.app.engine.ProgressEvent
 import com.openconverter.app.engine.ProgressSink
 import kotlinx.coroutines.flow.MutableSharedFlow
 
+import java.util.concurrent.ConcurrentHashMap
+
 /**
  * Bridges [ProgressSink] events into a [MutableSharedFlow] (for the UI to
  * collect) AND rebuilds the FGS notification on each event.
@@ -15,26 +17,26 @@ class ServiceProgressSink(
     private val total: Int,
 ) : ProgressSink {
 
-    private var lastIndex = 0
-    private var lastName = ""
-    private var lastPercent = -1
+    private val activeNames = ConcurrentHashMap<Int, String>()
 
     override fun onFileStart(index: Int, total: Int, name: String) {
-        lastIndex = index; lastName = name; lastPercent = -1
+        activeNames[index] = name
         Log.i(TAG, "start  i=$index/$total name=$name")
         flow.tryEmit(ProgressEvent.Start(index, total, name))
         service.postNotification(service.buildNotification(index, total, name, null))
     }
     override fun onFileProgress(index: Int, percent: Int) {
-        lastPercent = percent
+        val name = activeNames[index] ?: ""
         flow.tryEmit(ProgressEvent.Progress(index, percent))
-        service.postNotification(service.buildNotification(index, total, lastName, percent))
+        service.postNotification(service.buildNotification(index, total, name, percent))
     }
     override fun onFileDone(index: Int, outputPath: String) {
+        activeNames.remove(index)
         Log.i(TAG, "done   i=$index out=$outputPath")
         flow.tryEmit(ProgressEvent.Done(index, outputPath))
     }
     override fun onFileError(index: Int, message: String) {
+        activeNames.remove(index)
         Log.e(TAG, "FAIL   i=$index msg=$message")
         flow.tryEmit(ProgressEvent.Failed(index, message))
     }

@@ -53,25 +53,35 @@ function genAudio(fmt, codec, outPath) {
 
 console.log('Generating synthetic QMCv2 vectors...');
 
-// FLAC → .mflac0
+// FLAC → .mflac0 (with Numeric tail)
 const flacPath = path.join(OUT_DIR, 'sample.flac');
 genAudio('flac', 'flac', flacPath);
 const flacBytes = fs.readFileSync(flacPath);
 const mflacCipher = encrypt(flacBytes, TEST_EKEY_B64);
+const flacEkeyBytes = Buffer.from(TEST_EKEY_B64, 'ascii');
+const flacKeyLenBuf = Buffer.alloc(4);
+flacKeyLenBuf.writeUInt32LE(flacEkeyBytes.length);
+const mflacWithTail = Buffer.concat([mflacCipher, flacEkeyBytes, flacKeyLenBuf]);
 const mflacOut = path.join(ANDROID_RES_DIR, 'synthetic-mflac.mflac');
-fs.writeFileSync(mflacOut, mflacCipher);
+fs.writeFileSync(mflacOut, mflacWithTail);
 const flacSha = crypto.createHash('sha256').update(flacBytes).digest('hex');
-console.log(`  ${mflacOut} (${mflacCipher.length} bytes) — plaintext sha256=${flacSha}`);
+console.log(`  ${mflacOut} (${mflacWithTail.length} bytes) — plaintext sha256=${flacSha}`);
 
-// OGG → .mgg
+// OGG → .mgg (with QTag tail)
 const oggPath = path.join(OUT_DIR, 'sample.ogg');
 genAudio('ogg', 'libvorbis', oggPath);
 const oggBytes = fs.readFileSync(oggPath);
 const mggCipher = encrypt(oggBytes, TEST_EKEY_B64);
+const rawMeta = `${TEST_EKEY_B64},12345,extra`;
+const rawMetaBytes = Buffer.from(rawMeta, 'utf-8');
+const metaLenBuf = Buffer.alloc(4);
+metaLenBuf.writeUInt32BE(rawMetaBytes.length);
+const qtagBuf = Buffer.from('QTag', 'ascii');
+const mggWithTail = Buffer.concat([mggCipher, rawMetaBytes, metaLenBuf, qtagBuf]);
 const mggOut = path.join(ANDROID_RES_DIR, 'synthetic-mgg.mgg');
-fs.writeFileSync(mggOut, mggCipher);
+fs.writeFileSync(mggOut, mggWithTail);
 const oggSha = crypto.createHash('sha256').update(oggBytes).digest('hex');
-console.log(`  ${mggOut} (${mggCipher.length} bytes) — plaintext sha256=${oggSha}`);
+console.log(`  ${mggOut} (${mggWithTail.length} bytes) — plaintext sha256=${oggSha}`);
 
 const expectedJson = {
   'synthetic-mflac.mflac': flacSha,

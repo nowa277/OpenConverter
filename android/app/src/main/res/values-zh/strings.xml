@@ -47,4 +47,14 @@
     <string name="history_status_success">成功</string>
     <string name="history_status_failed">失败</string>
     <string name="cancel_action">取消</string>
+    <!-- Settings Appearance -->
+    <string name="settings_appearance">界面外观</string>
+    <string name="settings_theme">主题模式</string>
+    <string name="settings_language">界面语言</string>
+    <string name="theme_system">跟随系统</string>
+    <string name="theme_dark">深色模式</string>
+    <string name="theme_light">浅色模式</string>
+    <string name="lang_system">跟随系统</string>
+    <string name="lang_zh">简体中文</string>
+    <string name="lang_en">English</string>
 </resources>

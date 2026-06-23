@@ -70,6 +70,26 @@ class DecoderParityTest {
         assertEquals(expectedSha, sha256(r.audio))
     }
 
+    // ----- QMC v2 -----
+    @Test fun qmcv2_synthetic_mflac_matches_js_oracle() {
+        val oracle = loadOracle("test-qmc-v2")
+        val expectedSha = oracle.getString("synthetic-mflac.mflac")
+        val cipher = loadResource("test-qmc-v2/synthetic-mflac.mflac")
+        val r = QmcDecoder.decrypt(cipher)
+        assertEquals("format must be flac", "flac", r.format)
+        assertEquals(expectedSha, sha256(r.audio))
+    }
+
+    @Test fun qmcv2_synthetic_mgg_matches_js_oracle() {
+        val oracle = loadOracle("test-qmc-v2")
+        val expectedSha = oracle.getString("synthetic-mgg.mgg")
+        val cipher = loadResource("test-qmc-v2/synthetic-mgg.mgg")
+        val r = QmcDecoder.decrypt(cipher)
+        assertEquals("format must be ogg", "ogg", r.format)
+        assertEquals(expectedSha, sha256(r.audio))
+    }
+
+
     // ----- NCM (real fixture, AES + RC4) -----
     // Real NCM sample is copyrighted and not tracked in the public repo.
     // When a maintainer drops one into test-ncm/sample.ncm + adds its sha256
