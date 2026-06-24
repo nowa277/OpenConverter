@@ -87,14 +87,14 @@
 #### Debian / Ubuntu
 ```bash
 # AppImage 安装与运行（推荐）
-chmod +x release/openconverter-v***-linux-x64.AppImage
-./release/openconverter-v***-linux-x64.AppImage
+cd release
+chmod +x openconverter-v***-linux-x64.AppImage
+./openconverter-v***-linux-x64.AppImage
 
 # Deb包安装 (注意：OpenConverter 在 Linux 下需要系统 PATH 存在 ffmpeg)
 sudo apt install ffmpeg
-sudo dpkg -i release/openconverter-v***-linux-amd64.deb
-sudo apt install -f  # 修复可能缺失的依赖
-openconverter
+cd release/
+sudo apt install ./openconverter-v***-linux-amd64.deb
 ```
 
 #### Windows
