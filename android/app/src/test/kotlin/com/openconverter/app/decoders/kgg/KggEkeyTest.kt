@@ -99,7 +99,7 @@ class KggEkeyTest {
         var v0 = input.int.toLong() and 0xffffffffL
         var v1 = input.int.toLong() and 0xffffffffL
         var sum = 0L
-        repeat(32) {
+        repeat(16) {
             sum = (sum + DELTA) and MASK
             v0 = (v0 + ((((v1 shl 4) + unsigned(k[0])) xor (v1 + sum) xor ((v1 ushr 5) + unsigned(k[1]))))) and MASK
             v1 = (v1 + ((((v0 shl 4) + unsigned(k[2])) xor (v0 + sum) xor ((v0 ushr 5) + unsigned(k[3]))))) and MASK
