@@ -91,4 +91,7 @@ dependencies {
     // Real JSON for JVM unit tests (the Android stub `org.json` is throw-on-call on JVM)
     testImplementation("org.json:json:20240303")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
 }
