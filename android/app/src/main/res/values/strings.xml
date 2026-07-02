@@ -51,6 +51,13 @@
     <string name="settings_appearance">Appearance</string>
     <string name="settings_theme">Theme</string>
     <string name="settings_language">Language</string>
+    <string name="settings_kgg_keys_title">KGG keys</string>
+    <string name="settings_kgg_keys_description">Import KGMusicV3.db or kgg.key from a Kugou environment that contains keys for your files. Keys stay in this app on this device.</string>
+    <string name="settings_kgg_keys_total">Stored keys: %1$d</string>
+    <string name="settings_kgg_keys_result">Added %1$d, updated %2$d, total %3$d</string>
+    <string name="settings_kgg_keys_error">Import failed: %1$s</string>
+    <string name="settings_kgg_keys_import">Import KGMusicV3.db / kgg.key</string>
+    <string name="settings_kgg_keys_importing">Importing…</string>
     <string name="theme_system">System Default</string>
     <string name="theme_dark">Dark Mode</string>
     <string name="theme_light">Light Mode</string>

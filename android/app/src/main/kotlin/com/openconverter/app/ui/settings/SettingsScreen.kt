@@ -2,6 +2,8 @@ package com.openconverter.app.ui.settings
 
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -27,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,15 +49,18 @@ import com.openconverter.app.R
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
+    viewModel: SettingsViewModel,
     onBack: () -> Unit,
     themeMode: String,
     languageMode: String,
     onThemeChanged: (String) -> Unit,
     onLanguageChanged: (String) -> Unit
 ) {
-    val vm = remember { SettingsViewModel() }
-    val s = vm.state
+    val s by viewModel.state.collectAsState()
     val ctx = LocalContext.current
+    val keySourcePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let { viewModel.importKggKeys(it.toString()) }
+    }
 
     fun openUrl(url: String) {
         runCatching {
@@ -97,6 +104,68 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+            }
+            item {
+                Text(
+                    stringResource(R.string.settings_kgg_keys_title),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Card(
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            stringResource(R.string.settings_kgg_keys_description),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            stringResource(R.string.settings_kgg_keys_total, s.kggKeyCount),
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        s.kggLastResult?.let { result ->
+                            Text(
+                                stringResource(
+                                    R.string.settings_kgg_keys_result,
+                                    result.added,
+                                    result.updated,
+                                    result.total,
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                        s.kggImportError?.let { error ->
+                            Text(
+                                stringResource(R.string.settings_kgg_keys_error, error),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                        Button(
+                            enabled = !s.kggImporting,
+                            onClick = {
+                                keySourcePicker.launch(
+                                    arrayOf("application/octet-stream", "text/plain", "*/*"),
+                                )
+                            },
+                        ) {
+                            Text(
+                                stringResource(
+                                    if (s.kggImporting) R.string.settings_kgg_keys_importing
+                                    else R.string.settings_kgg_keys_import,
+                                ),
+                            )
+                        }
+                    }
                 }
             }
             item {

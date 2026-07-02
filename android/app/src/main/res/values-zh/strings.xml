@@ -51,6 +51,13 @@
     <string name="settings_appearance">界面外观</string>
     <string name="settings_theme">主题模式</string>
     <string name="settings_language">界面语言</string>
+    <string name="settings_kgg_keys_title">KGG 密钥</string>
+    <string name="settings_kgg_keys_description">导入包含对应歌曲密钥的酷狗 KGMusicV3.db 或 kgg.key。密钥仅保存在本设备的应用沙箱内。</string>
+    <string name="settings_kgg_keys_total">已保存密钥：%1$d</string>
+    <string name="settings_kgg_keys_result">新增 %1$d，更新 %2$d，当前共 %3$d</string>
+    <string name="settings_kgg_keys_error">导入失败：%1$s</string>
+    <string name="settings_kgg_keys_import">导入 KGMusicV3.db / kgg.key</string>
+    <string name="settings_kgg_keys_importing">正在导入…</string>
     <string name="theme_system">跟随系统</string>
     <string name="theme_dark">深色模式</string>
     <string name="theme_light">浅色模式</string>

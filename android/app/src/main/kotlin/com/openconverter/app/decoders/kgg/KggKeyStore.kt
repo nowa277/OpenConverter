@@ -63,10 +63,10 @@ class KggKeyStore internal constructor(
     override fun find(encryptionKeyId: String): String? = keys[encryptionKeyId]
     override fun count(): Int = keys.size
 
-    override suspend fun import(uri: Uri): KggImportResult = importMutex.withLock {
+    override suspend fun import(uri: String): KggImportResult = importMutex.withLock {
         _state.value = KggImportState.Importing
         try {
-            val incoming = withContext(Dispatchers.IO) { readImport(uri) }
+            val incoming = withContext(Dispatchers.IO) { readImport(Uri.parse(uri)) }
             require(incoming.isNotEmpty()) { "Selected KGG key source contains no keys" }
 
             val result = KggKeyMap.merge(keys, incoming)

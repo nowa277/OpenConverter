@@ -1,14 +1,12 @@
 package com.openconverter.app.decoders.kgg
 
-import android.net.Uri
-
 fun interface KggKeyProvider {
     fun find(encryptionKeyId: String): String?
     fun count(): Int = -1
 }
 
 fun interface KggKeyImporter {
-    suspend fun import(uri: Uri): KggImportResult
+    suspend fun import(uri: String): KggImportResult
 }
 
 data class KggImportResult(

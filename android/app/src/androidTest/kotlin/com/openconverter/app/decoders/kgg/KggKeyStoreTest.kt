@@ -40,7 +40,7 @@ class KggKeyStoreTest {
         createDatabase(database, mapOf("db-id" to "db-key", "second" to "value"))
         val store = newStore()
 
-        val result = store.import(Uri.fromFile(database))
+        val result = store.import(Uri.fromFile(database).toString())
 
         assertEquals(KggImportResult(added = 2, updated = 0, total = 2), result)
         assertEquals("db-key", store.find("db-id"))
@@ -58,8 +58,8 @@ class KggKeyStoreTest {
         }
         val store = newStore()
 
-        store.import(Uri.fromFile(first))
-        val result = store.import(Uri.fromFile(second))
+        store.import(Uri.fromFile(first).toString())
+        val result = store.import(Uri.fromFile(second).toString())
         val restored = newStore()
 
         assertEquals(KggImportResult(added = 1, updated = 1, total = 3), result)
@@ -75,9 +75,9 @@ class KggKeyStoreTest {
         val valid = File(root, "valid.key").apply { writeText("kept\$value\n") }
         val malformed = File(root, "malformed.key").apply { writeText("broken-line\n") }
         val store = newStore()
-        store.import(Uri.fromFile(valid))
+        store.import(Uri.fromFile(valid).toString())
 
-        assertImportFails { store.import(Uri.fromFile(malformed)) }
+        assertImportFails { store.import(Uri.fromFile(malformed).toString()) }
 
         assertEquals("value", store.find("kept"))
         assertNull(store.find("broken-line"))
@@ -92,9 +92,9 @@ class KggKeyStoreTest {
         val invalidDatabase = File(root, "invalid.db")
         createDatabase(invalidDatabase, emptyMap(), createTable = false)
         val store = newStore()
-        store.import(Uri.fromFile(valid))
+        store.import(Uri.fromFile(valid).toString())
 
-        assertImportFails { store.import(Uri.fromFile(invalidDatabase)) }
+        assertImportFails { store.import(Uri.fromFile(invalidDatabase).toString()) }
 
         assertEquals("value", store.find("kept"))
         assertEquals("value", newStore().find("kept"))
