@@ -74,6 +74,7 @@ A lightweight format conversion and decryption tool for audio workflows.<br/>
 | `.ncm` | NetEase Cloud Music | Direct decryption via local algorithm |
 | `.kwm` | KuWo Music | Direct decryption via local algorithm |
 | `.kgm` / `.kgma` / `.vpr` | KuGou Music / Viper | Direct decryption via local algorithm |
+| `.kgg` / `.kgg.flac` | KuGou Music | On Android, import a matching `KGMusicV3.db` or `kgg.key` in Settings |
 | `.mgg` / `.mgg1` / `.bkc` | QQ Music | Requires configuring the **ekey** once in **Settings/More** (a base64 string extracted from the local QQ Music client database), which the app persists via secure storage |
 | `.mp3` / `.flac` / `.wav` | Any Platform | Import directly for general format or bitrate transcoding |
 
@@ -114,6 +115,8 @@ Download the latest APK files from the [Releases page](https://github.com/nowa27
 * **arm64-v8a**: `openconverter-v***-android-arm64-v8a.apk` (Recommended, suitable for the vast majority of modern smartphones)
 * **x86_64**: `openconverter-v***-android-x86_64.apk` (Suitable for running and debugging on Android Emulators)
 
+KGG v5 uses per-file keys. On Android, use the system document picker in Settings to import `KGMusicV3.db` from your own KuGou environment, or a portable `kgg.key`. Mappings are merged only inside the app sandbox on that device; the project does not bundle, upload, or query databases, accounts, or keys online.
+
 ---
 
 ## Build and Development
@@ -140,11 +143,22 @@ npm run build:win
 cd android
 
 # Run local unit tests
-./gradlew :app:test
+./gradlew testDebugUnitTest connectedDebugAndroidTest
 
 # Compile and package Debug/Release APK
 ./gradlew :app:assembleRelease
 ```
+
+Real KGG fixtures are not committed. Maintainers can run the environment-gated byte-equivalence check on a booted Android device or emulator:
+
+```bash
+KGG_FIXTURE_DIR=/local/kgg \
+KGG_KEY_SOURCE=/local/KGMusicV3.db \
+KGG_EXPECTED_DIR=/local/reference \
+android/scripts/verify-kgg-v5.sh
+```
+
+`reference` must contain plaintext produced from the same inputs by an independent reference implementation, preserving relative paths and using the actual container extension. The script stages private material only for the test and removes host/device staging on exit.
 
 ---
 

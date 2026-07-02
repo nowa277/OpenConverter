@@ -51,6 +51,7 @@
 | `.ncm` | 网易云音乐 |
 | `.kwm` | 酷我音乐 |
 | `.kgm` / `.kgma` / `.vpr` 等 | 酷狗音乐 |
+| `.kgg` / `.kgg.flac` | 酷狗音乐（Android：在设置中导入 `KGMusicV3.db` 或 `kgg.key`） |
 | `.mgg` / `.mgg1` / `.bkc` 等 | QQ音乐 |
 | `.mp3` / `.flac` / `.wav` 等明文音频 | 任何平台 |
 
@@ -89,6 +90,8 @@ sudo apt install ./openconverter-v***-linux-amd64.deb
 * **arm64-v8a**：`openconverter-v***-android-arm64-v8a.apk` (推荐，适合绝大多数现代智能手机)
 * **x86_64**：`openconverter-v***-android-x86_64.apk` (适合在 Android 模拟器上运行与调试)
 
+Android 的 KGG v5 解密需要该文件对应的逐文件密钥。请在设置页通过系统文件选择器导入来自用户本人酷狗环境的 `KGMusicV3.db`，或导入便携的 `kgg.key`。映射只在本设备应用沙箱内合并保存；项目不附带、上传或在线查询数据库、账号及密钥。
+
 ---
 
 ## 源码编译开发
@@ -115,11 +118,22 @@ npm run build:win
 cd android
 
 # 运行本地单元测试
-./gradlew :app:test
+./gradlew testDebugUnitTest connectedDebugAndroidTest
 
 # 编译并打包 Debug/Release APK
 ./gradlew :app:assembleRelease
 ```
+
+真实 KGG 样本不会进入仓库。维护者可在已启动的 Android 设备或模拟器上运行环境门控的逐字节等价验证：
+
+```bash
+KGG_FIXTURE_DIR=/local/kgg \
+KGG_KEY_SOURCE=/local/KGMusicV3.db \
+KGG_EXPECTED_DIR=/local/reference \
+android/scripts/verify-kgg-v5.sh
+```
+
+`reference` 必须是同一批输入经独立参考实现解密得到的明文目录，保持相同相对路径并使用真实容器扩展名。脚本只暂存本地材料用于测试，结束后自动清理设备和主机临时文件。
 
 ---
 
