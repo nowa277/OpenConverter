@@ -11,6 +11,7 @@ import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.openconverter.app.R
+import com.openconverter.app.OpenConverterApp
 import com.openconverter.app.decoders.DefaultDecoders
 import com.openconverter.app.engine.AndroidFileSystemPort
 import com.openconverter.app.engine.ConversionEngine
@@ -97,7 +98,8 @@ class ConversionService : Service() {
         val fs = AndroidFileSystemPort(applicationContext).also { it.clearStaleCache() }
         val ffmpeg = FfmpegKitRunner()
         val sink = ServiceProgressSink(this, _progress, inputs.size)
-        val engine = ConversionEngine(DefaultDecoders.registry, ffmpeg, fs, sink, RealClock())
+        val kggKeys = (application as OpenConverterApp).kggKeyStore
+        val engine = ConversionEngine(DefaultDecoders.registry(kggKeys), ffmpeg, fs, sink, RealClock())
 
         val history: HistoryPort = JsonHistoryStore(applicationContext.filesDir)
         currentJob = scope.launch {

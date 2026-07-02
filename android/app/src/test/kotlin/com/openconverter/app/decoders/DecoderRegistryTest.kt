@@ -1,5 +1,7 @@
 package com.openconverter.app.decoders
 
+import com.openconverter.app.decoders.kgg.KggKeyProvider
+import com.openconverter.app.decoders.kgg.KggV5Decoder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -58,5 +60,14 @@ class DecoderRegistryTest {
 
         assertEquals(".kgma", r.findForName("song.kgma")!!.encryptedExtension)
         assertNull(r.findForName("song.flac"))
+    }
+
+    @Test fun default_registry_injects_kgg_v5_without_replacing_legacy_kugou_decoder() {
+        val r = DefaultDecoders.registry(KggKeyProvider { null })
+
+        assertEquals(KggV5Decoder::class.java, r.find(".kgg")!!.javaClass)
+        assertEquals(KgmDecoder, r.find(".kgm"))
+        assertEquals(KgmDecoder, r.find(".kgma"))
+        assertEquals(KgmDecoder, r.find(".vpr"))
     }
 }

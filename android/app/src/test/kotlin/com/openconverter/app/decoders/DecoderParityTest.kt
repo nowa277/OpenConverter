@@ -1,5 +1,6 @@
 package com.openconverter.app.decoders
 
+import com.openconverter.app.decoders.kgg.KggKeyProvider
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assume.assumeTrue
@@ -108,7 +109,7 @@ class DecoderParityTest {
 
     // ----- Registry wiring -----
     @Test fun default_registry_resolves_all_v1_extensions() {
-        val r = DefaultDecoders.registry
+        val r = DefaultDecoders.registry(KggKeyProvider { null })
         // Every v1 cipher extension must route to a real decoder.
         for (ext in listOf(".ncm", ".kwm", ".kgm", ".kgma", ".vpr",
                            ".qmc0", ".qmc3", ".qmcflac", ".qmcogg")) {

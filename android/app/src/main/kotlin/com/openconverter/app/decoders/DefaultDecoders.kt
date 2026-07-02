@@ -1,5 +1,8 @@
 package com.openconverter.app.decoders
 
+import com.openconverter.app.decoders.kgg.KggKeyProvider
+import com.openconverter.app.decoders.kgg.KggV5Decoder
+
 /**
  * The default registry wired with all v1 decoders. The engine resolves a file
  * to a [Decoder] by extension; missing extensions fall through to plaintext.
@@ -13,7 +16,7 @@ package com.openconverter.app.decoders
  * v2+ adds: .mflac/.mgg/.bkc (QmcDecoder v2 path with ekey UI).
  */
 object DefaultDecoders {
-    val registry: DecoderRegistry = DecoderRegistry(
-        listOf(NcmDecoder, QmcDecoder, KgmDecoder, KwmDecoder)
+    fun registry(kggKeys: KggKeyProvider): DecoderRegistry = DecoderRegistry(
+        listOf(NcmDecoder, QmcDecoder, KgmDecoder, KggV5Decoder(kggKeys), KwmDecoder),
     )
 }
