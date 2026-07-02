@@ -1,6 +1,10 @@
 package com.openconverter.app.engine
 
 import com.openconverter.app.ffmpeg.FfmpegRunner
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
+import java.io.OutputStream
 
 /** Records every fs call so tests can assert on the per-file pipeline. */
 class FakeFileSystemPort(
@@ -10,23 +14,44 @@ class FakeFileSystemPort(
     val cache: MutableMap<String, ByteArray> = mutableMapOf()
     val writes: MutableList<Triple<String, String, ByteArray>> = mutableListOf() // (folder, displayName, bytes)
     val cleanups: MutableList<String> = mutableListOf()
+    var readCacheCalls: Int = 0
 
     override fun readBytes(uri: String): ByteArray {
         readErrors[uri]?.let { throw it }
         return reads[uri] ?: throw NoSuchElementException("FakeFileSystemPort: no read for $uri")
     }
+    override fun openInput(uri: String): InputStream = ByteArrayInputStream(readBytes(uri))
     override fun cacheFile(name: String, bytes: ByteArray): String {
         val path = "/cache/$name"
         cache[path] = bytes
         return path
     }
     override fun cachePath(name: String): String = "/cache/$name"
-    override fun readCache(path: String): ByteArray =
-        cache[path] ?: throw NoSuchElementException("FakeFileSystemPort: cache miss $path")
+    override fun openCacheOutput(path: String): OutputStream = object : ByteArrayOutputStream() {
+        override fun close() {
+            cache[path] = toByteArray()
+            super.close()
+        }
+    }
+    override fun readCache(path: String): ByteArray {
+        readCacheCalls++
+        return cache[path] ?: throw NoSuchElementException("FakeFileSystemPort: cache miss $path")
+    }
     override fun writeOutput(folderUri: String, displayName: String, mime: String, bytes: ByteArray): String {
         writes += Triple(folderUri, displayName, bytes)
         return "$folderUri/$displayName"
     }
+    override fun writeOutputFromCache(
+        folderUri: String,
+        displayName: String,
+        mime: String,
+        cachePath: String,
+    ): String = writeOutput(
+        folderUri,
+        displayName,
+        mime,
+        cache[cachePath] ?: throw NoSuchElementException("FakeFileSystemPort: cache miss $cachePath"),
+    )
     override fun cleanup(path: String) {
         cleanups += path
         cache.remove(path)

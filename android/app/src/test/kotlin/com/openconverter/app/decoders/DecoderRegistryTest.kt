@@ -35,4 +35,28 @@ class DecoderRegistryTest {
         assertNull(r.find(".ncm"))
         assertEquals(emptySet<String>(), r.supportedExtensions())
     }
+
+    @Test fun findForName_matches_compound_extension_case_insensitively() {
+        val r = DecoderRegistry(listOf(FakeA()))
+
+        val match = r.findForName("Track.A1.FLAC")
+
+        assertEquals(".a1", match!!.encryptedExtension)
+        assertEquals("FakeA", match.decoder.javaClass.simpleName)
+    }
+
+    @Test fun findForName_prefers_longest_extension_and_does_not_match_plain_names() {
+        val short = object : Decoder {
+            override val supportedExtensions = setOf(".kgm")
+            override fun decrypt(input: ByteArray) = DecryptResult(input, "mp3")
+        }
+        val long = object : Decoder {
+            override val supportedExtensions = setOf(".kgma")
+            override fun decrypt(input: ByteArray) = DecryptResult(input, "flac")
+        }
+        val r = DecoderRegistry(listOf(short, long))
+
+        assertEquals(".kgma", r.findForName("song.kgma")!!.encryptedExtension)
+        assertNull(r.findForName("song.flac"))
+    }
 }

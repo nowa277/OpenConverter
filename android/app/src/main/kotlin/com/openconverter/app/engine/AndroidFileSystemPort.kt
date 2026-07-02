@@ -5,6 +5,8 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 
 /**
  * Real [FileSystemPort] for Android. Bridges:
@@ -19,6 +21,10 @@ class AndroidFileSystemPort(private val context: Context) : FileSystemPort {
     override fun readBytes(uri: String): ByteArray =
         context.contentResolver.openInputStream(Uri.parse(uri))!!.use { it.readBytes() }
 
+    override fun openInput(uri: String): InputStream =
+        context.contentResolver.openInputStream(Uri.parse(uri))
+            ?: throw IllegalArgumentException("Cannot open input URI: $uri")
+
     override fun cacheFile(name: String, bytes: ByteArray): String {
         val safe = name.replace('/', '_').replace('\\', '_')
         val f = File(context.cacheDir, safe)
@@ -32,9 +38,30 @@ class AndroidFileSystemPort(private val context: Context) : FileSystemPort {
         return File(context.cacheDir, safe).absolutePath
     }
 
+    override fun openCacheOutput(path: String): OutputStream = File(path).outputStream()
+
     override fun readCache(path: String): ByteArray = File(path).readBytes()
 
     override fun writeOutput(folderUri: String, displayName: String, mime: String, bytes: ByteArray): String {
+        val docUri = createOutputDocument(folderUri, displayName, mime)
+        context.contentResolver.openOutputStream(docUri)!!.use { it.write(bytes) }
+        return docUri.toString()
+    }
+
+    override fun writeOutputFromCache(
+        folderUri: String,
+        displayName: String,
+        mime: String,
+        cachePath: String,
+    ): String {
+        val docUri = createOutputDocument(folderUri, displayName, mime)
+        File(cachePath).inputStream().use { input ->
+            context.contentResolver.openOutputStream(docUri)!!.use(input::copyTo)
+        }
+        return docUri.toString()
+    }
+
+    private fun createOutputDocument(folderUri: String, displayName: String, mime: String): Uri {
         val tree = Uri.parse(folderUri)
         // createDocument requires a *document* URI, not the raw tree URI returned by
         // ACTION_OPEN_DOCUMENT_TREE. A tree URI's path is /tree/<docId>; createDocument
@@ -45,8 +72,7 @@ class AndroidFileSystemPort(private val context: Context) : FileSystemPort {
         )
         val docUri = DocumentsContract.createDocument(context.contentResolver, treeDocUri, mime, displayName)
             ?: throw RuntimeException("createDocument returned null for $displayName in $folderUri")
-        context.contentResolver.openOutputStream(docUri)!!.use { it.write(bytes) }
-        return docUri.toString()
+        return docUri
     }
 
     override fun cleanup(path: String) {

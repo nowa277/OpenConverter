@@ -3,6 +3,9 @@ package com.openconverter.app.engine
 import com.openconverter.app.decoders.Decoder
 import com.openconverter.app.decoders.DecoderRegistry
 import com.openconverter.app.decoders.DecryptResult
+import com.openconverter.app.decoders.StreamingDecoder
+import java.io.InputStream
+import java.io.OutputStream
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -23,6 +26,82 @@ private val FLAC = byteArrayOf(0x66, 0x4c, 0x61, 0x43, 0x42)
 private val WAV = byteArrayOf(0x52, 0x49, 0x46, 0x46, 0x42)
 
 class ConversionEngineTest {
+
+    @Test fun compound_kgg_extension_uses_streaming_decoder_before_plain_flac() = runTest {
+        var streamCalls = 0
+        val kgg = object : StreamingDecoder {
+            override val supportedExtensions = setOf(".kgg")
+            override fun decrypt(input: ByteArray): DecryptResult = error("byte-array path must not be used")
+            override fun decrypt(input: InputStream, output: OutputStream, bufferSize: Int): String {
+                streamCalls++
+                input.readBytes()
+                output.write(FLAC)
+                return "flac"
+            }
+        }
+        val fs = FakeFileSystemPort(reads = mapOf("uri:kgg" to byteArrayOf(1, 2, 3)))
+        val ffmpeg = FakeFfmpegRunner(fs)
+        val sink = RecordingProgressSink()
+        val engine = ConversionEngine(DecoderRegistry(listOf(kgg)), ffmpeg, fs, sink)
+
+        val result = engine.convertAll(
+            ConversionRequest(
+                listOf("uri:kgg"), listOf("song.kgg.flac"),
+                "flac", "tree:out", null, PLAIN_EXTS,
+            ),
+        ).single()
+
+        assertNull(result.error)
+        assertEquals(1, streamCalls)
+        assertTrue(ffmpeg.calls.isEmpty())
+        assertEquals(0, fs.readCacheCalls)
+        assertEquals("song.flac", fs.writes.single().second)
+        assertTrue(fs.writes.single().third.contentEquals(FLAC))
+    }
+
+    @Test fun compound_kgg_transcode_passes_decrypted_cache_directly_to_ffmpeg() = runTest {
+        val kgg = fakeStreamingDecoder(FLAC, "flac")
+        val fs = FakeFileSystemPort(reads = mapOf("uri:kgg" to byteArrayOf(1, 2, 3)))
+        val ffmpeg = FakeFfmpegRunner(fs, outputBytes = ID3)
+        val engine = ConversionEngine(DecoderRegistry(listOf(kgg)), ffmpeg, fs, RecordingProgressSink())
+
+        val result = engine.convertAll(
+            ConversionRequest(
+                listOf("uri:kgg"), listOf("song.kgg.flac"),
+                "mp3", "tree:out", null, PLAIN_EXTS,
+            ),
+        ).single()
+
+        assertNull(result.error)
+        assertEquals("/cache/in_0_dec", ffmpeg.calls.single().input)
+        assertEquals("song.mp3", fs.writes.single().second)
+        assertTrue("decrypted cache must be cleaned", "/cache/in_0_dec" in fs.cleanups)
+    }
+
+    @Test fun streaming_decoder_failure_cleans_partial_cache() = runTest {
+        val failing = object : StreamingDecoder {
+            override val supportedExtensions = setOf(".kgg")
+            override fun decrypt(input: ByteArray): DecryptResult = error("byte-array path must not be used")
+            override fun decrypt(input: InputStream, output: OutputStream, bufferSize: Int): String {
+                output.write(byteArrayOf(1, 2, 3))
+                throw IllegalArgumentException("bad KGG")
+            }
+        }
+        val fs = FakeFileSystemPort(reads = mapOf("uri:kgg" to byteArrayOf(1)))
+        val engine = ConversionEngine(
+            DecoderRegistry(listOf(failing)), FakeFfmpegRunner(fs), fs, RecordingProgressSink(),
+        )
+
+        val result = engine.convertAll(
+            ConversionRequest(
+                listOf("uri:kgg"), listOf("song.kgg"),
+                "flac", "tree:out", null, PLAIN_EXTS,
+            ),
+        ).single()
+
+        assertEquals("bad KGG", result.error)
+        assertTrue("partial decrypted cache must be cleaned", "/cache/in_0_dec" in fs.cleanups)
+    }
 
     /** Test 1: plain mp3 → mp3 with no bitrate ⇒ direct copy, no ffmpeg. */
     @Test fun plain_same_format_direct_copy() = runTest {
@@ -276,4 +355,15 @@ class ConversionEngineTest {
         // Concurrency should have reached exactly 2 (as Semaphore(2) limits it to 2)
         assertEquals(2, maxActive.get())
     }
+
+    private fun fakeStreamingDecoder(audio: ByteArray, format: String): StreamingDecoder =
+        object : StreamingDecoder {
+            override val supportedExtensions = setOf(".kgg")
+            override fun decrypt(input: ByteArray): DecryptResult = error("byte-array path must not be used")
+            override fun decrypt(input: InputStream, output: OutputStream, bufferSize: Int): String {
+                input.readBytes()
+                output.write(audio)
+                return format
+            }
+        }
 }
