@@ -4,6 +4,7 @@ import android.net.Uri
 
 fun interface KggKeyProvider {
     fun find(encryptionKeyId: String): String?
+    fun count(): Int = -1
 }
 
 fun interface KggKeyImporter {

@@ -61,6 +61,7 @@ class KggKeyStore internal constructor(
     }
 
     override fun find(encryptionKeyId: String): String? = keys[encryptionKeyId]
+    override fun count(): Int = keys.size
 
     override suspend fun import(uri: Uri): KggImportResult = importMutex.withLock {
         _state.value = KggImportState.Importing
