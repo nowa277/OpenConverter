@@ -1,7 +1,9 @@
 'use strict';
 
 const fs = require('node:fs');
+const path = require('node:path');
 const initSqlJs = require('sql.js');
+const dbCipher = require('../decoders/kgg/db-cipher');
 
 /**
  * Loads the keys mapping from a kgg.keys text file.
@@ -43,6 +45,35 @@ function saveKeysMap(keysPath, map) {
 }
 
 /**
+ * Decrypts encrypted KGMusicV3.db buffer in memory.
+ *
+ * @param {Buffer} buffer
+ * @returns {Buffer} decrypted buffer
+ */
+function decryptDatabaseBuffer(buffer) {
+  const pageSize = 1024;
+  if (buffer.length < pageSize) {
+    throw new Error('Database buffer is too small');
+  }
+
+  // Work on a copy of the buffer
+  const dec = Buffer.from(buffer);
+  if (dbCipher.isPlaintextHeader(dec)) {
+    return dec;
+  }
+
+  dbCipher.decryptFirstPage(dec.subarray(0, pageSize), dbCipher.MASTER_KEY);
+
+  for (let offset = pageSize, pageNum = 2; offset < dec.length; offset += pageSize, pageNum++) {
+    const page = dec.subarray(offset, offset + pageSize);
+    if (page.length < pageSize) break;
+    dbCipher.decryptPage(page, pageNum, dbCipher.MASTER_KEY);
+  }
+
+  return dec;
+}
+
+/**
  * Imports key maps from decrypted SQLite database buffer.
  *
  * @param {Buffer} dbBuffer - Decrypted KGMusicV3.db bytes
@@ -50,7 +81,8 @@ function saveKeysMap(keysPath, map) {
  */
 async function importFromDb(dbBuffer) {
   const SQL = await initSqlJs();
-  const db = new SQL.Database(new Uint8Array(dbBuffer));
+  const decrypted = decryptDatabaseBuffer(dbBuffer);
+  const db = new SQL.Database(new Uint8Array(decrypted));
   const result = new Map();
   try {
     const stmt = db.prepare(`
@@ -71,8 +103,74 @@ async function importFromDb(dbBuffer) {
   return result;
 }
 
+/**
+ * Auto scans default folders for KGMusicV3.db, extracts keys and merges them into kgg.keys file.
+ *
+ * @param {string} userDataPath
+ * @param {object} [opts] - Mock platform options for testing
+ * @returns {Promise<{ added: number, total: number }>}
+ */
+async function autoScanKeys(userDataPath, opts = {}) {
+  const platform = opts.mockPlatform || process.platform;
+  const env = opts.mockEnv || process.env;
+
+  const pathsToScan = [];
+  if (opts.mockPaths) {
+    pathsToScan.push(...opts.mockPaths);
+  } else if (platform === 'win32') {
+    const allUsers = env.ALLUSERSPROFILE || 'C:\\ProgramData';
+    const appData = env.APPDATA || '';
+    pathsToScan.push(
+      path.join(allUsers, 'KuGou', 'KGMusic', 'KGMusicV3.db'),
+      path.join(allUsers, 'KuGou', 'KGMusicV3.db'),
+      'C:\\Users\\Public\\KuGou\\KGMusic\\KGMusicV3.db'
+    );
+    if (appData) {
+      pathsToScan.push(path.join(appData, 'KuGou', 'KGMusicV3.db'));
+    }
+  } else if (platform === 'darwin') {
+    const home = env.HOME || '';
+    if (home) {
+      pathsToScan.push(
+        path.join(home, 'Library', 'Application Support', 'KuGou', 'KGMusicV3.db'),
+        path.join(home, 'Library', 'Containers', 'com.kugou.mac', 'Data', 'Documents', 'KuGou', 'KGMusicV3.db')
+      );
+    }
+  }
+
+  let mergedCount = 0;
+  const targetKeysPath = path.join(userDataPath, 'kgg.keys');
+  const currentMap = loadKeysMap(targetKeysPath);
+  const initialSize = currentMap.size;
+
+  for (const dbPath of pathsToScan) {
+    if (fs.existsSync(dbPath)) {
+      try {
+        const buf = fs.readFileSync(dbPath);
+        const incoming = await importFromDb(buf);
+        for (const [id, val] of incoming.entries()) {
+          currentMap.set(id, val);
+        }
+      } catch (err) {
+        // Log or suppress error to proceed scanning other locations
+      }
+    }
+  }
+
+  const newSize = currentMap.size;
+  if (newSize > initialSize) {
+    saveKeysMap(targetKeysPath, currentMap);
+  }
+
+  return {
+    added: newSize - initialSize,
+    total: newSize,
+  };
+}
+
 module.exports = {
   loadKeysMap,
   saveKeysMap,
   importFromDb,
+  autoScanKeys,
 };

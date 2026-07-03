@@ -204,5 +204,8 @@ module.exports = {
   pageIv,
   isPlaintextHeader,
   isEncryptedHeader,
+  decryptFirstPage,
+  decryptPage,
+  decryptBlocks,
   decryptStream,
 };
