@@ -117,7 +117,13 @@ function memoryKeyProvider(map) {
 function decodeFile(inputPath, outputDir, opts) {
   const keyPath = opts.keyPath;
   if (!keyPath) throw new Error('decodeFile requires opts.keyPath pointing to a kgg.key file or KGMusicV3.db');
-  const keyText = fs.readFileSync(keyPath, 'utf-8');
+  let keyText = '';
+  try {
+    keyText = fs.readFileSync(keyPath, 'utf-8');
+  } catch (e) {
+    // If file doesn't exist yet, we just pass an empty map to provider,
+    // and let decrypt() throw the friendly 'No KGG keys imported' error.
+  }
   const map = parseKeyMap(keyText);
   const provider = memoryKeyProvider(map);
   const input = fs.readFileSync(inputPath);
