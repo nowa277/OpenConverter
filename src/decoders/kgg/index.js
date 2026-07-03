@@ -51,14 +51,9 @@ function decrypt(input, keyProvider) {
   if (audioLen <= 0) throw new Error('KGG audio data is empty');
 
   const audio = Buffer.alloc(audioLen);
-  const probe = Buffer.alloc(Math.min(PROBE_SIZE, audioLen));
-  // Decrypt the first chunk into `probe`, then copy remaining chunks
-  cipher.apply(probe, probe.length, 0n);
-  probe.copy(audio, 0, 0, probe.length);
-  for (let i = probe.length; i < audioLen; i += 4096) {
-    const chunk = audio.subarray(i, Math.min(i + 4096, audioLen));
-    cipher.apply(chunk, chunk.length, BigInt(i));
-  }
+  input.copy(audio, 0, hdr.headerLength, input.length);
+  cipher.apply(audio, audio.length, 0n);
+
   return { audio, format: sniffFormat(audio.subarray(0, Math.min(PROBE_SIZE, audioLen))) };
 }
 
