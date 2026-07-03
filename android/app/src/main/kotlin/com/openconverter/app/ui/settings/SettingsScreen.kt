@@ -61,6 +61,7 @@ fun SettingsScreen(
     val keySourcePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { viewModel.importKggKeys(it.toString()) }
     }
+    var showRootGuide by remember { mutableStateOf(false) }
 
     fun openUrl(url: String) {
         runCatching {
@@ -150,19 +151,31 @@ fun SettingsScreen(
                                 color = MaterialTheme.colorScheme.error,
                             )
                         }
-                        Button(
-                            enabled = !s.kggImporting,
-                            onClick = {
-                                keySourcePicker.launch(
-                                    arrayOf("application/octet-stream", "text/plain", "*/*"),
-                                )
-                            },
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
+                            Button(
+                                enabled = !s.kggImporting,
+                                onClick = {
+                                    keySourcePicker.launch(
+                                        arrayOf("application/octet-stream", "text/plain", "*/*"),
+                                    )
+                                },
+                            ) {
+                                Text(
+                                    stringResource(
+                                        if (s.kggImporting) R.string.settings_kgg_keys_importing
+                                        else R.string.settings_kgg_keys_import,
+                                    ),
+                                )
+                            }
                             Text(
-                                stringResource(
-                                    if (s.kggImporting) R.string.settings_kgg_keys_importing
-                                    else R.string.settings_kgg_keys_import,
-                                ),
+                                text = stringResource(R.string.settings_kgg_root_guide_btn),
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.clickable { showRootGuide = true }
                             )
                         }
                     }
@@ -320,5 +333,18 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+
+    if (showRootGuide) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showRootGuide = false },
+            title = { Text(stringResource(R.string.settings_kgg_root_guide_title)) },
+            text = { Text(stringResource(R.string.settings_kgg_root_guide_content)) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { showRootGuide = false }) {
+                    Text(stringResource(R.string.settings_kgg_root_guide_ok))
+                }
+            }
+        )
     }
 }
