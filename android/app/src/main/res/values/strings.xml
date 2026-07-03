@@ -36,6 +36,7 @@
     <string name="settings_menu">Settings</string>
     <string name="start_conversion">Start</string>
     <string name="cancel_conversion">Cancel</string>
+    <string name="retry_failed">Retry failed</string>
     <string name="clear_queue">Clear</string>
 
     <!-- HistoryScreen -->
