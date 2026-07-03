@@ -71,7 +71,7 @@ function makeRc4Cipher(key) {
     // hash / ((segmentId + 1) * seed) * 100
     const numerator = hash;
     const denominator = ((segmentId + 1n) * seed);
-    const idx = (numerator * 100n) / denominator;
+    const idx = (numerator / denominator) * 100n;
     return Number(idx % keyLen);
   }
 

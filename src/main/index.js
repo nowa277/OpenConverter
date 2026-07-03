@@ -45,7 +45,12 @@ function ffmpegRun(input, output, opts = {}) {
     platform: process.platform,
     resourcesPath: process.resourcesPath,
   });
-  return ffmpegRunRaw(input, output, { ...opts, ffmpegBin });
+  const ffprobeBin = resolveFfprobePath({
+    isPackaged: app.isPackaged,
+    platform: process.platform,
+    resourcesPath: process.resourcesPath,
+  });
+  return ffmpegRunRaw(input, output, { ...opts, ffmpegBin, ffprobeBin });
 }
 
 function probeDuration(filePath) {
