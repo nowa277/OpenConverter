@@ -14,6 +14,7 @@ const DEFAULTS = {
   theme: 'dark',
   language: 'auto',
   qmcEkey: '', // base64 string from QQ Music client DB
+  kggAutoScan: false,
 };
 
 let store = null;
@@ -31,6 +32,7 @@ function get() {
     theme: s.get('theme'),
     language: s.get('language'),
     qmcEkey: s.get('qmcEkey'),
+    kggAutoScan: s.get('kggAutoScan'),
   };
 }
 
