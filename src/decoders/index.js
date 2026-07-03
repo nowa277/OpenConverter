@@ -9,6 +9,7 @@ const ncm = require('./ncm');
 const qmc = require('./qmc');
 const kgm = require('./kgm');
 const kwm = require('./kwm');
+const kgg = require('./kgg');
 
 const EXT_TO_DECODER = {
   // NCM (NetEase)
@@ -44,11 +45,25 @@ const EXT_TO_DECODER = {
 
   // KWM (Kuwo)
   '.kwm': kwm,
+
+  // KGG v5 (KuGou mobile) — needs opts.keyPath (a kgg.key file path)
+  '.kgg': kgg,
+  '.kgg.flac': kgg, // double extension, picked below
 };
 
 function pickDecoder(filePath) {
-  const ext = (filePath.match(/\.[^./]+$/) || [''])[0].toLowerCase();
-  return EXT_TO_DECODER[ext];
+  // Try the last extension first, then the second-to-last for double
+  // extensions like ".kgg.flac" or ".bkc.flac".
+  const exts = filePath.match(/(\.[^./]+)(\.[^./]+)?$/);
+  if (exts) {
+    const last = exts[1].toLowerCase();
+    if (EXT_TO_DECODER[last]) return EXT_TO_DECODER[last];
+    if (exts[2]) {
+      const double = (exts[1] + exts[2]).toLowerCase();
+      if (EXT_TO_DECODER[double]) return EXT_TO_DECODER[double];
+    }
+  }
+  return undefined;
 }
 
 function listSupported() {
@@ -166,4 +181,5 @@ module.exports = {
   qmc,
   kgm,
   kwm,
+  kgg,
 };
