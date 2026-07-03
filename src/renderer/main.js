@@ -83,6 +83,16 @@ const TRANSLATIONS = {
     time_mins_ago: '{mins}m ago',
     time_hours_ago: '{hours}h ago',
     time_days_ago: '{days}d ago',
+    kgg_panel_title: 'KuGou Music KGG Settings (required for .kgg / .kgg.flac)',
+    kgg_autoscan_label: 'Auto-scan database on startup',
+    kgg_scan_now_btn: 'Scan now',
+    kgg_import_btn: 'Import DB / Key',
+    kgg_linux_warning: 'KuGou decryption is not supported on Linux natively. Import a keys file if needed.',
+    kgg_autoscan_hint: 'Scan local client\'s database to extract ekeys automatically. Or manually import your KGMusicV3.db / kgg.key file.',
+    toast_kgg_scan_success: 'Scan complete: found {count} new keys (total {total})',
+    toast_kgg_import_success: 'Import complete: added {count} keys (total {total})',
+    toast_kgg_import_none: 'No new keys imported',
+    status_kgg: 'KGG — implemented (v5 decrypter, requires database keys)',
   },
   zh: {
     nav_convert: '转换',
@@ -150,6 +160,16 @@ const TRANSLATIONS = {
     time_mins_ago: '{mins} 分钟前',
     time_hours_ago: '{hours} 小时前',
     time_days_ago: '{days} 天前',
+    kgg_panel_title: '酷狗音乐 KGG 设置 (解密 .kgg / .kgg.flac 必需)',
+    kgg_autoscan_label: '自动扫描本地播放器数据库',
+    kgg_scan_now_btn: '立即扫描',
+    kgg_import_btn: '导入密钥或数据库',
+    kgg_linux_warning: 'Linux 端暂不支持直接解析酷狗本地播放器。如需转换，可手动导入从其他平台抽取的密钥文件。',
+    kgg_autoscan_hint: '自动扫描酷狗客户端的本地数据库并提取歌曲密钥。或者手动导入您的 KGMusicV3.db / kgg.key 文件。',
+    toast_kgg_scan_success: '扫描完成：发现 {count} 个新密钥 (总计 {total} 个)',
+    toast_kgg_import_success: '导入完成：新增 {count} 个密钥 (总计 {total} 个)',
+    toast_kgg_import_none: '未发现新密钥',
+    status_kgg: 'KGG — 已实现 (v5 解密，需要导入密钥或 KGMusicV3.db)',
   }
 };
 
@@ -204,6 +224,7 @@ function applyLanguage() {
       <li>${t('status_ncm')}</li>
       <li>${t('status_qmc0')}</li>
       <li>${t('status_qmcv2')}</li>
+      <li>${t('status_kgg')}</li>
       <li>${t('status_kgm')}</li>
       <li>${t('status_kwm')}</li>
       <li>ffmpeg ${ffmpegLabel}</li>
@@ -235,6 +256,9 @@ async function init() {
   if (os.platform === 'win32') {
     document.body.classList.add('platform-win32');
   }
+  if (os.platform === 'linux') {
+    $('kgg-linux-warning').hidden = false;
+  }
   $('os-info').textContent = `OpenConverter v${os.appVersion}`;
 
   const cfg = await api.invoke('config:get');
@@ -244,6 +268,7 @@ async function init() {
   if (cfg.language) state.language = cfg.language;
   if (cfg.theme) state.theme = cfg.theme;
   if (cfg.qmcEkey) $('ekey-input').value = cfg.qmcEkey;
+  if (cfg.kggAutoScan !== undefined) $('kgg-autoscan-checkbox').checked = cfg.kggAutoScan;
   $('format-select').value = state.format;
   $('quality-select').value = state.quality;
   $('language-select').value = state.language;
@@ -293,6 +318,48 @@ function bindEvents() {
     const v = $('ekey-input').value.trim();
     await api.invoke('config:set', { patch: { qmcEkey: v } });
     toast(v ? t('toast_ekey_saved') : t('toast_ekey_cleared'), 'ok');
+  });
+
+  // KGG Settings (KuGou)
+  $('kgg-autoscan-checkbox').addEventListener('change', async (e) => {
+    const checked = e.target.checked;
+    await api.invoke('config:set', { patch: { kggAutoScan: checked } });
+    if (checked) {
+      const res = await api.invoke('kgg:triggerScan');
+      if (res && res.added > 0) {
+        toast(t('toast_kgg_scan_success', { count: res.added, total: res.total }), 'ok');
+      }
+    }
+  });
+
+  $('kgg-scan-btn').addEventListener('click', async () => {
+    $('kgg-scan-btn').disabled = true;
+    try {
+      const res = await api.invoke('kgg:triggerScan');
+      toast(t('toast_kgg_scan_success', { count: res.added, total: res.total }), 'ok');
+    } catch (err) {
+      toast(err.message || 'Scan failed', 'error');
+    } finally {
+      $('kgg-scan-btn').disabled = false;
+    }
+  });
+
+  $('kgg-import-btn').addEventListener('click', async () => {
+    $('kgg-import-btn').disabled = true;
+    try {
+      const res = await api.invoke('kgg:importFile');
+      if (res.imported) {
+        if (res.added > 0) {
+          toast(t('toast_kgg_import_success', { count: res.added, total: res.total }), 'ok');
+        } else {
+          toast(t('toast_kgg_import_none'), '');
+        }
+      }
+    } catch (err) {
+      toast(err.message || 'Import failed', 'error');
+    } finally {
+      $('kgg-import-btn').disabled = false;
+    }
   });
 
   // Window controls

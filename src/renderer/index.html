@@ -129,6 +129,24 @@
             </p>
           </details>
 
+          <details class="settings-panel">
+            <summary data-i18n="kgg_panel_title">KuGou Music KGG Settings (required for .kgg / .kgg.flac)</summary>
+            <div class="settings-row" style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; color: var(--text-dim);">
+                <input type="checkbox" id="kgg-autoscan-checkbox" />
+                <span data-i18n="kgg_autoscan_label">Auto-scan database</span>
+              </label>
+              <button id="kgg-scan-btn" class="btn btn-secondary" style="margin-left: auto;" data-i18n="kgg_scan_now_btn">Scan now</button>
+              <button id="kgg-import-btn" class="btn btn-secondary" data-i18n="kgg_import_btn">Import DB / Key</button>
+            </div>
+            <p class="settings-hint" id="kgg-linux-warning" style="color: #ff9800; font-weight: 500;" data-i18n="kgg_linux_warning" hidden>
+              KuGou decryption is not supported on Linux natively. Import a keys file if needed.
+            </p>
+            <p class="settings-hint" data-i18n="kgg_autoscan_hint">
+              Scan local client's database to extract ekeys automatically. Or manually import your KGMusicV3.db / kgg.key file.
+            </p>
+          </details>
+
           <div id="dropzone" class="dropzone">
             <div class="dropzone-icon" aria-hidden="true">
               <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
