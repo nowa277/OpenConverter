@@ -127,6 +127,7 @@ async function autoScanKeys(userDataPath, opts = {}) {
     );
     if (appData) {
       pathsToScan.push(path.join(appData, 'KuGou', 'KGMusicV3.db'));
+      pathsToScan.push(path.join(appData, 'KuGou8', 'KGMusicV3.db'));
     }
   } else if (platform === 'darwin') {
     const home = env.HOME || '';
