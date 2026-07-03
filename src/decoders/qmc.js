@@ -136,7 +136,14 @@ const EXT_MAP_V2 = {
   '.mgg2': 'ogg',
   '.mgg4': 'ogg',
   '.mggl': 'ogg',
-  '.bkc': 'mp3', // BKC variant — extension varies, sniffed
+  '.bkc': 'mp3',
+  '.bkcmp3': 'mp3',
+  '.bkcflac': 'flac',
+  '.bkcogg': 'ogg',
+  '.bkcm4a': 'm4a',
+  '.bkcwav': 'wav',
+  '.bkcwma': 'wma',
+  '.bkcape': 'ape',
 };
 
 /**

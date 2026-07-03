@@ -22,6 +22,9 @@ const qmc2 = require('./qmc2');
 const PROBE_SIZE = 16;
 
 function decrypt(input, keyProvider) {
+  if (input.length < header.MAGIC.length || !input.subarray(0, header.MAGIC.length).equals(header.MAGIC)) {
+    throw new Error('Not a valid KGG v5 file (invalid magic)');
+  }
   // 1. Read header prefix
   const prefix = Buffer.from(input.subarray(0, header.PREFIX_SIZE));
   const hdr = header.parse(prefix);
