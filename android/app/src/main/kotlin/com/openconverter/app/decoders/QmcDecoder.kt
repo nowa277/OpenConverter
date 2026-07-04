@@ -15,7 +15,7 @@ object QmcDecoder : Decoder {
 
     override val supportedExtensions: Set<String> = setOf(
         ".qmc0", ".qmc3", ".qmcflac", ".qmcogg", ".qmc1", ".qmc2", ".tkm",
-        ".mflac", ".mflac0", ".mgg", ".mgg1",
+        ".mflac", ".mflac0", ".mflac2", ".mflac4", ".mgg", ".mgg1", ".mgg2", ".mgg4", ".mggl",
         ".bkc", ".bkcmp3", ".bkcflac", ".bkcogg", ".bkcm4a", ".bkcwav", ".bkcwma", ".bkcape"
     )
 
@@ -93,6 +93,34 @@ object QmcDecoder : Decoder {
     private fun detectKey(buf: ByteArray): DetectedKey? {
         val len = buf.size
         if (len < 8) return null
+
+        // 0. Check STag head (QQ Music newer clients: .mflac2 / .mflac4 / .mgg2 / .mgg4 / .mggl)
+        //    STag layout (LE, all offsets absolute):
+        //      0x00..0x04  magic "STag"
+        //      0x04..0x14  reserved header fields
+        //      0x14..0x18  uint32 LE: ekey byte length
+        //      0x18..N     ekey bytes
+        //      N..end      encrypted audio
+        if (len >= 0x18) {
+            try {
+                val head = buf.sliceArray(0 until 4).decodeToString()
+                if (head == "STag") {
+                    val ekeyLen = ByteBuffer.wrap(buf, 0x14, 4).order(ByteOrder.LITTLE_ENDIAN).int
+                    if (ekeyLen in 1 until 0xFFFF) {
+                        val ekeyEnd = 0x18 + ekeyLen
+                        if (ekeyEnd < len) {
+                            val ekeyBase64 = buf.sliceArray(0x18 until ekeyEnd).decodeToString().trim()
+                            if (ekeyBase64.all { it.code in 33..127 && it != ' ' }) {
+                                val ekeyBytes = Base64Decoder.decode(ekeyBase64)
+                                return DetectedKey(ekeyBytes, ekeyEnd)
+                            }
+                        }
+                    }
+                }
+            } catch (t: Throwable) {
+                // Ignore STag parsing errors, fall through to other detectors
+            }
+        }
 
         // 1. Check QTag tail
         try {

@@ -1,5 +1,8 @@
 package com.openconverter.app.engine
 
+import java.io.InputStream
+import java.io.OutputStream
+
 /**
  * Ports the pure-Kotlin ConversionEngine depends on. Android's ConversionService
  * supplies real implementations; JVM tests supply fakes. The engine itself never
@@ -9,16 +12,24 @@ package com.openconverter.app.engine
 /** File I/O the engine needs. All paths/uris are opaque strings to the engine. */
 interface FileSystemPort {
     fun readBytes(uri: String): ByteArray
+    fun openInput(uri: String): InputStream
     /** Write bytes to a temp file in app cacheDir; return its absolute path. */
     fun cacheFile(name: String, bytes: ByteArray): String
     /** Absolute path of a temp file in app cacheDir WITHOUT writing it. Used for
      *  ffmpeg's output path, which must differ from the input path even when the
      *  codec/format strings are identical (ffmpeg rejects input==output). */
     fun cachePath(name: String): String
+    fun openCacheOutput(path: String): OutputStream
     /** Read a cached file produced by ffmpeg back into memory. */
     fun readCache(path: String): ByteArray
     /** Write final output into the user-selected SAF folder; return its uri. */
     fun writeOutput(folderUri: String, displayName: String, mime: String, bytes: ByteArray): String
+    fun writeOutputFromCache(
+        folderUri: String,
+        displayName: String,
+        mime: String,
+        cachePath: String,
+    ): String
     /** Best-effort delete of a temp file. No-op if missing. */
     fun cleanup(path: String)
 }

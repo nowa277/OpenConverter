@@ -1,5 +1,10 @@
 package com.openconverter.app.decoders
 
+data class DecoderMatch(
+    val encryptedExtension: String,
+    val decoder: Decoder,
+)
+
 /**
  * Routes a file extension to its [Decoder]. Construction is explicit so tests
  * can inject fakes; the engine receives a registry and is agnostic to which
@@ -12,6 +17,15 @@ class DecoderRegistry(decoders: List<Decoder>) {
 
     /** @param ext with leading dot, any case. Returns null if unsupported. */
     fun find(ext: String): Decoder? = byExt[ext.lowercase()]
+
+    fun findForName(displayName: String): DecoderMatch? {
+        val name = displayName.lowercase()
+        val extension = byExt.keys
+            .filter { name.endsWith(it) || name.contains("$it.") }
+            .maxByOrNull(String::length)
+            ?: return null
+        return DecoderMatch(extension, requireNotNull(byExt[extension]))
+    }
 
     fun supportedExtensions(): Set<String> = byExt.keys.toSet()
 

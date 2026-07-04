@@ -128,7 +128,22 @@ const EXT_MAP_V2 = {
   '.mflac': 'flac',
   '.mgg1': 'ogg',
   '.mgg': 'ogg',
-  '.bkc': 'mp3', // BKC variant — extension varies, sniffed
+  // STag-headered variants (QQ Music newer clients). Detection is by
+  // the "STag" magic at offset 0; the extension is just a hint for
+  // the output container.
+  '.mflac2': 'flac',
+  '.mflac4': 'flac',
+  '.mgg2': 'ogg',
+  '.mgg4': 'ogg',
+  '.mggl': 'ogg',
+  '.bkc': 'mp3',
+  '.bkcmp3': 'mp3',
+  '.bkcflac': 'flac',
+  '.bkcogg': 'ogg',
+  '.bkcm4a': 'm4a',
+  '.bkcwav': 'wav',
+  '.bkcwma': 'wma',
+  '.bkcape': 'ape',
 };
 
 /**
@@ -185,6 +200,30 @@ function inferFormat(audio, fallback = 'mp3') {
 function detectKey(buf) {
   const len = buf.length;
   if (len < 8) return null;
+
+  // 0. Check STag head (QQ Music newer clients: mflac2 / mflac4 / mgg2 / mgg4 / mggl).
+  //    STag layout (LE, all offsets absolute):
+  //      0x00..0x04  magic "STag"
+  //      0x04..0x14  reserved header fields
+  //      0x14..0x18  uint32 LE: ekey byte length
+  //      0x18..N     ekey bytes (N = 0x18 + ekeyLen)
+  //      N..end      encrypted audio
+  //    Reference: unlock-music project qmc2 / STag handling.
+  if (len >= 0x18 && buf.slice(0, 4).toString('ascii') === 'STag') {
+    const ekeyLen = buf.readUInt32LE(0x14);
+    if (ekeyLen > 0 && ekeyLen < 0xFFFF) {
+      const ekeyEnd = 0x18 + ekeyLen;
+      if (ekeyEnd < len) {
+        const ekey = buf.slice(0x18, ekeyEnd).toString('ascii').trim();
+        if (/^[A-Za-z0-9+/=]+$/.test(ekey)) {
+          return {
+            ekey,
+            audioLen: ekeyEnd,
+          };
+        }
+      }
+    }
+  }
 
   // 1. Check QTag tail
   const qTag = buf.slice(len - 4).toString('ascii');
@@ -283,6 +322,7 @@ module.exports = {
   EXT_MAP_V2,
   // shared
   inferFormat,
+  detectKey,
   V1_OFFSET_BOUNDARY,
   V2_KEY_SIZE,
   KEY_COMPRESS_INDEX_OFFSET,

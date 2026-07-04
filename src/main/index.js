@@ -24,6 +24,8 @@ const config = require('./config');
 const decoders = require('../decoders');
 const { resolveFfmpegPath, resolveFfprobePath } = require('./ffmpeg-path');
 const HistoryStore = require('./history');
+const kggKeys = require('./kgg-keys');
+const dbCipher = require('../decoders/kgg/db-cipher');
 
 let historyStore = null;
 function getHistoryStore() {
@@ -43,7 +45,12 @@ function ffmpegRun(input, output, opts = {}) {
     platform: process.platform,
     resourcesPath: process.resourcesPath,
   });
-  return ffmpegRunRaw(input, output, { ...opts, ffmpegBin });
+  const ffprobeBin = resolveFfprobePath({
+    isPackaged: app.isPackaged,
+    platform: process.platform,
+    resourcesPath: process.resourcesPath,
+  });
+  return ffmpegRunRaw(input, output, { ...opts, ffmpegBin, ffprobeBin });
 }
 
 function probeDuration(filePath) {
@@ -132,6 +139,9 @@ async function convertOne(jobId, inputPath, format, outputDir, quality) {
   // QMCv2 formats (mflac/mgg/bkc) require user-provided ekey from QQ Music DB
   const needsEkey = decoders.listRequiresEkey().includes(ext);
   const opts = needsEkey ? { ekey: config.get().qmcEkey } : {};
+  if (ext === '.kgg' || ext === '.kgg.flac') {
+    opts.keyPath = path.join(app.getPath('userData'), 'kgg.keys');
+  }
 
   let decryptedPath;
   try {
@@ -289,6 +299,53 @@ const HANDLERS = {
   'config:get': async () => config.get(),
   'config:set': async (data) => { config.set(data?.patch || {}); return config.get(); },
 
+  'kgg:importFile': async () => {
+    const r = await dialog.showOpenDialog(mainWindow, {
+      title: 'Select KGG key file or KGMusicV3.db',
+      properties: ['openFile'],
+      filters: [
+        { name: 'KGG key sources (*.key, *V3.db)', extensions: ['key', 'db'] },
+        { name: 'All files', extensions: ['*'] },
+      ],
+    });
+    if (r.canceled || r.filePaths.length === 0) return { imported: false };
+    const filePath = r.filePaths[0];
+    const buf = fs.readFileSync(filePath);
+    
+    const userDataPath = app.getPath('userData');
+    const keysPath = path.join(userDataPath, 'kgg.keys');
+    const currentMap = kggKeys.loadKeysMap(keysPath);
+    const initialSize = currentMap.size;
+
+    const isDb = filePath.endsWith('.db') || buf.subarray(0, 15).toString().includes('SQLite') || dbCipher.isEncryptedHeader(buf);
+    if (isDb) {
+      const incoming = await kggKeys.importFromDb(buf);
+      for (const [id, val] of incoming.entries()) {
+        currentMap.set(id, val);
+      }
+    } else {
+      const text = buf.toString('utf-8');
+      const incoming = decoders.kgg.parseKeyMap(text);
+      for (const [id, val] of incoming.entries()) {
+        currentMap.set(id, val);
+      }
+    }
+
+    const newSize = currentMap.size;
+    if (newSize > initialSize) {
+      kggKeys.saveKeysMap(keysPath, currentMap);
+    }
+    return {
+      imported: true,
+      added: newSize - initialSize,
+      total: newSize,
+    };
+  },
+
+  'kgg:triggerScan': async () => {
+    return kggKeys.autoScanKeys(app.getPath('userData'));
+  },
+
   'os:info': async () => ({
     platform: process.platform,
     arch: process.arch,
@@ -332,6 +389,9 @@ function emitMaximizedChanged() {
 
 app.whenReady().then(() => {
   createWindow();
+  if (config.get().kggAutoScan) {
+    kggKeys.autoScanKeys(app.getPath('userData')).catch(() => {});
+  }
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

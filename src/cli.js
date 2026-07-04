@@ -21,6 +21,7 @@ function parseArgs(argv) {
     if (a.startsWith('--format=')) opts.format = a.slice(9);
     else if (a.startsWith('--quality=')) opts.quality = a.slice(10);
     else if (a.startsWith('--output-dir=')) opts.outputDir = a.slice(13);
+    else if (a.startsWith('--key-path=')) opts.keyPath = a.slice(11);
     else if (a === '--help' || a === '-h') { printHelp(); process.exit(0); }
     else opts.files.push(a);
   }
@@ -37,6 +38,7 @@ Options:
   --format=mp3|flac|wav|m4a|ogg  Output format (default: mp3)
   --quality=320k|256k|...        Audio bitrate (default: 320k)
   --output-dir=PATH              Output directory (default: same as input)
+  --key-path=PATH                Path to kgg.keys or KGMusicV3.db (for .kgg files)
   -h, --help                     Show this help
 `);
 }
@@ -51,7 +53,15 @@ async function processOne(inputPath, opts) {
   fs.mkdirSync(outDir, { recursive: true });
   let decrypted;
   try {
-    const r = decoder.decodeFile(inputPath, outDir);
+    const decodeOpts = {};
+    if (inputPath.toLowerCase().endsWith('.kgg') || inputPath.toLowerCase().endsWith('.kgg.flac')) {
+      const os = require('node:os');
+      const defKey = process.platform === 'win32'
+        ? path.join(os.homedir(), 'AppData', 'Roaming', 'OpenConverter', 'kgg.keys')
+        : path.join(os.homedir(), '.config', 'OpenConverter', 'kgg.keys');
+      decodeOpts.keyPath = opts.keyPath || defKey;
+    }
+    const r = decoder.decodeFile(inputPath, outDir, decodeOpts);
     decrypted = r.outputPath;
     console.log(`✓ ${path.basename(inputPath)} → ${path.basename(decrypted)} (decrypted)`);
   } catch (e) {

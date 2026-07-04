@@ -18,10 +18,14 @@ import com.openconverter.app.ui.history.HistoryScreen
 import com.openconverter.app.ui.home.HomeScreen
 import com.openconverter.app.ui.home.HomeViewModel
 import com.openconverter.app.ui.settings.SettingsScreen
+import com.openconverter.app.ui.settings.SettingsViewModel
 import com.openconverter.app.ui.theme.OpenConverterTheme
 
 class MainActivity : ComponentActivity() {
     private val homeVm: HomeViewModel by viewModels()
+    private val settingsVm: SettingsViewModel by viewModels {
+        SettingsViewModel.Factory((application as OpenConverterApp).kggKeyStore)
+    }
 
     override fun attachBaseContext(newBase: Context) {
         val prefs = newBase.getSharedPreferences("prefs", Context.MODE_PRIVATE)
@@ -58,6 +62,7 @@ class MainActivity : ComponentActivity() {
                             onOpenHistory = { screen = "history" },
                         )
                         "settings" -> SettingsScreen(
+                            viewModel = settingsVm,
                             onBack = { screen = "home" },
                             themeMode = themeMode,
                             languageMode = languageMode,

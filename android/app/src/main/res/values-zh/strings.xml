@@ -36,6 +36,7 @@
     <string name="settings_menu">设置</string>
     <string name="start_conversion">开始</string>
     <string name="cancel_conversion">取消</string>
+    <string name="retry_failed">重试失败项</string>
     <string name="clear_queue">清空</string>
 
     <!-- HistoryScreen -->
@@ -51,10 +52,21 @@
     <string name="settings_appearance">界面外观</string>
     <string name="settings_theme">主题模式</string>
     <string name="settings_language">界面语言</string>
+    <string name="settings_kgg_keys_title">KGG 密钥</string>
+    <string name="settings_kgg_keys_description">导入包含对应歌曲密钥的酷狗 KGMusicV3.db 或 kgg.key。密钥仅保存在本设备的应用沙箱内。</string>
+    <string name="settings_kgg_keys_total">已保存密钥：%1$d</string>
+    <string name="settings_kgg_keys_result">新增 %1$d，更新 %2$d，当前共 %3$d</string>
+    <string name="settings_kgg_keys_error">导入失败：%1$s</string>
+    <string name="settings_kgg_keys_import">导入 KGMusicV3.db / kgg.key</string>
+    <string name="settings_kgg_keys_importing">正在导入…</string>
     <string name="theme_system">跟随系统</string>
     <string name="theme_dark">深色模式</string>
     <string name="theme_light">浅色模式</string>
     <string name="lang_system">跟随系统</string>
     <string name="lang_zh">简体中文</string>
     <string name="lang_en">English</string>
+    <string name="settings_kgg_root_guide_btn">Root 导入指引</string>
+    <string name="settings_kgg_root_guide_title">酷狗数据库 Root 导入指引</string>
+    <string name="settings_kgg_root_guide_content">在已 Root 的设备上，酷狗的本地数据库通常位于以下路径：\n/data/data/com.kugou.android/databases/kugou_music_v2.db\n\n您可以：\n1. 使用 MT管理器、Solid Explorer 等具有 Root 权限的文件管理器。\n2. 将该 db 文件复制到可访问的外部存储（如“下载/Download”文件夹）。\n3. 在本设置中点击“导入”并选择该 db 文件以自动抽取歌曲密钥。</string>
+    <string name="settings_kgg_root_guide_ok">我知道了</string>
 </resources>

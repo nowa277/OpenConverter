@@ -2,6 +2,7 @@ package com.openconverter.app.engine
 
 import com.openconverter.app.decoders.Decoder
 import com.openconverter.app.decoders.DecoderRegistry
+import com.openconverter.app.decoders.StreamingDecoder
 import com.openconverter.app.ffmpeg.FfmpegRunner
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
@@ -56,35 +57,63 @@ class ConversionEngine(
             coroutineContext.ensureActive()
 
             val ext = "." + displayName.substringAfterLast('.', "").lowercase()
-            val bytes = fs.readBytes(uri)
-            coroutineContext.ensureActive()
+            val decoderMatch = registry.findForName(displayName)
+            val streamingDecoder = decoderMatch?.decoder as? StreamingDecoder
+            var audio: ByteArray? = null
+            var streamedToCache = false
+            val srcFormatExt: String
+            val isPlain: Boolean
 
-            // Decide audio + srcFormatExt for the transcode subroutine
-            val (audio: ByteArray, srcFormatExt: String, isPlain: Boolean) =
-                if (ext in req.plainInputExts) {
-                    Triple(bytes, ext.removePrefix("."), true)
-                } else {
-                    val decoder = registry.find(ext)
-                        ?: return FileResult(i, uri, null, "no decoder for $ext", skipped = false).also {
-                            sink.onFileError(i, "no decoder for $ext")
-                        }
-                    val dr = decoder.decrypt(bytes)
-                    Triple(dr.audio, dr.format, false)
+            if (streamingDecoder != null) {
+                inPath = fs.cachePath("in_${i}_dec")
+                srcFormatExt = fs.openInput(uri).use { input ->
+                    fs.openCacheOutput(inPath!!).use { output ->
+                        streamingDecoder.decrypt(input, output)
+                    }
                 }
+                streamedToCache = true
+                isPlain = false
+            } else {
+                val bytes = fs.readBytes(uri)
+                val decoder = decoderMatch?.decoder
+                if (decoder != null) {
+                    val result = decoder.decrypt(bytes)
+                    audio = result.audio
+                    srcFormatExt = result.format
+                    isPlain = false
+                } else if (ext in req.plainInputExts) {
+                    audio = bytes
+                    srcFormatExt = ext.removePrefix(".")
+                    isPlain = true
+                } else {
+                    val message = "no decoder for $ext"
+                    sink.onFileError(i, message)
+                    return FileResult(i, uri, null, message, skipped = false)
+                }
+            }
+            coroutineContext.ensureActive()
 
             // Direct write if format already matches and no bitrate change requested.
             if (srcFormatExt == req.targetFormat && req.bitrate == null) {
-                val outName = outName(displayName, req.targetFormat)
-                val outDocUri = fs.writeOutput(
-                    req.outputFolderUri, outName, mimeFor(req.targetFormat), audio
-                )
+                val outName = outName(displayName, req.targetFormat, decoderMatch?.encryptedExtension)
+                val outDocUri = if (streamedToCache) {
+                    fs.writeOutputFromCache(
+                        req.outputFolderUri, outName, mimeFor(req.targetFormat), requireNotNull(inPath),
+                    )
+                } else {
+                    fs.writeOutput(
+                        req.outputFolderUri, outName, mimeFor(req.targetFormat), requireNotNull(audio),
+                    )
+                }
                 sink.onFileDone(i, outDocUri)
                 return FileResult(i, uri, outDocUri, null)
             }
 
             // Transcode subroutine
             val tag = if (isPlain) "plain" else "dec"
-            inPath = fs.cacheFile("in_${i}_$tag.$srcFormatExt", audio)
+            if (!streamedToCache) {
+                inPath = fs.cacheFile("in_${i}_$tag.$srcFormatExt", requireNotNull(audio))
+            }
             // Independent output cache name — never derived from inPath. When
             // srcFormatExt == targetFormat, replaceAfterLast('.') would yield
             // inPath itself, making ffmpeg refuse input==output.
@@ -93,7 +122,7 @@ class ConversionEngine(
 
             val probedMs = ffmpeg.probeDurationMs(inPath!!)
             val r = ffmpeg.execute(
-                inPath, outPath!!, req.targetFormat, req.bitrate,
+                inPath, outPath, req.targetFormat, req.bitrate,
                 totalDurationMs = probedMs,
                 onProgress = { p -> sink.onFileProgress(i, p) },
             )
@@ -102,10 +131,11 @@ class ConversionEngine(
                 sink.onFileError(i, msg)
                 return FileResult(i, uri, null, msg)
             }
-            val outBytes = fs.readCache(outPath!!)
-            val outDocUri = fs.writeOutput(
-                req.outputFolderUri, outName(displayName, req.targetFormat),
-                mimeFor(req.targetFormat), outBytes,
+            val outDocUri = fs.writeOutputFromCache(
+                req.outputFolderUri,
+                outName(displayName, req.targetFormat, decoderMatch?.encryptedExtension),
+                mimeFor(req.targetFormat),
+                outPath,
             )
             sink.onFileDone(i, outDocUri)
             return FileResult(i, uri, outDocUri, null)
@@ -133,7 +163,21 @@ internal fun mimeFor(format: String): String = when (format.lowercase()) {
     else   -> "application/octet-stream"
 }
 
-internal fun outName(displayName: String, targetFormat: String): String {
-    val stem = displayName.substringBeforeLast('.', displayName)
+internal fun outName(
+    displayName: String,
+    targetFormat: String,
+    encryptedExtension: String? = null,
+): String {
+    val stem = if (encryptedExtension == null) {
+        displayName.substringBeforeLast('.', displayName)
+    } else {
+        val lowerName = displayName.lowercase()
+        val marker = "$encryptedExtension."
+        when {
+            lowerName.endsWith(encryptedExtension) -> displayName.dropLast(encryptedExtension.length)
+            lowerName.contains(marker) -> displayName.substring(0, lowerName.lastIndexOf(marker))
+            else -> displayName.substringBeforeLast('.', displayName)
+        }
+    }
     return "$stem.$targetFormat"
 }

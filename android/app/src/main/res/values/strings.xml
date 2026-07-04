@@ -36,6 +36,7 @@
     <string name="settings_menu">Settings</string>
     <string name="start_conversion">Start</string>
     <string name="cancel_conversion">Cancel</string>
+    <string name="retry_failed">Retry failed</string>
     <string name="clear_queue">Clear</string>
 
     <!-- HistoryScreen -->
@@ -51,10 +52,21 @@
     <string name="settings_appearance">Appearance</string>
     <string name="settings_theme">Theme</string>
     <string name="settings_language">Language</string>
+    <string name="settings_kgg_keys_title">KGG keys</string>
+    <string name="settings_kgg_keys_description">Import KGMusicV3.db or kgg.key from a Kugou environment that contains keys for your files. Keys stay in this app on this device.</string>
+    <string name="settings_kgg_keys_total">Stored keys: %1$d</string>
+    <string name="settings_kgg_keys_result">Added %1$d, updated %2$d, total %3$d</string>
+    <string name="settings_kgg_keys_error">Import failed: %1$s</string>
+    <string name="settings_kgg_keys_import">Import KGMusicV3.db / kgg.key</string>
+    <string name="settings_kgg_keys_importing">Importing…</string>
     <string name="theme_system">System Default</string>
     <string name="theme_dark">Dark Mode</string>
     <string name="theme_light">Light Mode</string>
     <string name="lang_system">System Default</string>
     <string name="lang_zh">简体中文</string>
     <string name="lang_en">English</string>
+    <string name="settings_kgg_root_guide_btn">Root Guide</string>
+    <string name="settings_kgg_root_guide_title">KuGou DB Root Import Guide</string>
+    <string name="settings_kgg_root_guide_content">On a Rooted device, KuGou\'s local database is located at:\n/data/data/com.kugou.android/databases/kugou_music_v2.db\n\nHow to import:\n1. Use MT Manager, Solid Explorer, or any file manager with Root access.\n2. Copy the db file to external public storage (e.g. "Download" folder).\n3. Tap "Import" in this app and pick the db file to extract ekeys.</string>
+    <string name="settings_kgg_root_guide_ok">OK</string>
 </resources>

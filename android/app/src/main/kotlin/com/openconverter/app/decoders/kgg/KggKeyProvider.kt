@@ -1,0 +1,22 @@
+package com.openconverter.app.decoders.kgg
+
+fun interface KggKeyProvider {
+    fun find(encryptionKeyId: String): String?
+    fun count(): Int = -1
+}
+
+fun interface KggKeyImporter {
+    suspend fun import(uri: String): KggImportResult
+}
+
+data class KggImportResult(
+    val added: Int,
+    val updated: Int,
+    val total: Int,
+)
+
+sealed interface KggImportState {
+    data class Ready(val total: Int, val lastResult: KggImportResult? = null) : KggImportState
+    data object Importing : KggImportState
+    data class Failed(val message: String, val total: Int) : KggImportState
+}

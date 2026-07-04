@@ -150,8 +150,15 @@ fun HomeScreen(
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
+                        s.files.any { it.state == FileState.Failed } -> {
+                            GreenCta(
+                                text = stringResource(R.string.retry_failed),
+                                onClick = { viewModel.retryFailed(ctx) },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                         else -> {
-                            // All terminal (Done/Failed) → single Clear button
+                            // All done → single Clear button
                             androidx.compose.material3.OutlinedButton(
                                 onClick = { viewModel.clearFiles() },
                                 modifier = Modifier.fillMaxWidth(),

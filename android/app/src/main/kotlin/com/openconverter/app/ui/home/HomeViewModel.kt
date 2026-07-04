@@ -159,6 +159,13 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         ContextCompat.startForegroundService(context, intent)
     }
 
+    fun retryFailed(context: Context) {
+        val retries = retryEntries(_state.value.files)
+        if (retries.isEmpty()) return
+        _state.update { it.copy(files = retries) }
+        start(context)
+    }
+
     fun cancel(context: Context) {
         val cancel = Intent(context, ConversionService::class.java).setAction(ConversionService.ACTION_CANCEL)
         ContextCompat.startForegroundService(context, cancel)
@@ -188,5 +195,11 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    companion object { fun mapSize(raw: Long): Long = if (raw > 0) raw else -1L }
+    companion object {
+        fun mapSize(raw: Long): Long = if (raw > 0) raw else -1L
+
+        fun retryEntries(files: List<FileEntry>): List<FileEntry> = files
+            .filter { it.state == FileState.Failed }
+            .map { it.copy(state = FileState.Pending, percent = 0, error = null) }
+    }
 }
