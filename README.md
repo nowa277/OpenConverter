@@ -55,7 +55,7 @@
 | `.ncm` | 网易云音乐 |
 | `.kwm` | 酷我音乐 |
 | `.kgm` / `.kgma` / `.vpr` 等 | 酷狗音乐 |
-| `.kgg` / `.kgg.flac` | 酷狗音乐（v5：在设置中导入 `kgg.key` 文件；桌面端与 Android 端均支持） |
+| `.kgg` / `.kgg.flac` | 酷狗音乐（v5：在设置中导入 `kgg.key` 文件；目前仅windows桌面端均支持，并且音频必须本地酷狗下载 ） |
 | `.mgg` / `.mgg1` / `.bkc` 等 | QQ音乐 |
 | `.mp3` / `.flac` / `.wav` 等明文音频 | 任何平台 |
 
