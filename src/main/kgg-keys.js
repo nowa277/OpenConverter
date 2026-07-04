@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const cp = require('node:child_process');
 const initSqlJs = require('sql.js');
 const dbCipher = require('../decoders/kgg/db-cipher');
 
@@ -128,6 +129,21 @@ async function autoScanKeys(userDataPath, opts = {}) {
     if (appData) {
       pathsToScan.push(path.join(appData, 'KuGou', 'KGMusicV3.db'));
       pathsToScan.push(path.join(appData, 'KuGou8', 'KGMusicV3.db'));
+    }
+    // Aggressive fallback: Check all local drives
+    try {
+      const output = cp.execSync('wmic logicaldisk get name', { encoding: 'utf-8', windowsHide: true });
+      const drives = output.split('\\n').map(l => l.trim()).filter(l => l.match(/^[A-Z]:$/));
+      for (const drive of drives) {
+        pathsToScan.push(
+          path.join(drive, '\\\\', 'KuGou', 'KGMusicV3.db'),
+          path.join(drive, '\\\\', 'KuGou', 'KGMusic', 'KGMusicV3.db'),
+          path.join(drive, '\\\\', 'Program Files', 'KuGou', 'KGMusic', 'KGMusicV3.db'),
+          path.join(drive, '\\\\', 'Program Files (x86)', 'KuGou', 'KGMusic', 'KGMusicV3.db')
+        );
+      }
+    } catch (e) {
+      // Ignore wmic error
     }
   } else if (platform === 'darwin') {
     const home = env.HOME || '';

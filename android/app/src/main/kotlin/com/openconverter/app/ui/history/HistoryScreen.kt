@@ -11,10 +11,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -30,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -81,50 +85,62 @@ fun HistoryScreen(
                 }
             } else {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surface),
                 ) {
-                    items(state.records, key = { it.ts }) { r ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
+                    itemsIndexed(state.records, key = { _, r -> r.ts }) { index, r ->
+                        Column {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        r.inputName,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    Text(
+                                        "→ ${r.targetFormat}" + (r.error?.let { "  ($it)" } ?: ""),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = OcOnSurfaceVariant,
+                                    )
+                                }
+                                val chipColor = when (r.status) {
+                                    HistoryStatus.SUCCESS -> OcPrimary
+                                    HistoryStatus.FAILED  -> OcError
+                                }
+                                val chipText = when (r.status) {
+                                    HistoryStatus.SUCCESS -> stringResource(R.string.history_status_success)
+                                    HistoryStatus.FAILED  -> stringResource(R.string.history_status_failed)
+                                }
                                 Text(
-                                    r.inputName,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
+                                    chipText,
+                                    color = chipColor,
+                                    style = MaterialTheme.typography.labelMedium,
                                 )
                                 Text(
-                                    "→ ${r.targetFormat}" + (r.error?.let { "  ($it)" } ?: ""),
+                                    DateUtils.getRelativeTimeSpanString(
+                                        r.ts, System.currentTimeMillis(),
+                                        DateUtils.MINUTE_IN_MILLIS,
+                                    ).toString(),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = OcOnSurfaceVariant,
                                 )
                             }
-                            val chipColor = when (r.status) {
-                                HistoryStatus.SUCCESS -> OcPrimary
-                                HistoryStatus.FAILED  -> OcError
+                            if (index < state.records.lastIndex) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(start = 16.dp),
+                                    color = MaterialTheme.colorScheme.outlineVariant
+                                )
                             }
-                            val chipText = when (r.status) {
-                                HistoryStatus.SUCCESS -> stringResource(R.string.history_status_success)
-                                HistoryStatus.FAILED  -> stringResource(R.string.history_status_failed)
-                            }
-                            Text(
-                                chipText,
-                                color = chipColor,
-                                style = MaterialTheme.typography.labelMedium,
-                            )
-                            Text(
-                                DateUtils.getRelativeTimeSpanString(
-                                    r.ts, System.currentTimeMillis(),
-                                    DateUtils.MINUTE_IN_MILLIS,
-                                ).toString(),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = OcOnSurfaceVariant,
-                            )
                         }
                     }
                 }

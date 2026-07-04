@@ -295,38 +295,54 @@ body {
   display: flex; justify-content: flex-end;
   padding: 16px 0 32px;
   position: sticky; bottom: 0;
-  background: linear-gradient(180deg, transparent, var(--bg) 30%);
+  pointer-events: none; /* Let clicks pass through empty space */
+}
+.queue-footer .btn {
+  pointer-events: auto;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
-/* ---------- Settings panel (collapsible ekey field) ---------- */
-.settings-panel {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px 16px;
-  margin-bottom: 16px;
+/* ---------- List-group layout (Settings, History, About) ---------- */
+.list-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding-bottom: 40px;
 }
-.settings-panel > summary {
-  cursor: pointer;
-  color: var(--text-secondary);
+.list-container h2 {
+  font-size: 24px;
+  margin-bottom: 24px;
+  color: var(--text);
+}
+.list-group-title {
   font-size: 13px;
-  user-select: none;
-  list-style: none;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 24px 0 8px 16px;
 }
-.settings-panel > summary::before {
-  content: "▸ ";
+.list-group {
+  background: var(--bg-elevated);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.list-item {
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+.list-item:last-child {
+  border-bottom: none;
+}
+.list-item p {
   color: var(--text-dim);
 }
-.settings-panel[open] > summary::before {
-  content: "▾ ";
-}
-.settings-panel > summary:hover { color: var(--text); }
-.settings-row {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-  align-items: center;
-}
+
 .text-input {
   flex: 1;
   background: var(--bg-elevated-2);
