@@ -13,10 +13,11 @@ object KggQmc2 {
     private class MapCipher(private val key: ByteArray) : KggStreamCipher {
         override fun apply(buffer: ByteArray, length: Int, absoluteOffset: Long) {
             validate(buffer, length, absoluteOffset)
-            repeat(length) { index ->
+            val size = key.size
+            for (index in 0 until length) {
                 var offset = absoluteOffset + index
                 if (offset > MAP_OFFSET_BOUNDARY) offset %= MAP_OFFSET_BOUNDARY
-                val keyIndex = ((offset * offset + MAP_INDEX_OFFSET) % key.size).toInt()
+                val keyIndex = ((offset * offset + MAP_INDEX_OFFSET) % size).toInt()
                 val value = key[keyIndex].toInt() and 0xff
                 val shift = ((keyIndex and 7) + 4) % 8
                 val mask = ((value shl shift) or (value ushr shift)) and 0xff
@@ -28,6 +29,7 @@ object KggQmc2 {
     private class Rc4Cipher(private val key: ByteArray) : KggStreamCipher {
         private val box = ByteArray(key.size) { it.toByte() }
         private val hash: Long
+        private val stateBuf = ByteArray(key.size)
 
         init {
             var swapIndex = 0
@@ -86,21 +88,33 @@ object KggQmc2 {
         }
 
         private fun applySegment(buffer: ByteArray, start: Int, length: Int, offset: Long) {
-            val state = box.copyOf()
+            box.copyInto(stateBuf)
+            val state = stateBuf
+            val size = state.size
             var j = 0
             var k = 0
             val skip = (offset % RC4_SEGMENT_SIZE).toInt() + segmentSkip(offset / RC4_SEGMENT_SIZE)
-            repeat(skip + length) { step ->
-                j = (j + 1) % state.size
-                k = ((state[j].toInt() and 0xff) + k) % state.size
+            
+            for (step in 0 until skip) {
+                j = (j + 1) % size
+                val sj = state[j].toInt() and 0xff
+                k = (sj + k) % size
                 val value = state[j]
                 state[j] = state[k]
                 state[k] = value
-                if (step >= skip) {
-                    val stream = state[((state[j].toInt() and 0xff) + (state[k].toInt() and 0xff)) % state.size]
-                    val index = start + step - skip
-                    buffer[index] = (buffer[index].toInt() xor stream.toInt()).toByte()
-                }
+            }
+            
+            for (step in 0 until length) {
+                j = (j + 1) % size
+                val sj = state[j].toInt() and 0xff
+                k = (sj + k) % size
+                val value = state[j]
+                state[j] = state[k]
+                state[k] = value
+                
+                val stream = state[((state[j].toInt() and 0xff) + (state[k].toInt() and 0xff)) % size]
+                val index = start + step
+                buffer[index] = (buffer[index].toInt() xor stream.toInt()).toByte()
             }
         }
 

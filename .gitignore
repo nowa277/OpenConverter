@@ -76,3 +76,6 @@ android-v040-residue/
 
 # Promotional video project (generated locally, not committed)
 promo-video/
+
+# Codex config
+.codex/

@@ -1,6 +1,0 @@
-[mcp_servers.codegraph]
-command = "/home/user/npm-global/bin/codegraph"
-args = [
-    "serve",
-    "--mcp",
-]
