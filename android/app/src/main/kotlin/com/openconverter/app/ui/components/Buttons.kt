@@ -13,7 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-/** Outlined pill button — for secondary actions like "Add files". */
+/** Tonal premium button — for secondary actions like "Add files". */
 @Composable
 fun PillButton(
     text: String,
@@ -21,18 +21,21 @@ fun PillButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    OutlinedButton(
+    Button(
         onClick = onClick,
         enabled = enabled,
-        shape = RoundedCornerShape(9999.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        shape = RoundedCornerShape(12.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+            contentColor   = MaterialTheme.colorScheme.primary,
+        ),
         modifier = modifier.height(48.dp),
     ) {
         Text(text, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
     }
 }
 
-/** Solid green pill — the single accent CTA. Used ONLY for the primary action. */
+/** Solid green premium button — the single accent CTA. Used ONLY for the primary action. */
 @Composable
 fun GreenCta(
     text: String,
@@ -43,7 +46,7 @@ fun GreenCta(
     Button(
         onClick = onClick,
         enabled = enabled,
-        shape = RoundedCornerShape(9999.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor   = MaterialTheme.colorScheme.onPrimary,

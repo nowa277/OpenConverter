@@ -1,6 +1,7 @@
 package com.openconverter.app.ui.home
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,13 +12,21 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
@@ -96,8 +105,12 @@ fun HomeScreen(
                 },
                 actions = {
                     Box {
-                        TextButton(onClick = { menuOpen = true }) {
-                            Text(stringResource(R.string.more_title), color = MaterialTheme.colorScheme.onBackground)
+                        IconButton(onClick = { menuOpen = true }) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = stringResource(R.string.more_title),
+                                tint = MaterialTheme.colorScheme.onBackground
+                            )
                         }
                         DropdownMenu(
                             expanded = menuOpen,
@@ -177,49 +190,74 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Spacer(Modifier.height(8.dp))
-            PillButton(
-                text = "+ ${stringResource(R.string.home_pick_files)}",
-                onClick = { pickFiles.launch(arrayOf("audio/*", "*/*")) },
-            )
-            // Output folder row
-            val folderValue = state.folderError
-                ?: state.outputFolderName
-                ?: stringResource(R.string.home_no_folder)
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                SummaryRow(
-                    label = stringResource(R.string.home_pick_folder),
-                    value = folderValue,
-                    muted = state.outputFolderUri == null,
-                    onClick = { pickFolder.launch(null) },
+            if (state.files.isNotEmpty()) {
+                PillButton(
+                    text = stringResource(R.string.home_pick_files),
+                    onClick = { pickFiles.launch(arrayOf("audio/*", "*/*")) },
+                    modifier = Modifier.fillMaxWidth()
                 )
-                state.folderError?.let { err ->
-                    Text(
-                        text = err,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(horizontal = 4.dp),
+                Spacer(Modifier.height(8.dp))
+            }
+            
+            // Configuration Card Group
+            androidx.compose.material3.Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = androidx.compose.material3.CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column {
+                    // Output folder row
+                    val folderValue = state.folderError
+                        ?: state.outputFolderName
+                        ?: stringResource(R.string.home_no_folder)
+                    SummaryRow(
+                        icon = Icons.Default.Folder,
+                        label = stringResource(R.string.home_pick_folder),
+                        value = folderValue,
+                        muted = state.outputFolderUri == null,
+                        onClick = { pickFolder.launch(null) },
+                    )
+                    
+                    androidx.compose.material3.HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+                    
+                    // Format / bitrate row
+                    val fmtLabel = state.targetFormat.uppercase()
+                    val brLabel = state.bitrate ?: stringResource(R.string.home_bitrate_lossless)
+                    SummaryRow(
+                        icon = Icons.Default.Settings,
+                        label = stringResource(R.string.home_target_format),
+                        value = "$fmtLabel · $brLabel",
+                        muted = false,
+                        onClick = { viewModel.openControlsSheet() },
                     )
                 }
             }
-            // Format / bitrate row -> opens the bottom sheet
-            val fmtLabel = state.targetFormat.uppercase()
-            val brLabel = state.bitrate ?: stringResource(R.string.home_bitrate_lossless)
-            SummaryRow(
-                label = stringResource(R.string.home_target_format),
-                value = "$fmtLabel · $brLabel",
-                muted = false,
-                onClick = { viewModel.openControlsSheet() },
-            )
-            Spacer(Modifier.height(4.dp))
+            
+            state.folderError?.let { err ->
+                Text(
+                    text = err,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                )
+            }
+            Spacer(Modifier.height(8.dp))
 
             if (state.files.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        stringResource(R.string.home_no_files),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    PillButton(
+                        text = stringResource(R.string.home_pick_files),
+                        onClick = { pickFiles.launch(arrayOf("audio/*", "*/*")) },
+                        modifier = Modifier.fillMaxWidth(0.6f)
                     )
                 }
             } else {
@@ -247,11 +285,10 @@ fun HomeScreen(
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surface,
         ) {
-            // Generous padding + spacing so the sheet never feels cramped.
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 28.dp, vertical = 24.dp),
+                    .padding(horizontal = 24.dp, vertical = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 // --- Target format section ---
@@ -263,6 +300,7 @@ fun HomeScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         FORMATS.forEach { fmt ->
@@ -270,6 +308,7 @@ fun HomeScreen(
                                 label = fmt.uppercase(),
                                 selected = fmt == state.targetFormat,
                                 onClick = { viewModel.setTargetFormat(fmt) },
+                                modifier = Modifier.weight(1f)
                             )
                         }
                     }
@@ -283,6 +322,7 @@ fun HomeScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         BITRATES.forEach { b ->
@@ -290,6 +330,7 @@ fun HomeScreen(
                                 label = b,
                                 selected = b == state.bitrate,
                                 onClick = { viewModel.setBitrate(b) },
+                                modifier = Modifier.weight(1f)
                             )
                         }
                     }
@@ -301,12 +342,28 @@ fun HomeScreen(
 }
 
 @Composable
-private fun SummaryRow(label: String, value: String, muted: Boolean, onClick: () -> Unit) {
+private fun SummaryRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    value: String,
+    muted: Boolean,
+    onClick: () -> Unit
+) {
     val valueColor = if (muted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onBackground
     Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(24.dp)
+        )
         Column(modifier = Modifier.weight(1f)) {
             Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(
@@ -317,6 +374,10 @@ private fun SummaryRow(label: String, value: String, muted: Boolean, onClick: ()
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

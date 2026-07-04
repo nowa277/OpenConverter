@@ -27,7 +27,7 @@ class KggKeyStore internal constructor(
         context.filesDir,
         context.cacheDir,
         { uri ->
-            context.contentResolver.openInputStream(uri)
+            context.contentResolver.openInputStream(uri)?.let { java.io.BufferedInputStream(it, 64 * 1024) }
                 ?: throw IllegalArgumentException("Cannot open selected KGG key source")
         },
     )
@@ -87,8 +87,12 @@ class KggKeyStore internal constructor(
         val source = File.createTempFile(TEMP_PREFIX, ".source", cacheDir)
         val plaintext = File.createTempFile(TEMP_PREFIX, ".sqlite", cacheDir)
         try {
-            openInput(uri).use { input -> source.outputStream().use(input::copyTo) }
-            val prefix = source.inputStream().use { input ->
+            openInput(uri).use { input ->
+                java.io.BufferedOutputStream(source.outputStream(), 64 * 1024).use { output ->
+                    input.copyTo(output, bufferSize = 64 * 1024)
+                }
+            }
+            val prefix = java.io.BufferedInputStream(source.inputStream(), 64 * 1024).use { input ->
                 ByteArray(SQLITE_HEADER.size).also { bytes ->
                     var count = 0
                     while (count < bytes.size) {
@@ -105,8 +109,10 @@ class KggKeyStore internal constructor(
             val text = runCatching { decodeUtf8(raw) }.getOrNull()
             if (text != null && '\u0000' !in text) return KggKeyMap.parse(text)
 
-            source.inputStream().use { input ->
-                plaintext.outputStream().use { output -> KggDatabaseCipher.decrypt(input, output) }
+            java.io.BufferedInputStream(source.inputStream(), 64 * 1024).use { input ->
+                java.io.BufferedOutputStream(plaintext.outputStream(), 64 * 1024).use { output ->
+                    KggDatabaseCipher.decrypt(input, output)
+                }
             }
             return queryDatabase(plaintext)
         } finally {

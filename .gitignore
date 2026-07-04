@@ -26,6 +26,7 @@ build/*.img
 
 # Documentation (internal planning/spec/notes — not part of the shipped project)
 docs/
+docs/superpowers/
 
 # Previous work / leftover scaffolding
 .junk/

@@ -117,6 +117,13 @@ Download the latest APK files from the [Releases page](https://github.com/nowa27
 
 KGG v5 uses per-file keys. On Android, use the system document picker in Settings to import `KGMusicV3.db` from your own KuGou environment, or a portable `kgg.key`. Mappings are merged only inside the app sandbox on that device; the project does not bundle, upload, or query databases, accounts, or keys online.
 
+> [!IMPORTANT]
+> **Android KGG Decryption Limits & Workarounds:**
+> 1. **System Sandbox Restrictions**: On non-rooted phones, Android's security model strictly prohibits any application (including this app and ADB shell) from directly reading KuGou's private database `kugou_music_v2.db`. Therefore, automatic local key scanning is unavailable on Android.
+> 2. **Rootless Alternatives**:
+>    * **PC Database Transfer**: If you use KuGou on PC, you can copy its database file `KGMusicV3.db` (e.g. at `C:\Users\Public\KuGou\KGMusic\KGMusicV3.db` on Windows) to your phone's public folder (like `Download`), and then import it via the Settings page. Once imported, keys are merged into the app sandbox, enabling you to decrypt these KGG files locally forever.
+>    * **App Downgrade (Recommended)**: Downgrade the KuGou Music app on your phone to an older version. Older versions download files in `.kgm` or `.kgma` formats, which use algorithm-derived keys and do not require database lookups. OpenConverter on Android can decrypt `.kgm`/`.kgma` files directly without root or any database imports.
+
 ---
 
 ## Build and Development

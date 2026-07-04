@@ -52,15 +52,14 @@ const EXT_TO_DECODER = {
 };
 
 function pickDecoder(filePath) {
-  // Try the last extension first, then the second-to-last for double
-  // extensions like ".kgg.flac" or ".bkc.flac".
-  const exts = filePath.match(/(\.[^./]+)(\.[^./]+)?$/);
-  if (exts) {
-    const last = exts[1].toLowerCase();
-    if (EXT_TO_DECODER[last]) return EXT_TO_DECODER[last];
-    if (exts[2]) {
-      const double = (exts[1] + exts[2]).toLowerCase();
-      if (EXT_TO_DECODER[double]) return EXT_TO_DECODER[double];
+  const path = require('node:path');
+  const base = path.basename(filePath).toLowerCase();
+  
+  // Sort by length descending to match double extensions (e.g. .kgg.flac) before single (.flac)
+  const knownExts = Object.keys(EXT_TO_DECODER).sort((a, b) => b.length - a.length);
+  for (const ext of knownExts) {
+    if (base.endsWith(ext)) {
+      return EXT_TO_DECODER[ext];
     }
   }
   return undefined;

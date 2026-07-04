@@ -22,7 +22,7 @@ class AndroidFileSystemPort(private val context: Context) : FileSystemPort {
         context.contentResolver.openInputStream(Uri.parse(uri))!!.use { it.readBytes() }
 
     override fun openInput(uri: String): InputStream =
-        context.contentResolver.openInputStream(Uri.parse(uri))
+        context.contentResolver.openInputStream(Uri.parse(uri))?.let { java.io.BufferedInputStream(it, 64 * 1024) }
             ?: throw IllegalArgumentException("Cannot open input URI: $uri")
 
     override fun cacheFile(name: String, bytes: ByteArray): String {
@@ -38,13 +38,15 @@ class AndroidFileSystemPort(private val context: Context) : FileSystemPort {
         return File(context.cacheDir, safe).absolutePath
     }
 
-    override fun openCacheOutput(path: String): OutputStream = File(path).outputStream()
+    override fun openCacheOutput(path: String): OutputStream =
+        java.io.BufferedOutputStream(File(path).outputStream(), 64 * 1024)
 
     override fun readCache(path: String): ByteArray = File(path).readBytes()
 
     override fun writeOutput(folderUri: String, displayName: String, mime: String, bytes: ByteArray): String {
         val docUri = createOutputDocument(folderUri, displayName, mime)
-        context.contentResolver.openOutputStream(docUri)!!.use { it.write(bytes) }
+        (context.contentResolver.openOutputStream(docUri)?.let { java.io.BufferedOutputStream(it, 64 * 1024) }
+            ?: throw IllegalArgumentException("Cannot open output stream for: $displayName")).use { it.write(bytes) }
         return docUri.toString()
     }
 
@@ -55,8 +57,12 @@ class AndroidFileSystemPort(private val context: Context) : FileSystemPort {
         cachePath: String,
     ): String {
         val docUri = createOutputDocument(folderUri, displayName, mime)
-        File(cachePath).inputStream().use { input ->
-            context.contentResolver.openOutputStream(docUri)!!.use(input::copyTo)
+        java.io.BufferedInputStream(File(cachePath).inputStream(), 64 * 1024).use { input ->
+            val outStream = context.contentResolver.openOutputStream(docUri)?.let { java.io.BufferedOutputStream(it, 64 * 1024) }
+                ?: throw IllegalArgumentException("Cannot open output stream for: $displayName")
+            outStream.use { output ->
+                input.copyTo(output, bufferSize = 64 * 1024)
+            }
         }
         return docUri.toString()
     }

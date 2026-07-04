@@ -258,6 +258,9 @@ async function init() {
   }
   if (os.platform === 'linux') {
     $('kgg-linux-warning').hidden = false;
+    $('kgg-autoscan-checkbox').parentElement.style.display = 'none';
+    $('kgg-scan-btn').style.display = 'none';
+    $('kgg-autoscan-hint').style.display = 'none';
   }
   $('os-info').textContent = `OpenConverter v${os.appVersion}`;
 
