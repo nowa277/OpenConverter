@@ -14,6 +14,9 @@ const DEFAULTS = {
   theme: 'dark',
   language: 'auto',
   qmcEkey: '', // base64 string from QQ Music client DB
+  qqCookie: '', // Cookie for fetching network ekey
+  qqGuid: '', // GUID paired with the QQ Music cookie
+  qqUin: '', // UIN paired with the QQ Music cookie
   kggAutoScan: false,
 };
 
@@ -32,6 +35,9 @@ function get() {
     theme: s.get('theme'),
     language: s.get('language'),
     qmcEkey: s.get('qmcEkey'),
+    qqCookie: s.get('qqCookie'),
+    qqGuid: s.get('qqGuid'),
+    qqUin: s.get('qqUin'),
     kggAutoScan: s.get('kggAutoScan'),
   };
 }

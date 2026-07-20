@@ -34,7 +34,9 @@ const TRANSLATIONS = {
     ekey_panel_title: 'QQ Music ekey (required for .mflac / .mgg / .bkc)',
     ekey_placeholder: 'Paste base64 ekey from QQ Music client DB',
     btn_save: 'Save',
-    ekey_hint: 'Only needed for QQ Music mobile/desktop cache files (.mflac0, .mgg1, .bkc*). The ekey is a base64 string extracted from the QQ Music client\'s local database. Leave empty if you only need NCM / QMC0 / QMCFLAC / KGM / KWM.',
+    qq_cookie_placeholder: 'Paste QQ Music Cookie (for mgg/mflac API fetch)',
+    btn_scan_qq_memory: 'Auto Scan Memory',
+    ekey_hint: 'Only needed for QQ Music cache files (.mflac0, .mgg). Use Auto Scan while QQ Music is running to extract the Cookie automatically. Leave empty if you only need NCM / QMC0 / KGM / KWM.',
     dropzone_text: 'Drop .ncm / .qmc / .kgm files here',
     dropzone_hint_or: 'or',
     dropzone_hint_browse: 'browse',
@@ -65,8 +67,9 @@ const TRANSLATIONS = {
     status_kwm: 'KWM — implemented (round-trip on real MP3)',
     ffmpeg_detected: '(system ffmpeg in PATH)',
     ffmpeg_not_detected: '(not detected)',
-    toast_ekey_saved: 'QQ Music ekey saved',
-    toast_ekey_cleared: 'QQ Music ekey cleared',
+    toast_ekey_saved: 'QQ Music settings saved',
+    toast_ekey_cleared: 'QQ Music settings cleared',
+    toast_qq_scan_success: 'Cookie found! uin: {uin}',
     toast_history_cleared: 'History cleared',
     toast_history_load_failed: 'Failed to load history',
     toast_output_folder_required: 'Choose an output folder first',
@@ -111,7 +114,9 @@ const TRANSLATIONS = {
     ekey_panel_title: 'QQ 音乐 ekey (解密 .mflac / .mgg / .bkc 必需)',
     ekey_placeholder: '粘贴本地 QQ 音乐客户端数据库中的 Base64 ekey',
     btn_save: '保存',
-    ekey_hint: '仅在处理 QQ 音乐移动端或桌面端缓存文件 (.mflac0, .mgg1, .bkc*) 时才需要。ekey 是从 QQ 音乐本地数据库中提取的 Base64 字符串。若仅需处理 NCM / QMC0 / QMCFLAC / KGM / KWM，请保持为空。',
+    qq_cookie_placeholder: '粘贴 QQ 音乐 Cookie（用于 mgg/mflac 接口拉取）',
+    btn_scan_qq_memory: '自动扫描内存',
+    ekey_hint: '仅在处理 QQ 音乐缓存文件 (.mflac0, .mgg) 时才需要。在 QQ 音乐运行时点击自动扫描即可提取。若仅需处理 NCM / QMC0 / KGM / KWM，请保持为空。',
     dropzone_text: '拖曳 .ncm / .qmc / .kgm 等加密音频文件到这里',
     dropzone_hint_or: '或者',
     dropzone_hint_browse: '点击浏览',
@@ -142,8 +147,9 @@ const TRANSLATIONS = {
     status_kwm: 'KWM — 已实现 (真实 MP3 双向验证成功)',
     ffmpeg_detected: '(系统 PATH 中的 ffmpeg 已就绪)',
     ffmpeg_not_detected: '(未检测到)',
-    toast_ekey_saved: 'QQ 音乐 ekey 已保存',
-    toast_ekey_cleared: 'QQ 音乐 ekey 已清空',
+    toast_ekey_saved: 'QQ 音乐设置已保存',
+    toast_ekey_cleared: 'QQ 音乐设置已清空',
+    toast_qq_scan_success: '已成功提取 Cookie！uin: {uin}',
     toast_history_cleared: '历史记录已清除',
     toast_history_load_failed: '加载历史记录失败',
     toast_output_folder_required: '请先选择输出文件夹',
@@ -271,6 +277,7 @@ async function init() {
   if (cfg.language) state.language = cfg.language;
   if (cfg.theme) state.theme = cfg.theme;
   if (cfg.qmcEkey) $('ekey-input').value = cfg.qmcEkey;
+  if (cfg.qqCookie) $('qq-cookie-input').value = cfg.qqCookie;
   if (cfg.kggAutoScan !== undefined) $('kgg-autoscan-checkbox').checked = cfg.kggAutoScan;
   $('format-select').value = state.format;
   $('quality-select').value = state.quality;
@@ -319,8 +326,26 @@ function bindEvents() {
   // ekey (QQ Music)
   $('ekey-save-btn').addEventListener('click', async () => {
     const v = $('ekey-input').value.trim();
-    await api.invoke('config:set', { patch: { qmcEkey: v } });
-    toast(v ? t('toast_ekey_saved') : t('toast_ekey_cleared'), 'ok');
+    const c = $('qq-cookie-input').value.trim();
+    await api.invoke('config:set', { patch: { qmcEkey: v, qqCookie: c } });
+    toast(v || c ? t('toast_ekey_saved') : t('toast_ekey_cleared'), 'ok');
+  });
+
+  $('qq-scan-btn').addEventListener('click', async () => {
+    $('qq-scan-btn').disabled = true;
+    try {
+      const res = await api.invoke('qqmusic:extractCookie');
+      if (res.ok) {
+        $('qq-cookie-input').value = res.cookie;
+        await api.invoke('config:set', { patch: { qqCookie: res.cookie, qqGuid: res.guid, qqUin: res.uin } });
+        toast(t('toast_qq_scan_success', { uin: res.uin }), 'ok');
+      } else {
+        toast(res.error || 'Failed to scan memory', 'error');
+      }
+    } catch (err) {
+      toast('Error: ' + err.message, 'error');
+    }
+    $('qq-scan-btn').disabled = false;
   });
 
   // KGG Settings (KuGou)

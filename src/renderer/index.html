@@ -164,7 +164,7 @@
           <div class="list-container">
             <h2 data-i18n="nav_settings">Settings</h2>
             
-            <h3 class="list-group-title" data-i18n="ekey_panel_title">QQ Music ekey (required for .mflac / .mgg / .bkc)</h3>
+            <h3 class="list-group-title" data-i18n="ekey_panel_title">QQ Music ekey & Cookie (required for .mflac / .mgg / .bkc)</h3>
             <div class="list-group">
               <div class="list-item" style="flex-direction: column; align-items: stretch; gap: 8px;">
                 <div style="display: flex; gap: 8px;">
@@ -174,10 +174,16 @@
                          autocomplete="off" spellcheck="false" />
                   <button id="ekey-save-btn" class="btn btn-secondary" data-i18n="btn_save">Save</button>
                 </div>
+                <div style="display: flex; gap: 8px; margin-top: 4px;">
+                  <input type="text" id="qq-cookie-input" class="text-input" style="flex: 1;"
+                         placeholder="Paste QQ Music Cookie (for mgg/mflac API fetch)"
+                         data-i18n="qq_cookie_placeholder"
+                         autocomplete="off" spellcheck="false" />
+                  <button id="qq-scan-btn" class="btn btn-secondary" data-i18n="btn_scan_qq_memory">Auto Scan Memory</button>
+                </div>
                 <p class="settings-hint" data-i18n="ekey_hint" style="margin: 0; font-size: 12px; color: var(--text-dim);">
-                  Only needed for QQ Music mobile/desktop cache files (.mflac0, .mgg1, .bkc*).
-                  The ekey is a base64 string extracted from the QQ Music client's local database.
-                  Leave empty if you only need NCM / QMC0 / QMCFLAC / KGM / KWM.
+                  Only needed for QQ Music cache files (.mflac0, .mgg). Use Auto Scan while QQ Music is running to extract the Cookie automatically.
+                  Leave empty if you only need NCM / QMC0 / KGM / KWM.
                 </p>
               </div>
             </div>

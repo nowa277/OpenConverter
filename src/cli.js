@@ -22,6 +22,7 @@ function parseArgs(argv) {
     else if (a.startsWith('--quality=')) opts.quality = a.slice(10);
     else if (a.startsWith('--output-dir=')) opts.outputDir = a.slice(13);
     else if (a.startsWith('--key-path=')) opts.keyPath = a.slice(11);
+    else if (a.startsWith('--qq-cookie=')) opts.qqCookie = a.slice(12);
     else if (a === '--help' || a === '-h') { printHelp(); process.exit(0); }
     else opts.files.push(a);
   }
@@ -39,6 +40,7 @@ Options:
   --quality=320k|256k|...        Audio bitrate (default: 320k)
   --output-dir=PATH              Output directory (default: same as input)
   --key-path=PATH                Path to kgg.keys or KGMusicV3.db (for .kgg files)
+  --qq-cookie=COOKIE             QQ Music cookie for fetching ekey (for mgg/mflac)
   -h, --help                     Show this help
 `);
 }
@@ -61,7 +63,10 @@ async function processOne(inputPath, opts) {
         : path.join(os.homedir(), '.config', 'OpenConverter', 'kgg.keys');
       decodeOpts.keyPath = opts.keyPath || defKey;
     }
-    const r = decoder.decodeFile(inputPath, outDir, decodeOpts);
+    if (opts.qqCookie) {
+      decodeOpts.qqCookie = opts.qqCookie;
+    }
+    const r = await decoder.decodeFile(inputPath, outDir, decodeOpts);
     decrypted = r.outputPath;
     console.log(`✓ ${path.basename(inputPath)} → ${path.basename(decrypted)} (decrypted)`);
   } catch (e) {

@@ -1,25 +1,3 @@
-<!--
-╔══════════════════════════════════════════════════════════════════════╗
-║  DreamSeed Project — AI Creator Contest Official README Template       ║
-║                                                                      ║
-║  Instructions:                                                       ║
-║  1. Place this template at the top of the repository root README.     ║
-║  2. Use the official DreamField public banner image URL.             ║
-║  3. Please keep the DREAMFIELD_README_HEADER_START / END comments.    ║
-║  4. Below the divider, feel free to write your own project content.  ║
-╚══════════════════════════════════════════════════════════════════════╝
--->
-
-<!-- DREAMFIELD_README_HEADER_START -->
-
-<p align="center">
-  <a href="https://www.dreamfield.top">
-    <img src="https://www.dreamfield.top/dream-field/contest-readme/assets/dreamseed-readme-banner.png" alt="DreamSeed Contest Entry" width="100%" />
-  </a>
-</p>
-
-<!-- DREAMFIELD_README_HEADER_END -->
-
 <div align="center">
 
 # OpenConverter
@@ -54,7 +32,7 @@ A lightweight format conversion and decryption tool for audio workflows.<br/>
 
 ### Desktop Application UI
 <p align="center">
-  <img src="assets/screenshots/desktop_ui.png" alt="Desktop App UI" width="85%" />
+  <img src="assets/screenshots/new_linux_app.png" alt="Desktop App UI" width="85%" />
 </p>
 
 ### Android Mobile UI
@@ -116,6 +94,17 @@ Download the latest APK files from the [Releases page](https://github.com/nowa27
 * **x86_64**: `openconverter-v***-android-x86_64.apk` (Suitable for running and debugging on Android Emulators)
 
 KGG v5 uses per-file keys. On Android, use the system document picker in Settings to import `KGMusicV3.db` from your own KuGou environment, or a portable `kgg.key`. Mappings are merged only inside the app sandbox on that device; the project does not bundle, upload, or query databases, accounts, or keys online.
+
+### Auto Key Fetch Guide and Success Demo
+Supports one-click automatic key acquisition for KuGou and QQ Music formats. In the "Settings" page, you can automatically scan memory to get the QQ Music Cookie and fetch decryption info. KuGou Music also supports one-click full-disk automatic key scanning:
+<p align="center">
+  <img src="assets/screenshots/example.png" alt="Auto Key Fetch Guide" width="85%" />
+</p>
+
+Once successfully configured, you can simply drag and drop encrypted files for fully automated batch decryption and conversion:
+<p align="center">
+  <img src="assets/screenshots/history_presentation.png" alt="Successful Conversion History" width="85%" />
+</p>
 
 > [!IMPORTANT]
 > **Android KGG Decryption Limits & Workarounds:**

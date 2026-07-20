@@ -35,7 +35,7 @@
 
 ### 桌面端应用界面
 <p align="center">
-  <img src="assets/screenshots/desktop_ui.png" alt="Desktop App UI" width="85%" />
+  <img src="assets/screenshots/new_linux_app.png" alt="Desktop App UI" width="85%" />
 </p>
 
 ### Android 移动端应用界面
@@ -95,6 +95,17 @@ sudo apt install ./openconverter-v***-linux-amd64.deb
 * **x86_64**：`openconverter-v***-android-x86_64.apk` (适合在 Android 模拟器上运行与调试)
 
 Android 的 KGG v5 解密需要该文件对应的逐文件密钥。请在设置页通过系统文件选择器导入来自用户本人酷狗环境的 `KGMusicV3.db`，或导入便携的 `kgg.key`。映射只在本设备应用沙箱内合并保存；项目不附带、上传或在线查询数据库、账号及密钥。
+
+### 自动化解密设置引导与成功演示
+支持酷狗与QQ音乐格式密钥的一键自动获取。在“Settings”页面中可自动扫描内存获取QQ音乐Cookie并拉取解密所需信息，酷狗音乐同样支持一键开启全盘自动扫描密钥功能：
+<p align="center">
+  <img src="assets/screenshots/example.png" alt="Auto Key Fetch Guide" width="85%" />
+</p>
+
+设置成功后，即可直接拖拽加密文件，实现全自动批量解密并转换为常规格式：
+<p align="center">
+  <img src="assets/screenshots/history_presentation.png" alt="Successful Conversion History" width="85%" />
+</p>
 
 > [!IMPORTANT]
 > **Android 端 KGG 解密限制与应对策略：**

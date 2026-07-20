@@ -139,14 +139,14 @@ object QmcDecoder : Decoder {
         init {
             require(key.size == 16)
             require(rounds % 2 == 0)
-            val buf = ByteBuffer.wrap(key).order(ByteOrder.LITTLE_ENDIAN)
+            val buf = ByteBuffer.wrap(key).order(ByteOrder.BIG_ENDIAN)
             k0 = buf.int
             k1 = buf.int
             k2 = buf.int
             k3 = buf.int
         }
         fun decryptBlock(dst: ByteArray, dstOffset: Int, src: ByteArray, srcOffset: Int) {
-            val srcBuf = ByteBuffer.wrap(src, srcOffset, 8).order(ByteOrder.LITTLE_ENDIAN)
+            val srcBuf = ByteBuffer.wrap(src, srcOffset, 8).order(ByteOrder.BIG_ENDIAN)
             var v0 = srcBuf.int
             var v1 = srcBuf.int
             val delta = 0x9e3779b9.toInt()
@@ -156,7 +156,7 @@ object QmcDecoder : Decoder {
                 v0 -= ((v1 shl 4) + k0) xor (v1 + sum) xor ((v1 ushr 5) + k1)
                 sum -= delta
             }
-            val dstBuf = ByteBuffer.wrap(dst, dstOffset, 8).order(ByteOrder.LITTLE_ENDIAN)
+            val dstBuf = ByteBuffer.wrap(dst, dstOffset, 8).order(ByteOrder.BIG_ENDIAN)
             dstBuf.putInt(v0)
             dstBuf.putInt(v1)
         }
@@ -209,7 +209,7 @@ object QmcDecoder : Decoder {
     }
 
     private val MIX_KEY_1 = byteArrayOf(0x33, 0x38, 0x36, 0x5A, 0x4A, 0x59, 0x21, 0x40, 0x23, 0x2A, 0x24, 0x25, 0x5E, 0x26, 0x29, 0x28)
-    private val MIX_KEY_2 = byteArrayOf(0x2A, 0x2A, 0x23, 0x21, 0x28, 0x23, 0x24, 0x25, 0x26, 0x5E, 0x61, 0x31, 0x63, 0x5A, 0x2C, 0x54)
+    private val MIX_KEY_2 = byteArrayOf(0x2A, 0x24, 0x25, 0x5E, 0x26, 0x29, 0x28, 0x23, 0x40, 0x21, 0x33, 0x38, 0x36, 0x5A, 0x4A, 0x59)
 
     private fun decryptV2Key(keyBuf: ByteArray): ByteArray {
         if (keyBuf.size >= 18 && keyBuf.sliceArray(0 until 18).decodeToString() == "QQMusic EncV2,Key:") {
@@ -395,6 +395,17 @@ object QmcDecoder : Decoder {
         return out
     }
 
+    private fun detectAudioFormat(audio: ByteArray): String? {
+        if (audio.size < 4) return null
+        if (audio[0] == 0x49.toByte() && audio[1] == 0x44.toByte() && audio[2] == 0x33.toByte()) return "mp3"
+        if (audio[0] == 0x66.toByte() && audio[1] == 0x4c.toByte() && audio[2] == 0x61.toByte() && audio[3] == 0x43.toByte()) return "flac"
+        if (audio[0] == 0x4f.toByte() && audio[1] == 0x67.toByte() && audio[2] == 0x67.toByte() && audio[3] == 0x53.toByte()) return "ogg"
+        if (audio[0] == 0x52.toByte() && audio[1] == 0x49.toByte() && audio[2] == 0x46.toByte() && audio[3] == 0x46.toByte()) return "wav"
+        if ((audio[0].toInt() and 0xff) == 0xff && (audio[1].toInt() and 0xe0) == 0xe0) return "mp3"
+        if (audio.size >= 8 && audio[4] == 0x66.toByte() && audio[5] == 0x74.toByte() && audio[6] == 0x79.toByte() && audio[7] == 0x70.toByte()) return "m4a"
+        return null
+    }
+
     override fun decrypt(input: ByteArray): DecryptResult {
         val detected = detectKey(input)
         val audio = if (detected != null) {
@@ -403,6 +414,12 @@ object QmcDecoder : Decoder {
         } else {
             decryptV1(input)
         }
-        return DecryptResult(audio = audio, format = FormatSniffer.sniff(audio))
+        val format = if (detected != null) {
+            detectAudioFormat(audio)
+                ?: throw IllegalArgumentException("QMCv2 decryption failed: decrypted data is not a recognized audio stream")
+        } else {
+            FormatSniffer.sniff(audio)
+        }
+        return DecryptResult(audio = audio, format = format)
     }
 }

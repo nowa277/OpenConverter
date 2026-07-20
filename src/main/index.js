@@ -26,6 +26,7 @@ const { resolveFfmpegPath, resolveFfprobePath } = require('./ffmpeg-path');
 const HistoryStore = require('./history');
 const kggKeys = require('./kgg-keys');
 const dbCipher = require('../decoders/kgg/db-cipher');
+const qqmusicAuth = require('./qqmusic-auth');
 
 let historyStore = null;
 function getHistoryStore() {
@@ -138,14 +139,31 @@ async function convertOne(jobId, inputPath, format, outputDir, quality) {
 
   // QMCv2 formats (mflac/mgg/bkc) require user-provided ekey from QQ Music DB
   const needsEkey = decoders.listRequiresEkey().includes(ext);
-  const opts = needsEkey ? { ekey: config.get().qmcEkey } : {};
+  const cfg = config.get();
+  const opts = needsEkey ? { ekey: cfg.qmcEkey, qqCookie: cfg.qqCookie, qqGuid: cfg.qqGuid, qqUin: cfg.qqUin } : {};
+  
+  if (needsEkey && !opts.qqCookie && process.platform === 'win32') {
+    try {
+      const authRes = await qqmusicAuth.extractCookie();
+      if (authRes.ok && authRes.cookie) {
+        opts.qqCookie = authRes.cookie;
+        opts.qqGuid = authRes.guid;
+        opts.qqUin = authRes.uin;
+        // Optionally save to config so we don't have to scan every time
+        config.set({ qqCookie: authRes.cookie, qqGuid: authRes.guid, qqUin: authRes.uin });
+      }
+    } catch (err) {
+      console.error('Auto-extract cookie failed:', err);
+    }
+  }
+
   if (ext === '.kgg' || ext === '.kgg.flac') {
     opts.keyPath = path.join(app.getPath('userData'), 'kgg.keys');
   }
 
   let decryptedPath;
   try {
-    const r = decoder.decodeFile(inputPath, outputDir, opts);
+    const r = await decoder.decodeFile(inputPath, outputDir, opts);
     decryptedPath = r.outputPath;
   } catch (e) {
     throw new Error(`Decryption failed: ${e.message}`);
@@ -298,6 +316,10 @@ const HANDLERS = {
 
   'config:get': async () => config.get(),
   'config:set': async (data) => { config.set(data?.patch || {}); return config.get(); },
+
+  'qqmusic:extractCookie': async () => {
+    return qqmusicAuth.extractCookie();
+  },
 
   'kgg:importFile': async () => {
     const r = await dialog.showOpenDialog(mainWindow, {

@@ -2,7 +2,7 @@
   "name": "openconverter",
   "productName": "OpenConverter",
   "version": "0.3.5",
-  "description": "Open-source audio converter for Linux. Converts encrypted formats (NCM/QMC0/KGM/KWM) to common audio formats.",
+  "description": "Unlock and convert protected audio formats to mp3, flac, wav, ogg, m4a",
   "homepage": "https://github.com/nowa277/OpenConverter",
   "main": "src/main/index.js",
   "type": "commonjs",
@@ -51,20 +51,8 @@
     },
     "linux": {
       "target": [
-        {
-          "target": "deb",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        },
-        {
-          "target": "AppImage",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        }
+        { "target": "deb", "arch": ["x64", "arm64"] },
+        { "target": "AppImage", "arch": ["x64", "arm64"] }
       ],
       "category": "AudioVideo",
       "icon": "build/icons/icon.png",
@@ -74,30 +62,14 @@
     },
     "win": {
       "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
-        }
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
       ],
       "icon": "build/icons/icon.ico",
       "artifactName": "${name}-v${version}-windows-${arch}.${ext}",
       "extraResources": [
-        {
-          "from": "scripts/win-deps/ffmpeg.exe",
-          "to": "ffmpeg.exe"
-        },
-        {
-          "from": "scripts/win-deps/ffprobe.exe",
-          "to": "ffprobe.exe"
-        }
+        { "from": "scripts/win-deps/ffmpeg.exe", "to": "ffmpeg.exe" },
+        { "from": "scripts/win-deps/ffprobe.exe", "to": "ffprobe.exe" }
       ]
     },
     "nsis": {

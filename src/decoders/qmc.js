@@ -1,6 +1,69 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+async function fetchEkeyFromApi(songMid, fileMid, cookie, opts = {}) {
+  if (!cookie) return null;
+  let uin = opts.qqUin || '';
+  const uinMatch = cookie.match(/qqmusic_uin=o?(\d+)/) || cookie.match(/(?:^|;\s*)uin=o?(\d+)/) || cookie.match(/qm_hideuin=o?(\d+)/) || cookie.match(/uid=o?(\d+)/) || cookie.match(/ptui_loginuin=o?([^;]+)/);
+  if (uinMatch) uin = uinMatch[1].replace(/^o0*/, ''); // strip leading o and zeros
+  uin = String(uin).replace(/^o?0*/, '');
+  if (!uin) return null;
+
+  let guid = opts.qqGuid;
+  if (!guid) {
+    const guidMatch = cookie.match(/qqmusic_guid=([^;]+)/);
+    if (guidMatch) guid = guidMatch[1];
+    else guid = '10000';
+  }
+
+  const ext = fileMid.startsWith('F0') ? '.mflac' : '.mgg';
+  const requestData = {
+    comm: {
+      cv: 4747474, ct: 24, format: 'json',
+      inCharset: 'utf-8', outCharset: 'utf-8',
+      notice: 0, platform: 'yqq.json', needNewCode: 1,
+      uin: 'UIN_PLACEHOLDER', g_tk_new_20200303: 5381, g_tk: 5381,
+    },
+    req_1: {
+      module: 'vkey.GetVkeyServer',
+      method: 'CgiGetVkey',
+      param: {
+        filename: [`${fileMid}${ext}`],
+        guid: guid,
+        songmid: [songMid],
+        songtype: [0],
+        uin: uin,
+        loginflag: 1,
+        platform: '20',
+      },
+    },
+  };
+
+  try {
+    const res = await fetch('https://u.y.qq.com/cgi-bin/musicu.fcg', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': cookie,
+        'User-Agent': 'QQMusic/21'
+      },
+      body: JSON.stringify(requestData).replace('"UIN_PLACEHOLDER"', uin)
+    });
+    const result = await res.json();
+    const midurlinfo = result?.req_1?.data?.midurlinfo;
+    if (midurlinfo && midurlinfo.length > 0) {
+      const ekey = midurlinfo[0].ekey;
+      if (ekey) return ekey;
+      // If ekey is empty but midurlinfo exists, the API rejected us
+      throw new Error(`API rejected request. Response: ${JSON.stringify(result.req_1.data)}`);
+    }
+    throw new Error(`Invalid API response: ${JSON.stringify(result)}`);
+  } catch (err) {
+    console.error('fetchEkeyFromApi error:', err);
+    throw err;
+  }
+}
+
 // =====================================================================
 // Legacy / Shared Constants
 // =====================================================================
@@ -68,15 +131,15 @@ class TeaCipher {
   constructor(key, rounds = 64) {
     if (key.length !== 16) throw Error('incorrect key size');
     if ((rounds & 1) !== 0) throw Error('odd number of rounds');
-    this.k0 = key.readUInt32LE(0);
-    this.k1 = key.readUInt32LE(4);
-    this.k2 = key.readUInt32LE(8);
-    this.k3 = key.readUInt32LE(12);
+    this.k0 = key.readUInt32BE(0);
+    this.k1 = key.readUInt32BE(4);
+    this.k2 = key.readUInt32BE(8);
+    this.k3 = key.readUInt32BE(12);
     this.rounds = rounds;
   }
   decryptBlock(dst, dstOffset, src, srcOffset) {
-    let v0 = src.readUInt32LE(srcOffset);
-    let v1 = src.readUInt32LE(srcOffset + 4);
+    let v0 = src.readUInt32BE(srcOffset);
+    let v1 = src.readUInt32BE(srcOffset + 4);
     let sum = (TeaCipher.delta * this.rounds / 2) >>> 0;
     for (let i = 0; i < this.rounds / 2; i++) {
       v1 -= ((v0 << 4) + this.k2) ^ (v0 + sum) ^ ((v0 >>> 5) + this.k3);
@@ -85,8 +148,8 @@ class TeaCipher {
       v0 >>>= 0;
       sum = (sum - TeaCipher.delta) >>> 0;
     }
-    dst.writeUInt32LE(v0, dstOffset);
-    dst.writeUInt32LE(v1, dstOffset + 4);
+    dst.writeUInt32BE(v0, dstOffset);
+    dst.writeUInt32BE(v1, dstOffset + 4);
   }
 }
 
@@ -141,7 +204,7 @@ function decryptTencentTea(inBuf, key) {
 }
 
 const MIX_KEY_1 = Buffer.from([0x33, 0x38, 0x36, 0x5A, 0x4A, 0x59, 0x21, 0x40, 0x23, 0x2A, 0x24, 0x25, 0x5E, 0x26, 0x29, 0x28]);
-const MIX_KEY_2 = Buffer.from([0x2A, 0x2A, 0x23, 0x21, 0x28, 0x23, 0x24, 0x25, 0x26, 0x5E, 0x61, 0x31, 0x63, 0x5A, 0x2C, 0x54]);
+const MIX_KEY_2 = Buffer.from([0x2A, 0x24, 0x25, 0x5E, 0x26, 0x29, 0x28, 0x23, 0x40, 0x21, 0x33, 0x38, 0x36, 0x5A, 0x4A, 0x59]);
 
 function decryptV2Key(keyBuf) {
   if (keyBuf.length >= 18 && keyBuf.slice(0, 18).toString('ascii') === 'QQMusic EncV2,Key:') {
@@ -245,6 +308,7 @@ class QmcRC4Cipher {
   }
   getSegmentKey(id) {
     const seed = this.key[id % this.N];
+    if (seed === 0) return 0;
     const idx = Math.floor((this.hash / ((id + 1) * seed)) * 100.0);
     return idx % this.N;
   }
@@ -298,10 +362,24 @@ class QmcRC4Cipher {
 function detectKey(buf) {
   const len = buf.length;
   if (len >= 8 && buf.slice(len - 8).toString('ascii') === 'musicex\x00') {
-    throw new Error('This file was encrypted with a newer QQ Music client (musicex) without an embedded key. Please downgrade your client or provide a key database.');
+    if (len >= 16) {
+      const tailSize = buf.readUInt32LE(len - 16);
+      if (tailSize > 0 && tailSize < len - 16) {
+        const tail = buf.slice(len - 16 - tailSize, len - 16);
+        if (tail.length >= 184) {
+          const songMid = tail.slice(28, 88).toString('utf16le').replace(/\0+$/, '');
+          const filename = tail.slice(88, 184).toString('utf16le').replace(/\0+$/, '');
+          const fileMid = filename.replace('.mflac', '').replace('.mgg', '');
+          return { format: 'musicex', songMid, fileMid, audioLen: len - 16 - tailSize };
+        }
+      }
+    }
+    throw new Error('This file was encrypted with a newer QQ Music client (musicex) without an embedded key. Please provide your QQ Music Cookie in Settings to unlock it.');
   }
   if (len >= 4 && buf.slice(len - 4).toString('ascii') === 'STag') {
-    throw new Error('This file contains an STag but no embedded key. Please downgrade your QQ Music client or provide a key database.');
+    // STag might not have ekey, but we might need network fetch. Wait, does STag have songMid?
+    // According to qmdec, STag is legacy and if ekey_len <= 0, it's invalid.
+    throw new Error('This file contains an STag but no embedded key. Please provide your QQ Music Cookie in Settings or downgrade your client.');
   }
 
   // STag at the head
@@ -316,11 +394,11 @@ function detectKey(buf) {
   // QTag at the tail
   const qTag = buf.slice(len - 4).toString('ascii');
   if (qTag === 'QTag') {
-    const metaLen = buf.readUInt32BE(len - 8);
+    const metaLen = buf.readUInt32LE(len - 8);
     if (metaLen > 0 && metaLen < len - 8) {
       const rawMeta = buf.slice(len - 8 - metaLen, len - 8).toString('utf-8');
       const parts = rawMeta.split(',');
-      if (parts.length > 0 && parts[0]) return { ekey: parts[0], audioLen: len - 8 - metaLen };
+      if (parts.length > 1 && parts[1]) return { ekey: parts[1], audioLen: len - 8 - metaLen };
     }
   }
 
@@ -339,7 +417,7 @@ function applyMask(buf, mask) {
   const len = buf.length;
   const limit1 = Math.min(len, 32768);
   for (let i = 0; i < limit1; i++) buf[i] ^= mask[i];
-  for (let i = 32768; i < len; i++) buf[i] ^= mask[i % 32767];
+  for (let i = 32768; i < len; i++) buf[i] ^= mask[i % 32768];
 }
 
 function decryptV1Buffer(qmcBuf) {
@@ -366,14 +444,18 @@ function decryptV2Buffer(qmcBuf, ekeyB64) {
 }
 
 function inferFormat(audio, fallback = 'mp3') {
-  if (audio.length < 4) return fallback;
+  return detectAudioFormat(audio) || fallback;
+}
+
+function detectAudioFormat(audio) {
+  if (audio.length < 4) return null;
   if (audio[0] === 0x49 && audio[1] === 0x44 && audio[2] === 0x33) return 'mp3';
   if (audio[0] === 0x66 && audio[1] === 0x4c && audio[2] === 0x61 && audio[3] === 0x43) return 'flac';
   if (audio[0] === 0x4f && audio[1] === 0x67 && audio[2] === 0x67 && audio[3] === 0x53) return 'ogg';
   if (audio[0] === 0x52 && audio[1] === 0x49 && audio[2] === 0x46 && audio[3] === 0x46) return 'wav';
   if (audio[0] === 0xff && (audio[1] & 0xe0) === 0xe0) return 'mp3';
   if (audio.length >= 8 && audio[4] === 0x66 && audio[5] === 0x74 && audio[6] === 0x79 && audio[7] === 0x70) return 'm4a';
-  return fallback;
+  return null;
 }
 
 function decodeV1File(inputPath, outputDir) {
@@ -390,7 +472,7 @@ function decodeV1File(inputPath, outputDir) {
   return { outputPath: outPath, format: fmt };
 }
 
-function decodeV2File(inputPath, outputDir, opts = {}) {
+async function decodeV2File(inputPath, outputDir, opts = {}) {
   const ext = path.extname(inputPath).toLowerCase();
   const outExtHint = EXT_MAP_V2[ext] || 'mp3';
   const input = fs.readFileSync(inputPath);
@@ -398,13 +480,26 @@ function decodeV2File(inputPath, outputDir, opts = {}) {
   const detected = detectKey(input);
   let audio;
   if (detected) {
-    const cipherText = input.slice(0, detected.audioLen);
-    audio = decryptV2Buffer(cipherText, detected.ekey);
+    if (detected.format === 'musicex') {
+      const ekey = await fetchEkeyFromApi(detected.songMid, detected.fileMid, opts.qqCookie, opts);
+      if (!ekey) {
+        throw new Error('QQ Music VIP Cookie required (or cookie expired). Please log into QQ Music with a VIP account, play a VIP song, and click Settings -> Scan QQ Music Memory.');
+      }
+      const cipherText = input.slice(0, detected.audioLen);
+      audio = decryptV2Buffer(cipherText, ekey);
+    } else if (detected.ekey) {
+      const cipherText = input.slice(0, detected.audioLen);
+      audio = decryptV2Buffer(cipherText, detected.ekey);
+    }
   } else {
     audio = decryptV2Buffer(input, opts.ekey);
   }
   
-  const fmt = inferFormat(audio, outExtHint);
+  const detectedFormat = detectAudioFormat(audio);
+  if (!detectedFormat) {
+    throw new Error('QMCv2 decryption failed: decrypted data is not a recognized audio stream. The QQ Music Cookie/GUID may be expired or mismatched.');
+  }
+  const fmt = detectedFormat || outExtHint;
   const base = inputPath.replace(/\.[^./]+$/, '');
   const name = base.split(/[\\/]/).pop();
   const outPath = outputDir ? path.join(outputDir, `${name}.${fmt}`) : `${base}.${fmt}`;
@@ -413,9 +508,9 @@ function decodeV2File(inputPath, outputDir, opts = {}) {
   return { outputPath: outPath, format: fmt };
 }
 
-function decodeFile(inputPath, outputDir, opts = {}) {
+async function decodeFile(inputPath, outputDir, opts = {}) {
   const ext = path.extname(inputPath).toLowerCase();
-  if (EXT_MAP_V2[ext]) return decodeV2File(inputPath, outputDir, opts);
+  if (EXT_MAP_V2[ext]) return await decodeV2File(inputPath, outputDir, opts);
   return decodeV1File(inputPath, outputDir);
 }
 

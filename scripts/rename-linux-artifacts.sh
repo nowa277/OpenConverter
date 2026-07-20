@@ -17,11 +17,20 @@ renamed=0
 for f in "$RELEASE"/openconverter-v*-linux-x86_64.AppImage "$RELEASE"/openconverter-v*-linux-aarch64.AppImage; do
   if [[ "$f" == *x86_64* ]]; then
     newname="${f/-x86_64.AppImage/-x64.AppImage}"
+    oldbase="$(basename "$f")"
+    newbase="$(basename "$newname")"
+    yml="$RELEASE/latest-linux.yml"
   else
     newname="${f/-aarch64.AppImage/-arm64.AppImage}"
+    oldbase="$(basename "$f")"
+    newbase="$(basename "$newname")"
+    yml="$RELEASE/latest-linux-arm64.yml"
   fi
   if [ "$f" != "$newname" ]; then
     mv "$f" "$newname"
+    if [ -f "$yml" ]; then
+      sed -i "s/$oldbase/$newbase/g" "$yml"
+    fi
     echo "renamed: $(basename "$f") -> $(basename "$newname")"
     renamed=$((renamed+1))
   fi
