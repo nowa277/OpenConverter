@@ -25,7 +25,8 @@ const { execFileSync } = require('node:child_process');
 
 const MAGIC = Buffer.from('CTENFDAM', 'ascii');
 const CORE_KEY = Buffer.from('687A4852416D736F356B496E62617857', 'hex');
-const PREFIX = Buffer.from('neteasecloudmusic\0', 'ascii'); // 17 bytes
+// Real files: key plaintext = "neteasecloudmusic" (17 bytes) + RC4 key bytes.
+const PREFIX = Buffer.from('neteasecloudmusic', 'ascii'); // 17 bytes
 
 function aesEcbEncrypt(block, key) {
   const c = crypto.createCipheriv('aes-128-ecb', key, null);

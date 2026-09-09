@@ -8,7 +8,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('api', {
   invoke: (method, data) => ipcRenderer.invoke('process-message', { method, data }),
   on: (channel, listener) => {
-    const allowed = ['convert:progress', 'win:maximizedChanged'];
+    const allowed = ['convert:progress', 'win:maximizedChanged', 'theme:systemChanged'];
     if (!allowed.includes(channel)) return;
     const wrapped = (_evt, payload) => listener(payload);
     ipcRenderer.on(channel, wrapped);

@@ -23,13 +23,15 @@ function makeStagBuffer(ekey, audioSize = 32) {
   return buf;
 }
 
-test('detectKey recognises STag head and returns ekey + audioLen', () => {
+test('detectKey recognises STag head and returns ekey + audio span', () => {
   const ekey = 'AAAAAAAAAAAAAAAA'; // 16 base64 chars
   const buf = makeStagBuffer(ekey);
   const result = detectKey(buf);
   assert.ok(result, 'should detect STag');
   assert.strictEqual(result.ekey, ekey);
-  assert.strictEqual(result.audioLen, 0x18 + ekey.length);
+  assert.strictEqual(result.audioOffset, 0x18 + ekey.length);
+  assert.strictEqual(result.audioLen, 32);
+  assert.strictEqual(result.audioOffset + result.audioLen, buf.length);
 });
 
 test('detectKey honours shorter ekey (8 chars)', () => {
@@ -38,7 +40,8 @@ test('detectKey honours shorter ekey (8 chars)', () => {
   const result = detectKey(buf);
   assert.ok(result);
   assert.strictEqual(result.ekey, ekey);
-  assert.strictEqual(result.audioLen, 0x18 + 8);
+  assert.strictEqual(result.audioOffset, 0x18 + 8);
+  assert.strictEqual(result.audioLen, 32);
 });
 
 test('detectKey rejects STag with implausibly large ekey length', () => {
@@ -73,6 +76,26 @@ test('detectKey falls through to QTag tail when no STag head', () => {
   const result = detectKey(qbuf);
   assert.ok(result);
   assert.strictEqual(result.ekey, 'ekey');
+  assert.strictEqual(result.audioOffset, 0);
+  assert.strictEqual(result.audioLen, 16);
+});
+
+test('detectKey recognises raw ekey tail (little-endian length)', () => {
+  const ekey = 'QUJDREVGR0g='; // base64
+  const audio = Buffer.alloc(40, 0x5a);
+  const buf = Buffer.concat([audio, Buffer.from(ekey, 'ascii'), Buffer.alloc(4)]);
+  buf.writeUInt32LE(ekey.length, buf.length - 4);
+  const result = detectKey(buf);
+  assert.ok(result);
+  assert.strictEqual(result.ekey, ekey);
+  assert.strictEqual(result.audioOffset, 0);
+  assert.strictEqual(result.audioLen, 40);
+});
+
+test('detectKey throws a helpful error for STag-tail files without a key', () => {
+  const buf = Buffer.alloc(64, 0x11);
+  buf.write('STag', buf.length - 4, 4, 'ascii');
+  assert.throws(() => detectKey(buf), /STag but no embedded key/);
 });
 
 test('EXT_MAP_V2 covers STag variants', () => {
@@ -113,12 +136,13 @@ test('QMC v2 STag: full detect + decrypt chain with synthetic data', () => {
   assert.ok(detected, 'STag detection must succeed');
   assert.strictEqual(detected.ekey, ekeyB64, 'ekey should round-trip');
   assert.strictEqual(
-    detected.audioLen,
+    detected.audioOffset,
     0x18 + ekeyB64.length,
-    'audioLen should start right after the STag header',
+    'audio should start right after the STag header',
   );
+  assert.strictEqual(detected.audioLen, ciphertext.length);
 
-  const audio = decryptV2Buffer(file.subarray(detected.audioLen), detected.ekey);
+  const audio = decryptV2Buffer(file.subarray(detected.audioOffset, detected.audioOffset + detected.audioLen), detected.ekey);
   assert.deepStrictEqual(audio, PLAINTEXT, 'decrypted audio must match original');
 });
 
@@ -144,6 +168,6 @@ test('QMC v2 STag: handle small ekey (8-byte raw) by key_compress wrap-around', 
 
   const detected = detectKey(file);
   assert.ok(detected);
-  const audio = decryptV2Buffer(file.subarray(detected.audioLen), detected.ekey);
+  const audio = decryptV2Buffer(file.subarray(detected.audioOffset, detected.audioOffset + detected.audioLen), detected.ekey);
   assert.deepStrictEqual(audio, PLAINTEXT);
 });

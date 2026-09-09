@@ -1,7 +1,7 @@
 {
   "name": "openconverter",
   "productName": "OpenConverter",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "Unlock and convert protected audio formats to mp3, flac, wav, ogg, m4a",
   "homepage": "https://github.com/nowa277/OpenConverter",
   "main": "src/main/index.js",

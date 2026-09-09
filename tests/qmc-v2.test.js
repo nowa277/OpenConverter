@@ -11,7 +11,7 @@ const { keyCompress, shiftMix, decryptV2Buffer, decodeV2File } = require('../src
 const OUT_DIR = path.join(__dirname, 'output', 'qmc-v2');
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
-function test() {
+async function test() {
   let failed = 0;
 
   // --- Test 1: shiftMix (shl | shr, NOT a rotation) ---
@@ -124,7 +124,7 @@ function test() {
     const backup = path.join(OUT_DIR, 'sample.original.mp3');
     fs.copyFileSync(mp3Path, backup);
 
-    const { outputPath, format } = decodeV2File(fakePath, OUT_DIR, { ekey: testEkey });
+    const { outputPath, format } = await decodeV2File(fakePath, OUT_DIR, { ekey: testEkey });
     const recovered = fs.readFileSync(outputPath);
     if (format === 'mp3' && recovered.equals(original)) {
       let dur = -1;
@@ -149,4 +149,4 @@ function test() {
   console.log('\nAll QMCv2 tests passed.');
 }
 
-test();
+test().catch((e) => { console.error(e); process.exit(1); });

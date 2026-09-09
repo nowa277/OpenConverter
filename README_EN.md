@@ -26,6 +26,13 @@ A lightweight format conversion and decryption tool for audio workflows.<br/>
 * **Privacy First, Fully Offline**: All decryption, transcoding, and processing run completely on the local device. No audio data is uploaded, zero network interaction, safe and secure.
 * **True Audio Transcoding (FFmpeg)**: Not a simple rename or extraction. Built-in FFmpeg / FFmpegKit transcoding backend supports converting to MP3, FLAC, WAV, M4A, and OGG, with customizable output bitrates (e.g., 320 kbps, 256 kbps, etc.).
 
+### What's new in v0.3.6 (desktop)
+* **Smoother UI**: the queue is now rendered incrementally (progress bars really animate), with view transitions, a decrypt-stage shimmer, an overall progress bar, stacked toasts and a full-window drop overlay. Adds **System theme**, *Reduce motion* and *auto-clear finished items*.
+* **More control**: cancel a running batch, remove single files, *Show in folder* for finished items. Same-container inputs are copied instead of being lossy re-encoded (mp3→mp3); OGG/Opus at 320k is clamped to libopus' 256k limit (previously always failed).
+* **Tags & cover art preserved**: NCM title / artist / album / cover are embedded into the output (FLAC / MP3 / M4A); existing cover art survives plain-audio transcodes.
+* **Performance**: decryption runs in a worker thread so the main process and UI stay responsive on large files; ffmpeg progress is parsed from machine-readable `-progress` output.
+* **QMCv2 fixes**: STag-headed files were sliced incorrectly and failed to decrypt; QTag length endianness, ekey field index and base64 validation are fixed, with 100+ unit/integration tests and GitHub Actions CI.
+
 ---
 
 ## UI Preview

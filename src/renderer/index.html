@@ -2,12 +2,31 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:;" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:;" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OpenConverter</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
+  <!-- SVG symbol sheet: icons referenced with <use href="#i-..."> -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></symbol>
+      <symbol id="i-error" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+      <symbol id="i-folder" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+      <symbol id="i-convert" viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></symbol>
+      <symbol id="i-history" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+      <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+      <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></symbol>
+    </defs>
+  </svg>
+
   <!-- Custom window title bar (frameless window, macOS-style traffic lights on the left) -->
   <header class="window-bar" id="window-bar">
     <div class="window-bar-controls">
@@ -43,31 +62,37 @@
             </defs>
             <circle cx="256" cy="256" r="240" fill="url(#bgG)" stroke="#282828" stroke-width="8"/>
             <circle cx="256" cy="256" r="200" fill="none" stroke="url(#gG)" stroke-width="12" opacity="0.8"/>
-            <rect x="120" y="180" width="40" height="120" rx="20" fill="url(#gG)"/>
-            <rect x="180" y="140" width="40" height="180" rx="20" fill="url(#gG)" opacity="0.9"/>
-            <rect x="240" y="100" width="40" height="240" rx="20" fill="url(#gG)" opacity="0.85"/>
-            <rect x="300" y="140" width="40" height="180" rx="20" fill="url(#gG)" opacity="0.9"/>
-            <rect x="360" y="180" width="40" height="120" rx="20" fill="url(#gG)"/>
+            <g class="brand-bars">
+              <rect x="120" y="180" width="40" height="120" rx="20" fill="url(#gG)"/>
+              <rect x="180" y="140" width="40" height="180" rx="20" fill="url(#gG)" opacity="0.9"/>
+              <rect x="240" y="100" width="40" height="240" rx="20" fill="url(#gG)" opacity="0.85"/>
+              <rect x="300" y="140" width="40" height="180" rx="20" fill="url(#gG)" opacity="0.9"/>
+              <rect x="360" y="180" width="40" height="120" rx="20" fill="url(#gG)"/>
+            </g>
           </svg>
         </div>
         <div class="brand-text">
           <div class="brand-title">OpenConverter</div>
         </div>
       </div>
-      <nav class="nav">
-        <button class="nav-item active" data-view="convert" data-i18n="nav_convert">Convert</button>
-        <button class="nav-item" data-view="history" data-i18n="nav_history">History</button>
-        <button class="nav-item" data-view="settings" data-i18n="nav_settings">Settings</button>
-        <button class="nav-item" data-view="about" data-i18n="nav_about">About</button>
+      <nav class="nav" id="nav">
+        <span class="nav-indicator" id="nav-indicator" aria-hidden="true"></span>
+        <button class="nav-item active" data-view="convert"><svg class="ico"><use href="#i-convert"/></svg><span data-i18n="nav_convert">Convert</span><span class="nav-badge" id="nav-badge-convert" hidden></span></button>
+        <button class="nav-item" data-view="history"><svg class="ico"><use href="#i-history"/></svg><span data-i18n="nav_history">History</span></button>
+        <button class="nav-item" data-view="settings"><svg class="ico"><use href="#i-settings"/></svg><span data-i18n="nav_settings">Settings</span></button>
+        <button class="nav-item" data-view="about"><svg class="ico"><use href="#i-info"/></svg><span data-i18n="nav_about">About</span></button>
       </nav>
       <div class="sidebar-footer">
+        <div class="ffmpeg-pill" id="ffmpeg-pill" title="">
+          <span class="dot"></span><span id="ffmpeg-pill-text">ffmpeg</span>
+        </div>
         <div class="os-info" id="os-info"></div>
       </div>
     </aside>
 
     <main class="main">
       <header class="topbar">
-        <h1 class="page-title" data-i18n="title_convert_audio">Convert audio</h1>
+        <h1 class="page-title" id="page-title" data-i18n="title_convert_audio">Convert audio</h1>
         <div class="topbar-actions">
           <label class="select">
             <span class="select-label" data-i18n="label_format">Format</span>
@@ -79,7 +104,7 @@
               <option value="ogg">OGG / Opus</option>
             </select>
           </label>
-          <label class="select">
+          <label class="select" id="quality-field">
             <span class="select-label" data-i18n="label_quality">Quality</span>
             <select id="quality-select">
               <option value="320k">320 kbps</option>
@@ -99,6 +124,7 @@
           <label class="select">
             <span class="select-label" data-i18n="label_theme">Theme</span>
             <select id="theme-select">
+              <option value="system" data-i18n="theme_system">System</option>
               <option value="dark" data-i18n="theme_dark">Dark</option>
               <option value="light" data-i18n="theme_light">Light</option>
             </select>
@@ -106,23 +132,19 @@
         </div>
       </header>
 
-      <section class="content">
+      <section class="content" id="content">
         <div id="view-convert" class="view active">
           <div class="output-picker">
             <span class="output-picker-label" data-i18n="label_output">Output:</span>
-            <span id="output-dir" class="output-dir-text">Not set</span>
+            <span id="output-dir" class="output-dir-text" title="">Not set</span>
+            <button id="open-output-btn" class="btn btn-icon" data-i18n-title="btn_open_folder" title="Open folder" hidden><svg class="ico"><use href="#i-folder"/></svg></button>
             <button id="pick-output-btn" class="btn btn-spotify" data-i18n="btn_choose_folder">Choose folder</button>
           </div>
 
-
-
-          <div id="dropzone" class="dropzone">
+          <div id="dropzone" class="dropzone" tabindex="0" role="button">
             <div class="dropzone-icon" aria-hidden="true">
-              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M9 18V6l12-2v12" />
-                <circle cx="6" cy="18" r="3" />
-                <circle cx="18" cy="16" r="3" />
-              </svg>
+              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="dz-music"><use href="#i-music"/></svg>
+              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="dz-upload"><use href="#i-upload"/></svg>
             </div>
             <div class="dropzone-text" data-i18n="dropzone_text">Drop .ncm / .qmc / .kgm files here</div>
             <div class="dropzone-hint">
@@ -135,53 +157,58 @@
 
           <div class="queue" id="queue" hidden>
             <div class="queue-header">
-              <h2 data-i18n="queue_title">Queue</h2>
-              <button id="clear-queue-btn" class="btn btn-text" data-i18n="btn_clear_all">Clear all</button>
+              <div class="queue-title-wrap">
+                <h2 data-i18n="queue_title">Queue</h2>
+                <span class="queue-summary" id="queue-summary"></span>
+              </div>
+              <div class="queue-header-actions">
+                <button id="add-more-btn" class="btn btn-text"><svg class="ico"><use href="#i-plus"/></svg><span data-i18n="btn_add_more">Add files</span></button>
+                <button id="clear-done-btn" class="btn btn-text" data-i18n="btn_clear_done" hidden>Clear finished</button>
+                <button id="clear-queue-btn" class="btn btn-text" data-i18n="btn_clear_all">Clear all</button>
+              </div>
+            </div>
+            <div class="queue-overall" id="queue-overall" hidden>
+              <div class="queue-overall-bar"><div id="queue-overall-fill"></div></div>
             </div>
             <ul id="queue-list" class="queue-list"></ul>
-            <div class="queue-footer">
-              <button id="convert-btn" class="btn btn-primary" disabled><span data-i18n="btn_convert">Convert</span> <span id="queue-count">0</span> <span data-i18n="btn_convert_files">file(s)</span></button>
-            </div>
           </div>
         </div>
 
         <div id="view-history" class="view">
           <div class="list-container">
-            <div class="list-header">
-              <h2 data-i18n="history_title">History</h2>
+            <div class="list-header end">
               <button id="clear-history-btn" class="btn btn-text" data-i18n="btn_clear_history">Clear history</button>
             </div>
             <div class="list-group">
-              <div id="history-empty" class="list-item" style="justify-content: center; color: var(--text-dim);" data-i18n="history_empty" hidden>
-                No conversion history yet
+              <div id="history-empty" class="empty-state" hidden>
+                <svg class="empty-ico"><use href="#i-history"/></svg>
+                <span data-i18n="history_empty">No conversion history yet</span>
               </div>
-              <ul id="history-list" class="history-list" style="padding: 0; margin: 0; list-style: none;"></ul>
+              <ul id="history-list" class="history-list"></ul>
             </div>
           </div>
         </div>
 
         <div id="view-settings" class="view">
           <div class="list-container">
-            <h2 data-i18n="nav_settings">Settings</h2>
-            
             <h3 class="list-group-title" data-i18n="ekey_panel_title">QQ Music ekey & Cookie (required for .mflac / .mgg / .bkc)</h3>
             <div class="list-group">
-              <div class="list-item" style="flex-direction: column; align-items: stretch; gap: 8px;">
-                <div style="display: flex; gap: 8px;">
-                  <input type="text" id="ekey-input" class="text-input" style="flex: 1;"
+              <div class="list-item stack">
+                <div class="row">
+                  <input type="text" id="ekey-input" class="text-input"
                          placeholder="Paste base64 ekey from QQ Music client DB"
                          data-i18n="ekey_placeholder"
                          autocomplete="off" spellcheck="false" />
                   <button id="ekey-save-btn" class="btn btn-secondary" data-i18n="btn_save">Save</button>
                 </div>
-                <div style="display: flex; gap: 8px; margin-top: 4px;">
-                  <input type="text" id="qq-cookie-input" class="text-input" style="flex: 1;"
+                <div class="row">
+                  <input type="text" id="qq-cookie-input" class="text-input"
                          placeholder="Paste QQ Music Cookie (for mgg/mflac API fetch)"
                          data-i18n="qq_cookie_placeholder"
                          autocomplete="off" spellcheck="false" />
                   <button id="qq-scan-btn" class="btn btn-secondary" data-i18n="btn_scan_qq_memory">Auto Scan Memory</button>
                 </div>
-                <p class="settings-hint" data-i18n="ekey_hint" style="margin: 0; font-size: 12px; color: var(--text-dim);">
+                <p class="settings-hint" data-i18n="ekey_hint">
                   Only needed for QQ Music cache files (.mflac0, .mgg). Use Auto Scan while QQ Music is running to extract the Cookie automatically.
                   Leave empty if you only need NCM / QMC0 / KGM / KWM.
                 </p>
@@ -190,23 +217,39 @@
 
             <h3 class="list-group-title" data-i18n="kgg_panel_title">KuGou Music KGG Settings (required for .kgg / .kgg.flac)</h3>
             <div class="list-group">
-              <div class="list-item" style="flex-direction: column; align-items: stretch; gap: 8px;">
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                  <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">
-                    <input type="checkbox" id="kgg-autoscan-checkbox" />
+              <div class="list-item stack">
+                <div class="row between">
+                  <label class="switch-label" id="kgg-autoscan-label">
+                    <input type="checkbox" id="kgg-autoscan-checkbox" class="switch" />
                     <span data-i18n="kgg_autoscan_label">Auto-scan database</span>
                   </label>
-                  <div style="display: flex; gap: 8px;">
+                  <div class="row">
                     <button id="kgg-scan-btn" class="btn btn-secondary" data-i18n="kgg_scan_now_btn">Scan now</button>
                     <button id="kgg-import-btn" class="btn btn-secondary" data-i18n="kgg_import_btn">Import DB / Key</button>
                   </div>
                 </div>
-                <p class="settings-hint" id="kgg-linux-warning" style="color: #ff9800; font-weight: 500; margin: 0; font-size: 12px;" data-i18n="kgg_linux_warning" hidden>
+                <p class="settings-hint warn" id="kgg-linux-warning" data-i18n="kgg_linux_warning" hidden>
                   KuGou decryption is not supported on Linux natively. Import a keys file if needed.
                 </p>
-                 <p class="settings-hint" id="kgg-autoscan-hint" data-i18n="kgg_autoscan_hint" style="margin: 0; font-size: 12px; color: var(--text-dim);">
+                <p class="settings-hint" id="kgg-autoscan-hint" data-i18n="kgg_autoscan_hint">
                   Scan local client's database to extract ekeys automatically. Or manually import your KGMusicV3.db / kgg.key file.
                 </p>
+              </div>
+            </div>
+
+            <h3 class="list-group-title" data-i18n="appearance_title">Appearance & behaviour</h3>
+            <div class="list-group">
+              <div class="list-item">
+                <label class="switch-label">
+                  <input type="checkbox" id="reduce-motion-checkbox" class="switch" />
+                  <span data-i18n="reduce_motion_label">Reduce motion</span>
+                </label>
+              </div>
+              <div class="list-item">
+                <label class="switch-label">
+                  <input type="checkbox" id="auto-clear-checkbox" class="switch" />
+                  <span data-i18n="auto_clear_label">Remove finished files from the queue automatically</span>
+                </label>
               </div>
             </div>
           </div>
@@ -214,34 +257,49 @@
 
         <div id="view-about" class="view">
           <div class="list-container">
-            <h2 data-i18n="about_title">About</h2>
             <div class="list-group">
-              <div class="list-item" style="flex-direction: column; align-items: flex-start; gap: 8px;">
-                <h3 style="margin: 0;">OpenConverter</h3>
-                <p data-i18n="about_desc1" style="margin: 0; color: var(--text-dim); font-size: 14px;">OpenConverter is an open-source audio format converter.</p>
-                <p data-i18n="about_desc2" style="margin: 0; color: var(--text-dim); font-size: 14px;">It supports encrypted formats (NCM, QMC, KGM, KWM) via pure-JavaScript decoders and uses <code>ffmpeg</code> for format conversion.</p>
+              <div class="list-item stack">
+                <h3 class="about-name">OpenConverter <span id="about-version" class="about-version"></span></h3>
+                <p data-i18n="about_desc1" class="dim">OpenConverter is an open-source audio format converter.</p>
+                <p data-i18n="about_desc2" class="dim">It supports encrypted formats (NCM, QMC, KGM, KWM) via pure-JavaScript decoders and uses <code>ffmpeg</code> for format conversion.</p>
               </div>
             </div>
 
-            <h3 class="list-group-title" data-i18n="about_verified_formats">Verified formats</h3>
+            <h3 class="list-group-title" data-i18n="about_verified_formats">Supported formats</h3>
             <div class="list-group">
               <div class="list-item">
-                <ul id="verified-formats" style="margin: 0; padding-left: 20px; font-size: 14px; color: var(--text-dim);"></ul>
+                <div id="verified-formats" class="chip-cloud"></div>
               </div>
             </div>
 
             <h3 class="list-group-title" data-i18n="about_system_status">Status</h3>
             <div class="list-group">
               <div class="list-item">
-                <ul id="status-list" style="margin: 0; padding-left: 20px; font-size: 14px; color: var(--text-dim);"></ul>
+                <ul id="status-list" class="status-list"></ul>
               </div>
             </div>
           </div>
         </div>
       </section>
+
+      <!-- Floating convert bar: only visible when the queue has files -->
+      <div class="convert-bar" id="convert-bar" hidden>
+        <div class="convert-bar-info" id="convert-bar-info"></div>
+        <button id="cancel-btn" class="btn btn-secondary" hidden><svg class="ico"><use href="#i-x"/></svg><span data-i18n="btn_cancel">Cancel</span></button>
+        <button id="convert-btn" class="btn btn-primary" disabled>
+          <svg class="ico"><use href="#i-play"/></svg>
+          <span data-i18n="btn_convert">Convert</span> <span id="queue-count">0</span> <span data-i18n="btn_convert_files">file(s)</span>
+        </button>
+      </div>
     </main>
 
-    <div id="toast" class="toast" hidden></div>
+    <div id="toast-stack" class="toast-stack" aria-live="polite"></div>
+    <div id="drop-overlay" class="drop-overlay" hidden>
+      <div class="drop-overlay-card">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><use href="#i-upload"/></svg>
+        <div data-i18n="drop_overlay_text">Release to add files</div>
+      </div>
+    </div>
   </div>
 
   <dialog id="clear-confirm-dialog" class="confirm-dialog" aria-labelledby="dialog-title">

@@ -1,28 +1,35 @@
 /**
  * OpenConverter main process.
  *
- * Single IPC channel "process-message" (matches original's architecture but
- * with all commercial/IPC handlers removed).
+ * Single IPC channel "process-message" carrying { method, data }. Methods:
  *
- * Methods supported (in order of use):
- *   - convert:start      { files: [paths], format, outputDir, quality }
- *   - convert:cancel     { jobId }
- *   - file:pickInput     { multi }
- *   - file:pickOutputDir
- *   - config:get
- *   - config:set         { patch }
- *   - os:info
+ *   convert:start        { files: [paths], format, outputDir, quality }
+ *   convert:cancel       { jobId }
+ *   convert:cancelAll
+ *   file:pickInput       { multi }
+ *   file:pickOutputDir
+ *   file:showInFolder    { path }
+ *   file:openPath        { path }
+ *   config:get / config:set { patch }
+ *   history:get / history:clear
+ *   ffmpeg:check
+ *   qqmusic:extractCookie
+ *   kgg:importFile / kgg:triggerScan
+ *   os:info
+ *   win:minimize / win:toggleMaximize / win:close / win:isMaximized
+ *   decoders:list
  *
- * NO commercial fields anywhere. NO macOS-only calls. NO native FFI.
+ * Push events to the renderer: convert:progress, win:maximizedChanged.
  */
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
-const { run: ffmpegRunRaw, probeDuration: probeDurationRaw } = require('./ffmpeg');
 const config = require('./config');
 const decoders = require('../decoders');
 const { resolveFfmpegPath, resolveFfprobePath } = require('./ffmpeg-path');
+const ffmpeg = require('./ffmpeg');
+const pipeline = require('./pipeline');
 const HistoryStore = require('./history');
 const kggKeys = require('./kgg-keys');
 const dbCipher = require('../decoders/kgg/db-cipher');
@@ -30,37 +37,13 @@ const qqmusicAuth = require('./qqmusic-auth');
 
 let historyStore = null;
 function getHistoryStore() {
-  if (!historyStore) {
-    historyStore = new HistoryStore(app.getPath('userData'));
-  }
+  if (!historyStore) historyStore = new HistoryStore(app.getPath('userData'));
   return historyStore;
 }
 
-
-// Wrap ffmpegRun so the resolved paths are used at call time. Done in
-// main (not ffmpeg.js) so ffmpeg.js stays a thin subprocess wrapper
-// with no Electron dependency.
-function ffmpegRun(input, output, opts = {}) {
-  const ffmpegBin = resolveFfmpegPath({
-    isPackaged: app.isPackaged,
-    platform: process.platform,
-    resourcesPath: process.resourcesPath,
-  });
-  const ffprobeBin = resolveFfprobePath({
-    isPackaged: app.isPackaged,
-    platform: process.platform,
-    resourcesPath: process.resourcesPath,
-  });
-  return ffmpegRunRaw(input, output, { ...opts, ffmpegBin, ffprobeBin });
-}
-
-function probeDuration(filePath) {
-  const ffprobeBin = resolveFfprobePath({
-    isPackaged: app.isPackaged,
-    platform: process.platform,
-    resourcesPath: process.resourcesPath,
-  });
-  return probeDurationRaw(filePath, { ffprobeBin });
+function binPaths() {
+  const env = { isPackaged: app.isPackaged, platform: process.platform, resourcesPath: process.resourcesPath };
+  return { ffmpegBin: resolveFfmpegPath(env), ffprobeBin: resolveFfprobePath(env) };
 }
 
 const isDev = process.env.NODE_ENV === 'development';
@@ -70,6 +53,10 @@ let mainWindow = null;
 const activeJobs = new Map();
 let jobCounter = 0;
 
+function send(channel, payload) {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, payload);
+}
+
 function createWindow() {
   if (mainWindow) return mainWindow;
   mainWindow = new BrowserWindow({
@@ -77,12 +64,11 @@ function createWindow() {
     height: 720,
     minWidth: 880,
     minHeight: 560,
-    backgroundColor: '#121212',
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#121212' : '#fafafa',
     title: 'OpenConverter',
     show: false,
-    // Linux + macOS: keep existing custom traffic-light title bar (v0.2.1
-    // behavior preserved). Windows: use OS-native title bar.
-    frame: process.platform === 'win32' ? true : false,
+    // Linux + macOS: custom traffic-light title bar. Windows: OS-native bar.
+    frame: process.platform === 'win32',
     titleBarStyle: process.platform === 'win32' ? 'default' : 'hidden',
     icon: path.join(__dirname, '..', '..', 'build', 'icons', 'icon.png'),
     webPreferences: {
@@ -102,116 +88,43 @@ function createWindow() {
   mainWindow.once('ready-to-show', () => mainWindow.show());
   mainWindow.on('maximize', emitMaximizedChanged);
   mainWindow.on('unmaximize', emitMaximizedChanged);
+  mainWindow.on('closed', () => { mainWindow = null; });
   return mainWindow;
 }
 
-// Plain (non-encrypted) audio formats — passed through or re-encoded,
-// no decryption step.
-const PLAIN_AUDIO_EXTS = new Set(['.mp3', '.flac', '.wav', '.m4a', '.aac', '.ogg', '.opus']);
-
-async function convertOne(jobId, inputPath, format, outputDir, quality) {
-  fs.mkdirSync(outputDir, { recursive: true });
+/** Build decoder options (keys / cookies) for one input file. */
+async function decodeOptsFor(inputPath) {
   const ext = path.extname(inputPath).toLowerCase();
-  const baseName = path.basename(inputPath, path.extname(inputPath));
-  const targetPath = path.join(outputDir, `${baseName}.${format}`);
-
-  // Path 1: plain audio — passthrough (copy as-is, or re-encode to target format).
-  if (PLAIN_AUDIO_EXTS.has(ext)) {
-    if (ext.slice(1) === format && !quality) {
-      fs.copyFileSync(inputPath, targetPath);
-      return { jobId, inputPath, outputPath: targetPath, format };
-    }
-    await ffmpegRun(inputPath, targetPath, {
-      format, quality,
-      onProgress: ({ percent }) => {
-        if (mainWindow) mainWindow.webContents.send('convert:progress', { jobId, filePath: inputPath, percent });
-      },
-      signal: activeJobs.get(jobId)?.signal,
-    });
-    return { jobId, inputPath, outputPath: targetPath, format };
-  }
-
-  // Path 2: encrypted audio — run the matching decoder first.
-  const decoder = decoders.pickDecoder(inputPath);
-  if (!decoder) {
-    throw new Error(`No decoder for file: ${path.basename(inputPath)} (unsupported format: ${ext})`);
-  }
-
-  // QMCv2 formats (mflac/mgg/bkc) require user-provided ekey from QQ Music DB
-  const needsEkey = decoders.listRequiresEkey().includes(ext);
   const cfg = config.get();
-  const opts = needsEkey ? { ekey: cfg.qmcEkey, qqCookie: cfg.qqCookie, qqGuid: cfg.qqGuid, qqUin: cfg.qqUin } : {};
-  
-  if (needsEkey && !opts.qqCookie && process.platform === 'win32') {
-    try {
-      const authRes = await qqmusicAuth.extractCookie();
-      if (authRes.ok && authRes.cookie) {
-        opts.qqCookie = authRes.cookie;
-        opts.qqGuid = authRes.guid;
-        opts.qqUin = authRes.uin;
-        // Optionally save to config so we don't have to scan every time
-        config.set({ qqCookie: authRes.cookie, qqGuid: authRes.guid, qqUin: authRes.uin });
+  const opts = {};
+
+  if (decoders.listRequiresEkey().includes(ext)) {
+    Object.assign(opts, { ekey: cfg.qmcEkey, qqCookie: cfg.qqCookie, qqGuid: cfg.qqGuid, qqUin: cfg.qqUin });
+    if (!opts.qqCookie && process.platform === 'win32') {
+      try {
+        const authRes = await qqmusicAuth.extractCookie();
+        if (authRes.ok && authRes.cookie) {
+          Object.assign(opts, { qqCookie: authRes.cookie, qqGuid: authRes.guid, qqUin: authRes.uin });
+          config.set({ qqCookie: authRes.cookie, qqGuid: authRes.guid, qqUin: authRes.uin });
+        }
+      } catch (err) {
+        console.error('Auto-extract cookie failed:', err);
       }
-    } catch (err) {
-      console.error('Auto-extract cookie failed:', err);
     }
   }
-
-  if (ext === '.kgg' || ext === '.kgg.flac') {
+  const lower = inputPath.toLowerCase();
+  if (lower.endsWith('.kgg') || lower.endsWith('.kgg.flac')) {
     opts.keyPath = path.join(app.getPath('userData'), 'kgg.keys');
   }
-
-  let decryptedPath;
-  try {
-    const r = await decoder.decodeFile(inputPath, outputDir, opts);
-    decryptedPath = r.outputPath;
-  } catch (e) {
-    throw new Error(`Decryption failed: ${e.message}`);
-  }
-
-  // If format already matches what user wants, we're done.
-  if (path.extname(decryptedPath).slice(1) === format && !quality) {
-    return { jobId, inputPath, outputPath: decryptedPath, format };
-  }
-
-  // Otherwise convert with ffmpeg. If the requested format matches the
-  // decrypted intermediate's extension, strip+append produces the same
-  // path — ffmpeg refuses to read+write the same file, so use a distinct
-  // ".converted.<format>" suffix in that case.
-  let ffmpegOut = decryptedPath.replace(/\.[^.]+$/, '') + `.${format}`;
-  if (ffmpegOut === decryptedPath) {
-    ffmpegOut = decryptedPath.replace(/\.[^.]+$/, '') + `.converted.${format}`;
-  }
-  await ffmpegRun(decryptedPath, ffmpegOut, {
-    format,
-    quality,
-    onProgress: ({ percent }) => {
-      if (mainWindow) {
-        mainWindow.webContents.send('convert:progress', { jobId, filePath: inputPath, percent });
-      }
-    },
-    signal: activeJobs.get(jobId)?.signal,
-  });
-
-  if (ffmpegOut !== decryptedPath) {
-    try { fs.unlinkSync(decryptedPath); } catch {}
-  }
-  return { jobId, inputPath, outputPath: ffmpegOut, format };
+  return opts;
 }
 
-async function parallelLimit(limit, tasks) {
-  const executing = [];
-  const results = [];
-  for (const task of tasks) {
-    const p = Promise.resolve().then(() => task());
-    results.push(p);
-    const e = p.then(() => executing.splice(executing.indexOf(e), 1));
-    executing.push(e);
-    if (executing.length >= limit) {
-      await Promise.race(executing);
-    }
-  }
-  return Promise.all(results);
+// Every extension the app can ingest, without the leading dot.
+function allInputExtensions() {
+  const enc = decoders.listSupported().map((e) => e.replace(/^\./, ''));
+  const plain = [...pipeline.PLAIN_AUDIO_EXTS].map((e) => e.slice(1));
+  // ".kgg.flac" → the picker only understands single extensions; "flac" is already covered.
+  return { enc: enc.filter((e) => !e.includes('.')), plain };
 }
 
 const HANDLERS = {
@@ -223,83 +136,76 @@ const HANDLERS = {
     fs.mkdirSync(outputDir, { recursive: true });
     const results = new Array(files.length);
     const history = getHistoryStore();
-
+    const { ffmpegBin, ffprobeBin } = binPaths();
     const limit = Math.min(4, Math.max(2, os.cpus()?.length || 2));
 
     let historyChain = Promise.resolve();
-    const appendToHistory = (record) => {
-      historyChain = historyChain.then(() => history.append(record));
-    };
+    const appendToHistory = (record) => { historyChain = historyChain.then(() => history.append(record)); };
 
-    const tasks = files.map((f, index) => async () => {
+    const tasks = files.map((inputPath, index) => async () => {
       const jobId = `job-${++jobCounter}`;
       const controller = new AbortController();
-      activeJobs.set(jobId, { signal: controller.signal });
+      activeJobs.set(jobId, { controller, inputPath });
+      send('convert:progress', { jobId, filePath: inputPath, stage: 'queued', percent: 0 });
+      const started = Date.now();
       try {
-        const r = await convertOne(jobId, f, format, outputDir, quality);
-        results[index] = r;
+        const decodeOpts = await decodeOptsFor(inputPath);
+        const r = await pipeline.convertOne({
+          inputPath, outputDir, format, quality, decodeOpts, ffmpegBin, ffprobeBin,
+          signal: controller.signal,
+          onProgress: ({ stage, percent }) => send('convert:progress', { jobId, filePath: inputPath, stage, percent }),
+        });
+        results[index] = { jobId, inputPath, outputPath: r.outputPath, format: r.format, durationMs: r.durationMs };
         appendToHistory({
-          ts: Date.now(),
-          inputName: path.basename(f),
-          targetFormat: format,
-          status: 'success',
-          outputName: path.basename(r.outputPath),
-          durationMs: null,
-          error: null,
+          ts: Date.now(), inputName: path.basename(inputPath), targetFormat: format, status: 'success',
+          outputName: path.basename(r.outputPath), outputPath: r.outputPath, durationMs: r.durationMs, error: null,
         });
       } catch (e) {
-        results[index] = { jobId, inputPath: f, error: e.message };
-        appendToHistory({
-          ts: Date.now(),
-          inputName: path.basename(f),
-          targetFormat: format,
-          status: 'failed',
-          outputName: null,
-          durationMs: null,
-          error: e.message,
-        });
+        const cancelled = e.message === 'aborted';
+        results[index] = { jobId, inputPath, error: cancelled ? 'Cancelled' : e.message, cancelled };
+        if (!cancelled) {
+          appendToHistory({
+            ts: Date.now(), inputName: path.basename(inputPath), targetFormat: format, status: 'failed',
+            outputName: null, outputPath: null, durationMs: Date.now() - started, error: e.message,
+          });
+        }
       } finally {
         activeJobs.delete(jobId);
       }
     });
 
-    await parallelLimit(limit, tasks);
+    await pipeline.parallelLimit(limit, tasks);
     await historyChain;
     return { results };
   },
 
-  'history:get': async () => {
-    return getHistoryStore().readAll();
-  },
-
-  'history:clear': async () => {
-    await getHistoryStore().clear();
-    return { ok: true };
-  },
-
-
   'convert:cancel': async (data) => {
     const job = activeJobs.get(data?.jobId);
-    if (job) job.signal.abort();
-    return { cancelled: true };
+    if (job) job.controller.abort();
+    return { cancelled: !!job };
   },
+
+  'convert:cancelAll': async () => {
+    let n = 0;
+    for (const job of activeJobs.values()) { job.controller.abort(); n++; }
+    return { cancelled: n };
+  },
+
+  'history:get': async () => getHistoryStore().readAll(),
+  'history:clear': async () => { await getHistoryStore().clear(); return { ok: true }; },
 
   'file:pickInput': async (data) => {
     const { multi = true } = data || {};
+    const { enc, plain } = allInputExtensions();
     const r = await dialog.showOpenDialog(mainWindow, {
       title: 'Select audio files',
       properties: [multi ? 'multiSelections' : 'openFile', 'openFile'],
       filters: [
-        // Single comprehensive filter as default — Linux GTK picker uses the
-        // FIRST filter as default, so this must include every format the app
-        // can convert (encrypted + common), otherwise users see an empty list.
-        { name: 'Audio files (encrypted + common)', extensions: [
-          'ncm', 'qmc0', 'qmc1', 'qmc2', 'qmc3', 'qmcflac', 'qmcogg', 'tkm',
-          'kgm', 'kgma', 'kwm',
-          'mp3', 'flac', 'wav', 'm4a', 'aac', 'ogg', 'opus',
-        ] },
-        { name: 'Encrypted audio only', extensions: ['ncm', 'qmc0', 'qmc1', 'qmc2', 'qmc3', 'qmcflac', 'qmcogg', 'tkm', 'kgm', 'kgma', 'kwm'] },
-        { name: 'Common audio', extensions: ['mp3', 'flac', 'wav', 'm4a', 'aac', 'ogg', 'opus'] },
+        // The Linux GTK picker uses the FIRST filter as default, so it must
+        // include every format the app can convert.
+        { name: 'Audio files (encrypted + common)', extensions: [...enc, ...plain] },
+        { name: 'Encrypted audio only', extensions: enc },
+        { name: 'Common audio', extensions: plain },
         { name: 'All files', extensions: ['*'] },
       ],
     });
@@ -314,12 +220,29 @@ const HANDLERS = {
     return { dir: r.canceled ? null : r.filePaths[0] };
   },
 
+  'file:showInFolder': async (data) => {
+    const p = data?.path;
+    if (!p || typeof p !== 'string') return { ok: false };
+    if (fs.existsSync(p)) { shell.showItemInFolder(p); return { ok: true }; }
+    // File may have been moved; fall back to opening its directory.
+    const dir = path.dirname(p);
+    if (fs.existsSync(dir)) { await shell.openPath(dir); return { ok: true, fallback: true }; }
+    return { ok: false };
+  },
+
+  'file:openPath': async (data) => {
+    const p = data?.path;
+    if (!p || typeof p !== 'string' || !fs.existsSync(p)) return { ok: false };
+    const err = await shell.openPath(p);
+    return { ok: !err, error: err || undefined };
+  },
+
   'config:get': async () => config.get(),
   'config:set': async (data) => { config.set(data?.patch || {}); return config.get(); },
 
-  'qqmusic:extractCookie': async () => {
-    return qqmusicAuth.extractCookie();
-  },
+  'ffmpeg:check': async () => ffmpeg.checkFfmpeg({ ffmpegBin: binPaths().ffmpegBin }),
+
+  'qqmusic:extractCookie': async () => qqmusicAuth.extractCookie(),
 
   'kgg:importFile': async () => {
     const r = await dialog.showOpenDialog(mainWindow, {
@@ -333,40 +256,21 @@ const HANDLERS = {
     if (r.canceled || r.filePaths.length === 0) return { imported: false };
     const filePath = r.filePaths[0];
     const buf = fs.readFileSync(filePath);
-    
-    const userDataPath = app.getPath('userData');
-    const keysPath = path.join(userDataPath, 'kgg.keys');
+
+    const keysPath = path.join(app.getPath('userData'), 'kgg.keys');
     const currentMap = kggKeys.loadKeysMap(keysPath);
     const initialSize = currentMap.size;
 
     const isDb = filePath.endsWith('.db') || buf.subarray(0, 15).toString().includes('SQLite') || dbCipher.isEncryptedHeader(buf);
-    if (isDb) {
-      const incoming = await kggKeys.importFromDb(buf);
-      for (const [id, val] of incoming.entries()) {
-        currentMap.set(id, val);
-      }
-    } else {
-      const text = buf.toString('utf-8');
-      const incoming = decoders.kgg.parseKeyMap(text);
-      for (const [id, val] of incoming.entries()) {
-        currentMap.set(id, val);
-      }
-    }
+    const incoming = isDb ? await kggKeys.importFromDb(buf) : decoders.kgg.parseKeyMap(buf.toString('utf-8'));
+    for (const [id, val] of incoming.entries()) currentMap.set(id, val);
 
     const newSize = currentMap.size;
-    if (newSize > initialSize) {
-      kggKeys.saveKeysMap(keysPath, currentMap);
-    }
-    return {
-      imported: true,
-      added: newSize - initialSize,
-      total: newSize,
-    };
+    if (newSize > initialSize) kggKeys.saveKeysMap(keysPath, currentMap);
+    return { imported: true, added: newSize - initialSize, total: newSize };
   },
 
-  'kgg:triggerScan': async () => {
-    return kggKeys.autoScanKeys(app.getPath('userData'));
-  },
+  'kgg:triggerScan': async () => kggKeys.autoScanKeys(app.getPath('userData')),
 
   'os:info': async () => ({
     platform: process.platform,
@@ -378,6 +282,7 @@ const HANDLERS = {
     homedir: os.homedir(),
     tmpdir: os.tmpdir(),
     release: os.release(),
+    systemDark: nativeTheme.shouldUseDarkColors,
   }),
 
   'win:minimize': async () => { if (mainWindow) mainWindow.minimize(); return { ok: true }; },
@@ -393,6 +298,8 @@ const HANDLERS = {
   'decoders:list': async () => ({
     implemented: decoders.listImplemented(),
     supported: decoders.listSupported(),
+    requiresKey: decoders.listByKeyRequirement().withKey,
+    plain: [...pipeline.PLAIN_AUDIO_EXTS],
   }),
 };
 
@@ -402,12 +309,11 @@ ipcMain.handle('process-message', async (_evt, { method, data }) => {
   return handler(data);
 });
 
-// Notify renderer when maximize state changes (for icon swap)
 function emitMaximizedChanged() {
-  if (mainWindow) {
-    mainWindow.webContents.send('win:maximizedChanged', { maximized: mainWindow.isMaximized() });
-  }
+  if (mainWindow) send('win:maximizedChanged', { maximized: mainWindow.isMaximized() });
 }
+
+nativeTheme.on('updated', () => send('theme:systemChanged', { dark: nativeTheme.shouldUseDarkColors }));
 
 app.whenReady().then(() => {
   createWindow();

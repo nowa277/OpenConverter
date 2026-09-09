@@ -11,8 +11,10 @@ const DEFAULTS = {
   format: 'mp3',
   quality: '320k',
   outputDir: '', // empty = let user pick each session
-  theme: 'dark',
+  theme: 'system', // 'system' | 'dark' | 'light'
   language: 'auto',
+  reduceMotion: false, // disable UI animations
+  autoClearDone: false, // drop finished items from the queue automatically
   qmcEkey: '', // base64 string from QQ Music client DB
   qqCookie: '', // Cookie for fetching network ekey
   qqGuid: '', // GUID paired with the QQ Music cookie
@@ -28,18 +30,9 @@ function getStore() {
 
 function get() {
   const s = getStore();
-  return {
-    format: s.get('format'),
-    quality: s.get('quality'),
-    outputDir: s.get('outputDir'),
-    theme: s.get('theme'),
-    language: s.get('language'),
-    qmcEkey: s.get('qmcEkey'),
-    qqCookie: s.get('qqCookie'),
-    qqGuid: s.get('qqGuid'),
-    qqUin: s.get('qqUin'),
-    kggAutoScan: s.get('kggAutoScan'),
-  };
+  const out = {};
+  for (const k of Object.keys(DEFAULTS)) out[k] = s.get(k, DEFAULTS[k]);
+  return out;
 }
 
 function set(patch) {

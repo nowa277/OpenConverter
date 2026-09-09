@@ -359,56 +359,90 @@ class QmcRC4Cipher {
 // Decryption entry points
 // =====================================================================
 
+// Base64 alphabet (plus optional trailing whitespace) — every embedded ekey
+// is a base64 string, so anything else is a false-positive container match.
+const EKEY_RE = /^[A-Za-z0-9+/=]+$/;
+const MAX_EKEY_LEN = 0xffff;
+// Smallest buffer we are willing to interpret as a tail-marked container.
+// Real QMC files are megabytes; this only guards against garbage input.
+const MIN_TAIL_CONTAINER_LEN = 0x20;
+
+/**
+ * Locate the per-file ekey (or the metadata needed to fetch one) inside a
+ * QMCv2 container.
+ *
+ * Returns `null` when no container marker is recognised (caller should fall
+ * back to a user-provided ekey), otherwise an object with:
+ *   - ekey        base64 ekey string (absent for `musicex`)
+ *   - format      'musicex' when the key must be fetched online
+ *   - audioOffset byte offset where the ciphertext starts
+ *   - audioLen    ciphertext length in bytes
+ *
+ * Supported layouts:
+ *   STag head  — "STag" @0, u32LE ekeyLen @0x14, ekey @0x18, then audio.
+ *   QTag tail  — audio | meta("ekey,songid,ver") | u32BE metaLen | "QTag"
+ *   musicex    — audio | tail | u32LE tailSize | ... | "musicex\0"
+ *   raw tail   — audio | ekey | u32LE ekeyLen
+ *   STag tail  — "STag" as the last 4 bytes: no embedded key (throws).
+ */
 function detectKey(buf) {
   const len = buf.length;
-  if (len >= 8 && buf.slice(len - 8).toString('ascii') === 'musicex\x00') {
-    if (len >= 16) {
-      const tailSize = buf.readUInt32LE(len - 16);
-      if (tailSize > 0 && tailSize < len - 16) {
-        const tail = buf.slice(len - 16 - tailSize, len - 16);
-        if (tail.length >= 184) {
-          const songMid = tail.slice(28, 88).toString('utf16le').replace(/\0+$/, '');
-          const filename = tail.slice(88, 184).toString('utf16le').replace(/\0+$/, '');
-          const fileMid = filename.replace('.mflac', '').replace('.mgg', '');
-          return { format: 'musicex', songMid, fileMid, audioLen: len - 16 - tailSize };
-        }
+  if (len < 0x18) return null;
+
+  // 1. STag at the head (newer clients: mflac2/mflac4/mgg2/mgg4/mggl).
+  if (buf.toString('ascii', 0, 4) === 'STag') {
+    const ekeyLen = buf.readUInt32LE(0x14);
+    const audioOffset = 0x18 + ekeyLen;
+    if (ekeyLen > 0 && ekeyLen <= MAX_EKEY_LEN && audioOffset < len) {
+      const ekey = buf.toString('ascii', 0x18, audioOffset).trim();
+      if (EKEY_RE.test(ekey)) {
+        return { ekey, audioOffset, audioLen: len - audioOffset };
+      }
+    }
+    return null;
+  }
+
+  const tail4 = buf.toString('ascii', len - 4);
+
+  // 2. musicex tail (QQ Music ≥ 2023): key must be fetched with the user's cookie.
+  if (buf.toString('ascii', len - 8) === 'musicex\x00') {
+    const tailSize = buf.readUInt32LE(len - 16);
+    if (tailSize > 0 && tailSize < len - 16) {
+      const tail = buf.subarray(len - 16 - tailSize, len - 16);
+      if (tail.length >= 184) {
+        const songMid = tail.toString('utf16le', 28, 88).replace(/\0+$/, '');
+        const filename = tail.toString('utf16le', 88, 184).replace(/\0+$/, '');
+        const fileMid = filename.replace(/\.(mflac|mgg)$/i, '');
+        const audioLen = len - 16 - tailSize;
+        return { format: 'musicex', songMid, fileMid, audioOffset: 0, audioLen };
       }
     }
     throw new Error('This file was encrypted with a newer QQ Music client (musicex) without an embedded key. Please provide your QQ Music Cookie in Settings to unlock it.');
   }
-  if (len >= 4 && buf.slice(len - 4).toString('ascii') === 'STag') {
-    // STag might not have ekey, but we might need network fetch. Wait, does STag have songMid?
-    // According to qmdec, STag is legacy and if ekey_len <= 0, it's invalid.
+
+  // 3. STag at the tail: container without an embedded key.
+  if (tail4 === 'STag' && len >= MIN_TAIL_CONTAINER_LEN) {
     throw new Error('This file contains an STag but no embedded key. Please provide your QQ Music Cookie in Settings or downgrade your client.');
   }
 
-  // STag at the head
-  if (len >= 0x18 && buf.slice(0, 4).toString('ascii') === 'STag') {
-    const ekeyLen = buf.readUInt32LE(0x14);
-    if (ekeyLen > 0 && ekeyLen < len - 0x18) {
-      const ekeyBuf = buf.slice(0x18, 0x18 + ekeyLen);
-      return { ekey: ekeyBuf.toString('ascii'), audioLen: len - (0x18 + ekeyLen) };
-    }
-  }
-
-  // QTag at the tail
-  const qTag = buf.slice(len - 4).toString('ascii');
-  if (qTag === 'QTag') {
-    const metaLen = buf.readUInt32LE(len - 8);
+  // 4. QTag tail: "<ekey>,<songid>,<version>" with a big-endian length.
+  if (tail4 === 'QTag') {
+    const metaLen = buf.readUInt32BE(len - 8);
     if (metaLen > 0 && metaLen < len - 8) {
-      const rawMeta = buf.slice(len - 8 - metaLen, len - 8).toString('utf-8');
-      const parts = rawMeta.split(',');
-      if (parts.length > 1 && parts[1]) return { ekey: parts[1], audioLen: len - 8 - metaLen };
+      const audioLen = len - 8 - metaLen;
+      const rawMeta = buf.toString('utf-8', audioLen, len - 8);
+      const ekey = rawMeta.split(',')[0].trim();
+      if (ekey && EKEY_RE.test(ekey)) return { ekey, audioOffset: 0, audioLen };
     }
+    return null;
   }
 
-  // Raw ekey size
-  if (len >= 4) {
-    const rawLen = buf.readUInt32LE(len - 4);
-    if (rawLen > 0 && rawLen < len - 4) {
-      const rawMeta = buf.slice(len - 4 - rawLen, len - 4).toString('ascii');
-      return { ekey: rawMeta, audioLen: len - 4 - rawLen };
-    }
+  // 5. Raw ekey tail: ekey bytes followed by a little-endian length.
+  const rawLen = buf.readUInt32LE(len - 4);
+  if (rawLen > 0 && rawLen <= MAX_EKEY_LEN && rawLen < len - 4) {
+    const audioLen = len - 4 - rawLen;
+    const ekey = buf.toString('ascii', audioLen, len - 4).trim();
+    if (EKEY_RE.test(ekey)) return { ekey, audioOffset: 0, audioLen };
   }
   return null;
 }
@@ -480,26 +514,26 @@ async function decodeV2File(inputPath, outputDir, opts = {}) {
   const detected = detectKey(input);
   let audio;
   if (detected) {
+    let ekey = detected.ekey;
     if (detected.format === 'musicex') {
-      const ekey = await fetchEkeyFromApi(detected.songMid, detected.fileMid, opts.qqCookie, opts);
+      ekey = await fetchEkeyFromApi(detected.songMid, detected.fileMid, opts.qqCookie, opts);
       if (!ekey) {
         throw new Error('QQ Music VIP Cookie required (or cookie expired). Please log into QQ Music with a VIP account, play a VIP song, and click Settings -> Scan QQ Music Memory.');
       }
-      const cipherText = input.slice(0, detected.audioLen);
-      audio = decryptV2Buffer(cipherText, ekey);
-    } else if (detected.ekey) {
-      const cipherText = input.slice(0, detected.audioLen);
-      audio = decryptV2Buffer(cipherText, detected.ekey);
     }
+    const cipherText = input.subarray(detected.audioOffset, detected.audioOffset + detected.audioLen);
+    audio = decryptV2Buffer(cipherText, ekey);
   } else {
+    if (!opts.ekey) {
+      throw new Error('No embedded key found in this QMCv2 file. Paste your QQ Music ekey in Settings, or provide a Cookie so the key can be fetched.');
+    }
     audio = decryptV2Buffer(input, opts.ekey);
   }
-  
-  const detectedFormat = detectAudioFormat(audio);
-  if (!detectedFormat) {
-    throw new Error('QMCv2 decryption failed: decrypted data is not a recognized audio stream. The QQ Music Cookie/GUID may be expired or mismatched.');
+
+  const fmt = detectAudioFormat(audio);
+  if (!fmt) {
+    throw new Error(`QMCv2 decryption failed: decrypted data is not a recognized audio stream (expected ${outExtHint}). The ekey / QQ Music Cookie may be expired or mismatched.`);
   }
-  const fmt = detectedFormat || outExtHint;
   const base = inputPath.replace(/\.[^./]+$/, '');
   const name = base.split(/[\\/]/).pop();
   const outPath = outputDir ? path.join(outputDir, `${name}.${fmt}`) : `${base}.${fmt}`;

@@ -25,6 +25,7 @@
  */
 const crypto = require('node:crypto');
 const fs = require('node:fs');
+const path = require('node:path');
 
 const MAGIC = Buffer.from('CTENFDAM', 'ascii');
 const CORE_KEY = Buffer.from('687A4852416D736F356B496E62617857', 'hex');
@@ -145,22 +146,59 @@ function inferExtension(meta) {
   return 'mp3';
 }
 
-function decodeFile(inputPath, outputDir) {
+/**
+ * Flatten the NCM meta JSON into a small set of common tags that can be
+ * handed to ffmpeg's `-metadata` (title/artist/album). Returns null when
+ * nothing useful is present.
+ */
+function extractTags(meta) {
+  if (!meta || typeof meta !== 'object') return null;
+  const tags = {};
+  if (meta.musicName) tags.title = String(meta.musicName);
+  if (Array.isArray(meta.artist) && meta.artist.length) {
+    // artist is [[name, id], ...]
+    tags.artist = meta.artist.map((a) => (Array.isArray(a) ? a[0] : a)).filter(Boolean).join(' / ');
+  }
+  if (meta.album) tags.album = String(meta.album);
+  return Object.keys(tags).length ? tags : null;
+}
+
+function imageExtension(imageData) {
+  if (!imageData || imageData.length < 4) return 'jpg';
+  if (imageData[0] === 0x89 && imageData[1] === 0x50) return 'png';
+  return 'jpg';
+}
+
+/**
+ * Decrypt an .ncm file to `<outputDir>/<name>.<mp3|flac>`.
+ *
+ * When `opts.extractCover` is true (default) and the container carries a
+ * cover image, it is written next to the audio as `<name>.cover.<jpg|png>`
+ * and returned as `coverPath` so the caller can embed it and delete it.
+ */
+function decodeFile(inputPath, outputDir, opts = {}) {
   const ncm = fs.readFileSync(inputPath);
   const { audio, meta, imageData } = decryptBuffer(ncm);
   const ext = inferExtension(meta);
   const base = inputPath.replace(/\.ncm$/i, '');
   const name = base.split(/[\\/]/).pop();
-  const outName = `${name}.${ext}`;
-  const outPath = outputDir ? `${outputDir}/${outName}` : `${base}.${ext}`;
-  fs.mkdirSync(outputDir || '.', { recursive: true });
+  const dir = outputDir || path.dirname(inputPath);
+  fs.mkdirSync(dir, { recursive: true });
+  const outPath = path.join(dir, `${name}.${ext}`);
   fs.writeFileSync(outPath, audio);
-  return { outputPath: outPath, format: ext, hasImage: !!imageData };
+
+  let coverPath = null;
+  if (imageData && imageData.length > 0 && opts.extractCover !== false) {
+    coverPath = path.join(dir, `${name}.cover.${imageExtension(imageData)}`);
+    fs.writeFileSync(coverPath, imageData);
+  }
+  return { outputPath: outPath, format: ext, hasImage: !!imageData, coverPath, tags: extractTags(meta) };
 }
 
 module.exports = {
   decryptBuffer,
   decodeFile,
   inferExtension,
+  extractTags,
   MAGIC,
 };

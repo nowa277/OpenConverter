@@ -1,20 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-async function parallelLimit(limit, tasks) {
-  const executing = [];
-  const results = [];
-  for (const task of tasks) {
-    const p = Promise.resolve().then(() => task());
-    results.push(p);
-    const e = p.then(() => executing.splice(executing.indexOf(e), 1));
-    executing.push(e);
-    if (executing.length >= limit) {
-      await Promise.race(executing);
-    }
-  }
-  return Promise.all(results);
-}
+const { parallelLimit } = require('../src/main/pipeline');
 
 test('parallelLimit concurrency control', async (t) => {
   await t.test('respects concurrency limit', async () => {
@@ -53,5 +40,20 @@ test('parallelLimit concurrency control', async (t) => {
     const results = await parallelLimit(5, tasks);
     assert.deepEqual(results, [0, 1, 2]);
     assert.equal(maxActive, 3);
+  });
+
+  await t.test('a rejected task does not stall the queue', async () => {
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    let ran = 0;
+    const tasks = [
+      async () => { await delay(10); throw new Error('boom'); },
+      async () => { await delay(10); ran++; return 'a'; },
+      async () => { await delay(10); ran++; return 'b'; },
+      async () => { await delay(10); ran++; return 'c'; },
+    ];
+    await assert.rejects(parallelLimit(1, tasks), /boom/);
+    // Give the remaining tasks time to be scheduled and complete.
+    await delay(100);
+    assert.equal(ran, 3);
   });
 });
