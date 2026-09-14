@@ -65,8 +65,19 @@
     <string name="lang_system">跟随系统</string>
     <string name="lang_zh">简体中文</string>
     <string name="lang_en">English</string>
-    <string name="settings_kgg_root_guide_btn">Root 导入指引</string>
-    <string name="settings_kgg_root_guide_title">酷狗数据库 Root 导入指引</string>
-    <string name="settings_kgg_root_guide_content">在已 Root 的设备上，酷狗的本地数据库通常位于以下路径：\n/data/data/com.kugou.android/databases/kugou_music_v2.db\n\n您可以：\n1. 使用 MT管理器、Solid Explorer 等具有 Root 权限的文件管理器。\n2. 将该 db 文件复制到可访问的外部存储（如“下载/Download”文件夹）。\n3. 在本设置中点击“导入”并选择该 db 文件以自动抽取歌曲密钥。</string>
+    <string name="settings_kgg_keys_sync_btn">同步酷狗密钥 (Root / 自动扫描)</string>
+    <string name="settings_kgg_root_guide_btn">密钥获取与导入指引</string>
+    <string name="settings_kgg_root_guide_title">酷狗歌曲密钥获取指引</string>
+    <string name="settings_kgg_root_guide_content">酷狗音乐的解密密钥存储于酷狗内部或导出的密钥文件中：
+1. 已 Root 设备：应用将自动直接提权读取酷狗密钥，完全无需安装任何辅助工具。
+2. 免 Root 设备：网易云与 QQ 音乐无需任何配置即可直接转换；酷狗音乐若需转换，可将电脑端或备份中的 kgg.key / mggkey 文件放入 Download 或 Music 目录，应用将自动识别合并，或点击下方导入。</string>
     <string name="settings_kgg_root_guide_ok">我知道了</string>
+    <string name="settings_kgg_keys_sync_manual">立即同步酷狗密钥 (自动探测)</string>
+    <string name="settings_kgg_keys_auto_sync_title">自动发现与静默同步</string>
+    <string name="settings_kgg_keys_auto_sync_subtitle">启动与转换时自动探测 Root 与公共目录中的新密钥</string>
+    <string name="settings_kgg_keys_import_file">手动选择文件 (kgg.key / db)</string>
+    <string name="settings_kgg_keys_guide_link">获取与指引</string>
+    <string name="settings_kgg_keys_status_ready">已就绪</string>
+    <string name="settings_kgg_keys_status_empty">未加载</string>
+    <string name="settings_kgg_sync_failed_no_permission">未检测到 Root 权限或公共目录下暂无可用的密钥文件</string>
 </resources>

@@ -63,6 +63,41 @@ class KggKeyStore internal constructor(
     override fun find(encryptionKeyId: String): String? = keys[encryptionKeyId]
     override fun count(): Int = keys.size
 
+    suspend fun tryResolveMissingKey(keyId: String): Boolean {
+        if (keys.containsKey(keyId)) return true
+        return runCatching {
+            val newlyFound = KugouKeySyncManager.syncKeys()
+            if (newlyFound.isNotEmpty()) {
+                mergeKeys(newlyFound)
+                keys.containsKey(keyId)
+            } else {
+                false
+            }
+        }.getOrDefault(false)
+    }
+
+    suspend fun mergeKeys(incoming: Map<String, String>): KggImportResult = importMutex.withLock {
+        _state.value = KggImportState.Importing
+        try {
+            require(incoming.isNotEmpty()) { "No KGG keys to import" }
+            val result = KggKeyMap.merge(keys, incoming)
+            withContext(Dispatchers.IO) { persist(result.merged) }
+            keys = result.merged
+            KggImportResult(result.added, result.updated, result.merged.size).also {
+                _state.value = KggImportState.Ready(it.total, it)
+            }
+        } catch (error: Throwable) {
+            val message = error.message ?: "KGG key import failed"
+            _state.value = KggImportState.Failed(message, keys.size)
+            if (error is IllegalArgumentException) throw error
+            throw IllegalArgumentException(message, error)
+        }
+    }
+
+    fun notifyFailed(message: String) {
+        _state.value = KggImportState.Failed(message, keys.size)
+    }
+
     override suspend fun import(uri: String): KggImportResult = importMutex.withLock {
         _state.value = KggImportState.Importing
         try {
@@ -108,6 +143,9 @@ class KggKeyStore internal constructor(
             val raw = source.readBytes()
             val text = runCatching { decodeUtf8(raw) }.getOrNull()
             if (text != null && '\u0000' !in text) return KggKeyMap.parse(text)
+
+            val mmkvKeys = MmkvKeyParser.parse(raw)
+            if (mmkvKeys.isNotEmpty()) return mmkvKeys
 
             java.io.BufferedInputStream(source.inputStream(), 64 * 1024).use { input ->
                 java.io.BufferedOutputStream(plaintext.outputStream(), 64 * 1024).use { output ->

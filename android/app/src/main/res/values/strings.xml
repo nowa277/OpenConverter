@@ -65,8 +65,19 @@
     <string name="lang_system">System Default</string>
     <string name="lang_zh">简体中文</string>
     <string name="lang_en">English</string>
-    <string name="settings_kgg_root_guide_btn">Root Guide</string>
-    <string name="settings_kgg_root_guide_title">KuGou DB Root Import Guide</string>
-    <string name="settings_kgg_root_guide_content">On a Rooted device, KuGou\'s local database is located at:\n/data/data/com.kugou.android/databases/kugou_music_v2.db\n\nHow to import:\n1. Use MT Manager, Solid Explorer, or any file manager with Root access.\n2. Copy the db file to external public storage (e.g. "Download" folder).\n3. Tap "Import" in this app and pick the db file to extract ekeys.</string>
+    <string name="settings_kgg_keys_sync_btn">Sync KuGou Keys (Root / Auto-Scan)</string>
+    <string name="settings_kgg_root_guide_btn">Import &amp; Sync Guide</string>
+    <string name="settings_kgg_root_guide_title">KuGou Key Acquisition Guide</string>
+    <string name="settings_kgg_root_guide_content">KuGou keys are stored inside KuGou or in exported key files:
+1. Rooted Devices: OpenConverter automatically discovers and synchronizes keys via root access directly — no auxiliary apps needed.
+2. Non-Root Devices: NetEase (NCM) and QQ Music (QMC) convert seamlessly without any configuration. For KuGou (KGG), place an exported kgg.key / mggkey file in your Download or Music folder, and OpenConverter will automatically detect and merge it.</string>
     <string name="settings_kgg_root_guide_ok">OK</string>
+    <string name="settings_kgg_keys_sync_manual">Sync KuGou Keys (Auto-Detect)</string>
+    <string name="settings_kgg_keys_auto_sync_title">Auto Discovery &amp; Silent Sync</string>
+    <string name="settings_kgg_keys_auto_sync_subtitle">Silently check and sync new keys on launch and during conversion</string>
+    <string name="settings_kgg_keys_import_file">Select File (kgg.key / db)</string>
+    <string name="settings_kgg_keys_guide_link">Acquisition Guide</string>
+    <string name="settings_kgg_keys_status_ready">Ready</string>
+    <string name="settings_kgg_keys_status_empty">Not loaded</string>
+    <string name="settings_kgg_sync_failed_no_permission">No Root access detected and no key files found in public storage</string>
 </resources>

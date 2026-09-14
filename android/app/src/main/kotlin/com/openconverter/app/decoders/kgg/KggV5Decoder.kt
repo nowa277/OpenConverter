@@ -12,7 +12,7 @@ class KggV5Decoder(
     private val keyProvider: KggKeyProvider,
     private val ekeyUnwrapper: (String) -> ByteArray = KggEkey::unwrap,
 ) : StreamingDecoder {
-    override val supportedExtensions: Set<String> = setOf(".kgg")
+    override val supportedExtensions: Set<String> = setOf(".kgg", ".kgg.flac")
 
     override fun decrypt(input: ByteArray): DecryptResult {
         val output = ByteArrayOutputStream()

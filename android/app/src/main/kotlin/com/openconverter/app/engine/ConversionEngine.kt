@@ -66,11 +66,37 @@ class ConversionEngine(
 
             if (streamingDecoder != null) {
                 inPath = fs.cachePath("in_${i}_dec")
-                srcFormatExt = fs.openInput(uri).use { input ->
-                    fs.openCacheOutput(inPath!!).use { output ->
-                        streamingDecoder.decrypt(input, output)
+                var formatResult: String? = null
+                try {
+                    formatResult = fs.openInput(uri).use { input ->
+                        fs.openCacheOutput(inPath!!).use { output ->
+                            streamingDecoder.decrypt(input, output)
+                        }
+                    }
+                } catch (t: Throwable) {
+                    val msg = t.message.orEmpty()
+                    // Auto-healing: If missing KGG key, try silent discovery and retry once
+                    if (msg.contains("Missing KGG key for", ignoreCase = true) || msg.contains("No KGG keys imported", ignoreCase = true)) {
+                        val keyId = msg.substringAfter("Missing KGG key for ", "").substringBefore(";").trim()
+                        val healed = runCatching {
+                            KugouKeySyncManager.syncKeys().isNotEmpty()
+                        }.getOrDefault(false)
+
+                        if (healed) {
+                            // Retry decryption with newly discovered keys
+                            formatResult = fs.openInput(uri).use { input ->
+                                fs.openCacheOutput(inPath!!).use { output ->
+                                    streamingDecoder.decrypt(input, output)
+                                }
+                            }
+                        } else {
+                            throw t
+                        }
+                    } else {
+                        throw t
                     }
                 }
+                srcFormatExt = requireNotNull(formatResult)
                 streamedToCache = true
                 isPlain = false
             } else {

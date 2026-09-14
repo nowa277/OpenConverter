@@ -1,10 +1,12 @@
 package com.openconverter.app.ui.settings
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,13 +18,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,7 +39,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -49,7 +60,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.openconverter.app.R
+import com.openconverter.app.ui.theme.OcBackground
+import com.openconverter.app.ui.theme.OcOnPrimary
+import com.openconverter.app.ui.theme.OcPrimary
+import com.openconverter.app.ui.theme.OcSurface
+import com.openconverter.app.ui.theme.OcSurfaceVariant
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,6 +80,9 @@ fun SettingsScreen(
 ) {
     val s by viewModel.state.collectAsState()
     val ctx = LocalContext.current
+    val prefs = remember { ctx.getSharedPreferences("prefs", Context.MODE_PRIVATE) }
+    var autoSyncEnabled by remember { mutableStateOf(prefs.getBoolean("auto_sync_kugou", true)) }
+
     val keySourcePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { viewModel.importKggKeys(it.toString()) }
     }
@@ -112,42 +132,60 @@ fun SettingsScreen(
                     )
                 }
             }
+            // KGG 密钥管理模块 (Spotify Spec 深度重构)
             item {
                 Text(
                     stringResource(R.string.settings_kgg_keys_title),
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
                 )
                 Card(
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
                         Text(
                             stringResource(R.string.settings_kgg_keys_description),
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Text(
-                            stringResource(R.string.settings_kgg_keys_total, s.kggKeyCount),
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Bold,
-                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                stringResource(R.string.settings_kgg_keys_total, s.kggKeyCount),
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .background(if (s.kggKeyCount > 0) OcPrimary else MaterialTheme.colorScheme.outline, CircleShape)
+                                )
+                                Text(
+                                    if (s.kggKeyCount > 0) stringResource(R.string.settings_kgg_keys_status_ready) else stringResource(R.string.settings_kgg_keys_status_empty),
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = if (s.kggKeyCount > 0) OcPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
                         s.kggLastResult?.let { result ->
                             Text(
-                                stringResource(
-                                    R.string.settings_kgg_keys_result,
-                                    result.added,
-                                    result.updated,
-                                    result.total,
-                                ),
+                                stringResource(R.string.settings_kgg_keys_result, result.added, result.updated, result.total),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
+                                color = OcPrimary,
                             )
                         }
                         s.kggImportError?.let { error ->
@@ -157,35 +195,106 @@ fun SettingsScreen(
                                 color = MaterialTheme.colorScheme.error,
                             )
                         }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+
+                        // 核心操作 1：Spotify Full-Pill 胶囊大按钮 (手动扫描一次)
+                        Button(
+                            onClick = {
+                                viewModel.syncFromKugou {
+                                    runCatching { rikka.shizuku.Shizuku.requestPermission(1001) }
+                                }
+                            },
+                            shape = CircleShape,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = OcPrimary,
+                                contentColor = OcOnPrimary
+                            ),
+                            modifier = Modifier.fillMaxWidth().height(48.dp)
                         ) {
-                            Button(
-                                enabled = !s.kggImporting,
-                                onClick = {
-                                    keySourcePicker.launch(
-                                        arrayOf("application/octet-stream", "text/plain", "*/*"),
-                                    )
-                                },
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
+                            Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.size(8.dp))
+                            Text(
+                                stringResource(R.string.settings_kgg_keys_sync_manual),
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                            )
+                        }
+
+                        // 核心操作 2：启动时静默检查更新 (平滑 Switch 卡片)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                                .clickable {
+                                    prefs.edit().putBoolean("auto_sync_kugou", autoSyncEnabled).apply()
+                                }
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                                 Text(
-                                    stringResource(
-                                        if (s.kggImporting) R.string.settings_kgg_keys_importing
-                                        else R.string.settings_kgg_keys_import,
-                                    ),
+                                    stringResource(R.string.settings_kgg_keys_auto_sync_title),
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    stringResource(R.string.settings_kgg_keys_auto_sync_subtitle),
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            Text(
-                                text = stringResource(R.string.settings_kgg_root_guide_btn),
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.clickable { showRootGuide = true }.padding(vertical = 4.dp)
+                            Switch(
+                                checked = autoSyncEnabled,
+                                onCheckedChange = {
+                                    autoSyncEnabled = it
+                                    prefs.edit().putBoolean("auto_sync_kugou", it).apply()
+                                },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = OcOnPrimary,
+                                    checkedTrackColor = OcPrimary,
+                                    uncheckedThumbColor = Color(0xFFE0E0E0),
+                                    uncheckedTrackColor = Color(0xFF333333),
+                                )
                             )
+                        }
+
+                        // 辅助入口 (离线文件导入 & 详细指引)
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .clickable {
+                                        keySourcePicker.launch(arrayOf("application/octet-stream", "text/plain", "*/*"))
+                                    }
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(Icons.Default.UploadFile, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                                Text(
+                                    stringResource(R.string.settings_kgg_keys_import_file),
+                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .clickable { showRootGuide = true }
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(Icons.Default.Info, contentDescription = null, tint = OcPrimary, modifier = Modifier.size(16.dp))
+                                Text(
+                                    stringResource(R.string.settings_kgg_keys_guide_link),
+                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                                    color = OcPrimary
+                                )
+                            }
                         }
                     }
                 }
