@@ -46,7 +46,36 @@ data class HomeUiState(
 )
 
 class HomeViewModel(app: Application) : AndroidViewModel(app) {
-    private val _state = MutableStateFlow(HomeUiState())
+    private val prefs = app.getSharedPreferences("prefs", Context.MODE_PRIVATE)
+
+    private val _state = MutableStateFlow(
+        run {
+            val savedFolderUri = prefs.getString("output_folder_uri", null)
+            val savedFolderName = prefs.getString("output_folder_name", null)
+            val savedFormat = prefs.getString("target_format", "mp3") ?: "mp3"
+            val savedBitrate = prefs.getString("bitrate", "320k")
+
+            var restoredUri: String? = null
+            var restoredName: String? = null
+            if (savedFolderUri != null) {
+                val uri = Uri.parse(savedFolderUri)
+                val hasPerm = app.contentResolver.persistedUriPermissions.any {
+                    it.uri == uri && it.isWritePermission
+                }
+                if (hasPerm) {
+                    restoredUri = savedFolderUri
+                    restoredName = savedFolderName ?: "folder"
+                }
+            }
+
+            HomeUiState(
+                outputFolderUri = restoredUri,
+                outputFolderName = restoredName,
+                targetFormat = savedFormat,
+                bitrate = savedBitrate,
+            )
+        }
+    )
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
 
     private var binder: ConversionService.LocalBinder? = null
@@ -72,8 +101,20 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         binder = null
     }
 
+    fun getLastFolderUri(): Uri? {
+        val lastInput = prefs.getString("last_input_folder_uri", null)
+        if (lastInput != null) {
+            val parsed = runCatching { Uri.parse(lastInput) }.getOrNull()
+            if (parsed != null) return parsed
+        }
+        return _state.value.outputFolderUri?.let { runCatching { Uri.parse(it) }.getOrNull() }
+    }
+
     fun setFiles(uris: List<Uri>) {
         val ctx = getApplication<Application>()
+        uris.firstOrNull()?.let { firstUri ->
+            prefs.edit().putString("last_input_folder_uri", firstUri.toString()).apply()
+        }
         val entries = uris.map { uri ->
             FileEntry(
                 uri = uri.toString(),
@@ -92,6 +133,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             )
         }
         if (takeResult.isFailure) {
+            prefs.edit().remove("output_folder_uri").remove("output_folder_name").apply()
             _state.update { it.copy(
                 outputFolderUri = null,
                 outputFolderName = null,
@@ -124,6 +166,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                     Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
                 )
             }
+            prefs.edit().remove("output_folder_uri").remove("output_folder_name").apply()
             _state.update { it.copy(
                 outputFolderUri = null,
                 outputFolderName = null,
@@ -131,14 +174,24 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             ) }
             return
         }
+        prefs.edit()
+            .putString("output_folder_uri", uri.toString())
+            .putString("output_folder_name", name)
+            .apply()
         _state.update { it.copy(
             outputFolderUri = uri.toString(),
             outputFolderName = name,
             folderError = null,
         ) }
     }
-    fun setTargetFormat(fmt: String) = _state.update { it.copy(targetFormat = fmt) }
-    fun setBitrate(b: String?) = _state.update { it.copy(bitrate = b) }
+    fun setTargetFormat(fmt: String) {
+        prefs.edit().putString("target_format", fmt).apply()
+        _state.update { it.copy(targetFormat = fmt) }
+    }
+    fun setBitrate(b: String?) {
+        prefs.edit().putString("bitrate", b).apply()
+        _state.update { it.copy(bitrate = b) }
+    }
 
     fun openControlsSheet() = _state.update { it.copy(showControlsSheet = true) }
     fun closeControlsSheet() = _state.update { it.copy(showControlsSheet = false) }

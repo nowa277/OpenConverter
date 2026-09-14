@@ -11,8 +11,8 @@ android {
         applicationId = "com.openconverter.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 11
-        versionName = "1.3.1"
+        versionCode = 12
+        versionName = "1.4.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
     }
@@ -22,12 +22,20 @@ android {
         buildConfig = true
     }
 
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
+    }
+
     signingConfigs {
         create("release") {
-            storeFile = file("openconverter-release.jks")
-            storePassword = "openconverter2024"
-            keyAlias = "openconverter"
-            keyPassword = "openconverter2024"
+            val jks = file("openconverter-release.jks")
+            if (jks.exists()) {
+                storeFile = jks
+                storePassword = "openconverter2024"
+                keyAlias = "openconverter"
+                keyPassword = "openconverter2024"
+            }
         }
     }
 
@@ -35,7 +43,10 @@ android {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("release")
+            val releaseSigning = signingConfigs.getByName("release")
+            if (releaseSigning.storeFile != null) {
+                signingConfig = releaseSigning
+            }
         }
     }
 

@@ -1,7 +1,10 @@
 package com.openconverter.app.saf
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
@@ -13,11 +16,22 @@ import androidx.activity.result.contract.ActivityResultContracts
  */
 object SafAdapter {
 
-    /** Multi-select audio files. Some pickers ignore `audio/*` for exotic exts (.ncm),
-     *  so we open with `*/*` and let the engine sniff by bytes/extension.
-     *  Caller launches with an array of MIME filters, e.g. arrayOf("audio/*", "*/*"). */
-    fun openMultipleAudioFilesContract(): ActivityResultContract<Array<String>, List<Uri>> =
-        ActivityResultContracts.OpenMultipleDocuments()
+    /** Multi-select audio files. Supports pre-selecting the initial directory. */
+    fun openMultipleAudioFilesContract(): ActivityResultContract<Uri?, List<Uri>> =
+        object : ActivityResultContract<Uri?, List<Uri>>() {
+            private val delegate = ActivityResultContracts.OpenMultipleDocuments()
+
+            override fun createIntent(context: Context, input: Uri?): Intent {
+                val intent = delegate.createIntent(context, arrayOf("audio/*", "*/*"))
+                if (input != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, input)
+                }
+                return intent
+            }
+
+            override fun parseResult(resultCode: Int, intent: Intent?): List<Uri> =
+                delegate.parseResult(resultCode, intent)
+        }
 
     /** Pick an output folder tree. Caller MUST take persistable permission on the result.
      *  Launch with `null` to let the user pick any tree, or a `Uri` to pre-select. */
@@ -54,3 +68,4 @@ object SafAdapter {
         return -1L
     }
 }
+

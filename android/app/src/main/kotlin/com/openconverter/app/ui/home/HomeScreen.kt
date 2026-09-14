@@ -1,5 +1,6 @@
 package com.openconverter.app.ui.home
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -193,7 +194,7 @@ fun HomeScreen(
             if (state.files.isNotEmpty()) {
                 PillButton(
                     text = stringResource(R.string.home_pick_files),
-                    onClick = { pickFiles.launch(arrayOf("audio/*", "*/*")) },
+                    onClick = { pickFiles.launch(viewModel.getLastFolderUri()) },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(8.dp))
@@ -218,7 +219,7 @@ fun HomeScreen(
                         label = stringResource(R.string.home_pick_folder),
                         value = folderValue,
                         muted = state.outputFolderUri == null,
-                        onClick = { pickFolder.launch(null) },
+                        onClick = { pickFolder.launch(state.outputFolderUri?.let { Uri.parse(it) }) },
                     )
                     
                     androidx.compose.material3.HorizontalDivider(
@@ -256,7 +257,7 @@ fun HomeScreen(
                 ) {
                     PillButton(
                         text = stringResource(R.string.home_pick_files),
-                        onClick = { pickFiles.launch(arrayOf("audio/*", "*/*")) },
+                        onClick = { pickFiles.launch(viewModel.getLastFolderUri()) },
                         modifier = Modifier.fillMaxWidth(0.6f)
                     )
                 }
