@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  desktop:
+    name: Desktop tests (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      # ffmpeg/ffprobe are required by the pipeline + ffmpeg tests
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
+      # package-lock.json is intentionally not committed; skip lifecycle
+      # scripts so the Electron binary download isn't needed for unit tests.
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Unit + integration tests
+        run: npm test
+
+      - name: Build renderer
+        run: npm run build:renderer
+
+      - name: Commercial-code guard
+        run: npm run check:commercial
