@@ -26,6 +26,14 @@ A lightweight format conversion and decryption tool for audio workflows.<br/>
 * **Privacy First, Fully Offline**: All decryption, transcoding, and processing run completely on the local device. No audio data is uploaded, zero network interaction, safe and secure.
 * **True Audio Transcoding (FFmpeg)**: Not a simple rename or extraction. Built-in FFmpeg / FFmpegKit transcoding backend supports converting to MP3, FLAC, WAV, M4A, and OGG, with customizable output bitrates (e.g., 320 kbps, 256 kbps, etc.).
 
+### What's new in v1.4.0 (Android)
+* **Direct Root Sync (No Shizuku needed)**: Native Root extraction pipeline adapting across `su 0`, `su -c`, KernelSU, APatch, and toybox to extract KuGou MMKV and SQLite decryption keys in one click.
+* **Public Storage Key Auto-Scanner**: Automatically scans `/sdcard/Download`, `/sdcard/Music`, and `/sdcard/kgmusic` for `kgg.key`, `mggkey*`, and database files, parsing and merging keys without manual intervention.
+* **Conversion Engine Missing Key Auto-Healing**: When encountering unindexed audio files during batch conversion, the engine immediately initiates on-demand key scanning and retries decryption.
+* **SAF Document Picker Path Memory**: Implements `EXTRA_INITIAL_URI` support to automatically open the picker in the last selected or output folder.
+* **Persistent Settings & SAF Permissions**: Preserves output folder SAF write access (via `takePersistableUriPermission`), format preferences, and bitrates across app restarts.
+* **Redesigned Settings Screen**: KuGou key status card now clearly displays readiness (Direct Root / Ready) and total indexed keys.
+
 ### What's new in v0.3.6 (desktop)
 * **Smoother UI**: the queue is now rendered incrementally (progress bars really animate), with view transitions, a decrypt-stage shimmer, an overall progress bar, stacked toasts and a full-window drop overlay. Adds **System theme**, *Reduce motion* and *auto-clear finished items*.
 * **More control**: cancel a running batch, remove single files, *Show in folder* for finished items. Same-container inputs are copied instead of being lossy re-encoded (mp3→mp3); OGG/Opus at 320k is clamped to libopus' 256k limit (previously always failed).
@@ -59,7 +67,7 @@ A lightweight format conversion and decryption tool for audio workflows.<br/>
 | `.ncm` | NetEase Cloud Music | Direct decryption via local algorithm |
 | `.kwm` | KuWo Music | Direct decryption via local algorithm |
 | `.kgm` / `.kgma` / `.vpr` | KuGou Music / Viper | Direct decryption via local algorithm |
-| `.kgg` / `.kgg.flac` | KuGou Music | On Android, import a matching `KGMusicV3.db` or `kgg.key` in Settings |
+| `.kgg` / `.kgg.flac` | KuGou Music | Desktop auto-scans disks; Android supports Native Root sync, public storage scanning, and manual import of `kgg.key` / `KGMusicV3.db` |
 | `.mgg` / `.mgg1` / `.bkc` | QQ Music | Requires configuring the **ekey** once in **Settings/More** (a base64 string extracted from the local QQ Music client database), which the app persists via secure storage |
 | `.mp3` / `.flac` / `.wav` | Any Platform | Import directly for general format or bitrate transcoding |
 
@@ -97,10 +105,12 @@ openconverter
 
 Download the latest APK files from the [Releases page](https://github.com/nowa277/OpenConverter/releases) to install:
 
-* **arm64-v8a**: `openconverter-v***-android-arm64-v8a.apk` (Recommended, suitable for the vast majority of modern smartphones)
-* **x86_64**: `openconverter-v***-android-x86_64.apk` (Suitable for running and debugging on Android Emulators)
+* **arm64-v8a**: `openconverter-v1.4.0-android-arm64-v8a.apk` (Recommended, suitable for the vast majority of modern smartphones)
+* **x86_64**: `openconverter-v1.4.0-android-x86_64.apk` (Suitable for running and debugging on Android Emulators)
 
-KGG v5 uses per-file keys. On Android, use the system document picker in Settings to import `KGMusicV3.db` from your own KuGou environment, or a portable `kgg.key`. Mappings are merged only inside the app sandbox on that device; the project does not bundle, upload, or query databases, accounts, or keys online.
+KGG v5 requires per-track keys. In **v1.4.0**, several automatic mechanisms are available:
+1. **Rooted Devices**: One-click Direct Root sync via Settings (supports KernelSU / APatch / Magisk) directly extracts MMKV and SQLite keys;
+2. **Non-Rooted Devices**: Automatic public storage scanner scans `/sdcard/Download` or `/sdcard/Music` for `kgg.key` or `KGMusicV3.db`. You can also manually import keys via the system document picker. All keys remain safely on-device.
 
 ### Auto Key Fetch Guide and Success Demo
 Supports one-click automatic key acquisition for KuGou and QQ Music formats. In the "Settings" page, you can automatically scan memory to get the QQ Music Cookie and fetch decryption info. KuGou Music also supports one-click full-disk automatic key scanning:
@@ -114,11 +124,10 @@ Once successfully configured, you can simply drag and drop encrypted files for f
 </p>
 
 > [!IMPORTANT]
-> **Android KGG Decryption Limits & Workarounds:**
-> 1. **System Sandbox Restrictions**: On non-rooted phones, Android's security model strictly prohibits any application (including this app and ADB shell) from directly reading KuGou's private database `kugou_music_v2.db`. Therefore, automatic local key scanning is unavailable on Android.
-> 2. **Rootless Alternatives**:
->    * **PC Database Transfer**: If you use KuGou on PC, you can copy its database file `KGMusicV3.db` (e.g. at `C:\Users\Public\KuGou\KGMusic\KGMusicV3.db` on Windows) to your phone's public folder (like `Download`), and then import it via the Settings page. Once imported, keys are merged into the app sandbox, enabling you to decrypt these KGG files locally forever.
->    * **App Downgrade (Recommended)**: Downgrade the KuGou Music app on your phone to an older version. Older versions download files in `.kgm` or `.kgma` formats, which use algorithm-derived keys and do not require database lookups. OpenConverter on Android can decrypt `.kgm`/`.kgma` files directly without root or any database imports.
+> **Android KGG Decryption Guide:**
+> 1. **Rooted Phones**: One-tap Native Root sync in Settings unlocks all downloaded KGG tracks immediately.
+> 2. **Non-Rooted Phones**: Copy PC KuGou's `KGMusicV3.db` (usually at `C:\Users\Public\KuGou\KGMusic\KGMusicV3.db`) or exported `kgg.key` text file into your phone's `Download` or `Music` directory. OpenConverter auto-discovers and imports keys upon launch. Manual import via Settings is also supported.
+> 3. **Downgrade Alternative**: Older KuGou versions download tracks as `.kgm` / `.kgma` without database requirements, allowing instant decryption without root or imports.
 
 ---
 

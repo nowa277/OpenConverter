@@ -26,7 +26,15 @@
 * **隐私至上，完全离线**：所有的解密、转码与处理均完全在本地设备上运行。不上传任何音频数据，零网络交互，安全可靠。
 * **真实音频转码 (FFmpeg)**：并非简单重命名或提取，内置 FFmpeg / FFmpegKit 转码后端，支持转码为 MP3 / FLAC / WAV / M4A / OGG，并可根据需要自由选择输出码率（如 320k, 256k 等）。
 
-### v0.3.6 最新更新（桌面端）：
+### v1.4.0 最新更新（Android 端）：
+* **原生 Root 免 Shizuku 一键同步**：新增直接 Root 提取链，自适应 `su 0`、`su -c`、KernelSU、APatch 及 toybox，已 Root 手机无需配置 Shizuku 即可一键拉取酷狗 MMKV/SQLite 解密密钥。
+* **公共存储密钥自动扫描**：新增 `PublicStorageKeyScanner`，自动检索 `/sdcard/Download`、`/sdcard/Music`、`/sdcard/kgmusic` 等公共目录下的 `kgg.key`、`mggkey*` 及数据库文件并自动提取合并。
+* **转换引擎缺失密钥即时自愈 (Auto-Healing)**：若遇到未提前索引密钥的音频，转换引擎即时触发全源深度扫描并重试解密，大幅提升批量转换成功率。
+* **SAF 选歌路径记忆**：适配 Android DocumentsContract `EXTRA_INITIAL_URI`，选择音频时自动优先定位到上次选歌目录或输出目录，无需重复逐层寻找。
+* **设置与权限持久化**：输出文件夹 SAF 写入权限（`takePersistableUriPermission` 校验维护）、目标音频格式与比特率持久化保存，应用重启不重置。
+* **设置界面重构**：优化酷狗密钥状态看板，直观展示就绪状态（Direct Root / Ready）与已同步密钥总量。
+
+### v0.3.6 更新（桌面端）：
 * **更流畅的界面**：队列改为增量渲染（进度条真正平滑过渡），新增页面切换动画、解密阶段闪烁进度、整体进度条、可堆叠的提示气泡、全窗口拖放遮罩；支持 **跟随系统主题**、"减弱动画" 与 "完成后自动清理队列"。
 * **更可控的转换**：转换过程中可 **一键取消**、单文件移除、完成后 **在文件夹中显示**；不再对同格式文件做无意义的有损重编码（mp3→mp3 直接拷贝）；OGG/Opus 320k 会自动限制在 libopus 上限 256k（修复此前必然失败的问题）。
 * **元数据与封面保留**：NCM 内嵌的歌名 / 歌手 / 专辑 / 封面会写入输出文件（含 FLAC / MP3 / M4A），明文音频转码时也会保留原有封面。
@@ -62,7 +70,7 @@
 | `.ncm` | 网易云音乐 |
 | `.kwm` | 酷我音乐 |
 | `.kgm` / `.kgma` / `.vpr` 等 | 酷狗音乐 |
-| `.kgg` / `.kgg.flac` | 酷狗音乐（v5：在设置中导入 `kgg.key` 文件；目前仅windows桌面端均支持，并且音频必须本地酷狗下载 ） |
+| `.kgg` / `.kgg.flac` | 酷狗音乐（v5：桌面端支持全盘自动扫描/导入；Android 端支持原生 Root 同步、公共目录扫描及在设置中导入 `kgg.key` / `KGMusicV3.db`） |
 | `.mgg` / `.mgg1` / `.bkc` 等 | QQ音乐 |
 | `.mp3` / `.flac` / `.wav` 等明文音频 | 任何平台 |
 
@@ -98,10 +106,12 @@ sudo apt install ./openconverter-v***-linux-amd64.deb
 
 从 [Releases 页面](https://github.com/nowa277/OpenConverter/releases) 下载最新的 APK 文件安装：
 
-* **arm64-v8a**：`openconverter-v***-android-arm64-v8a.apk` (推荐，适合绝大多数现代智能手机)
-* **x86_64**：`openconverter-v***-android-x86_64.apk` (适合在 Android 模拟器上运行与调试)
+* **arm64-v8a**：`openconverter-v1.4.0-android-arm64-v8a.apk` (推荐，适合绝大多数现代智能手机)
+* **x86_64**：`openconverter-v1.4.0-android-x86_64.apk` (适合在 Android 模拟器上运行与调试)
 
-Android 的 KGG v5 解密需要该文件对应的逐文件密钥。请在设置页通过系统文件选择器导入来自用户本人酷狗环境的 `KGMusicV3.db`，或导入便携的 `kgg.key`。映射只在本设备应用沙箱内合并保存；项目不附带、上传或在线查询数据库、账号及密钥。
+Android 端 KGG v5 解密依赖对应歌曲的逐曲密钥。在 **v1.4.0** 中，应用支持多种获取途径：
+1. **已 Root 手机**：进入设置点击“立即同步”，通过原生 Root（KernelSU/APatch/Magisk）全自动拉取本地酷狗 MMKV/SQLite 密钥；
+2. **未 Root 手机**：支持公共存储自动扫描，将备份或导出的 `kgg.key`、`mggkey*` 或 `KGMusicV3.db` 放入 `/sdcard/Download` 或 `/sdcard/Music`，App 将自动发现并解析；也可在设置页通过 SAF 选择器手动导入。密钥仅在应用私有空间保存，绝不上载。
 
 ### 自动化解密设置引导与成功演示
 支持酷狗与QQ音乐格式密钥的一键自动获取。在“Settings”页面中可自动扫描内存获取QQ音乐Cookie并拉取解密所需信息，酷狗音乐同样支持一键开启全盘自动扫描密钥功能：
@@ -115,17 +125,18 @@ Android 的 KGG v5 解密需要该文件对应的逐文件密钥。请在设置�
 </p>
 
 > [!IMPORTANT]
-> **Android 端 KGG 解密限制与应对策略：**
-> 1. **系统权限限制**：在未 Root 的手机上，Android 的安全沙盒机制严格禁止任何应用（包括本应用和 ADB shell）直接读取酷狗的私有数据库 `kugou_music_v2.db`，因此无法直接在手机上自动扫描提取密钥。
-> 2. **免 Root 导入方案**：在电脑端，酷狗音乐会将解密密钥数据库 `KGMusicV3.db` 存储在系统公共目录下（例如 Windows 路径为 `C:\Users\Public\KuGou\KGMusic\KGMusicV3.db`）。您只需将这个 `KGMusicV3.db` 文件通过数据线传输或云同步到手机的公共存储区域（例如“下载”文件夹），然后在手机端的 OpenConverter 设置页面中选择“导入数据库”功能并选中此文件。导入成功后，手机端即可一劳永逸地直接本地解密对应的 KGG 歌曲，无需 Root 权限，也无需每次手动导入。
+> **Android 端 KGG 解密策略指南：**
+> 1. **已 Root 设备**：设置页一键原生 Root 同步，即刻解密所有本地 KGG 歌曲。
+> 2. **未 Root 设备**：可将 PC 端酷狗数据库 `KGMusicV3.db`（Windows 路径通常位于 `C:\Users\Public\KuGou\KGMusic\KGMusicV3.db`）或包含 `id,key` 的 `kgg.key` 文本放至手机“下载”或“音乐”目录，打开 App 即可自动扫描收录，亦可在设置页点击“导入数据库/密钥文件”手动选中。
+> 3. **降级方案（可选）**：将手机酷狗音乐降级至早期版本，下载的文件格式为 `.kgm` / `.kgma`，此类格式完全免 Root、免导入，可在 OpenConverter 中直接批量转换。
 
 | 格式后缀 | 对应版本及音质 | 手机端解密是否需要密钥数据库？ | 结论与使用建议 |
 | :--- | :--- | :--- | :--- |
 | **`.kgm`** | 早期格式，标准或高品质 MP3 | ❌ 不需要 (免 Root / 免导入) | 完全可解。可直接在手机版 OpenConverter 中进行一键转换。 |
 | **`.kgma`** | 早期格式，超高品质或无损 FLAC | ❌ 不需要 (免 Root / 免导入) | 完全可解。可直接在手机版 OpenConverter 中进行一键转换。 |
 | **`.vpr`** | 酷狗彩铃格式 | ❌ 不需要 (免 Root / 免导入) | 完全可解。可直接在手机版 OpenConverter 中进行一键转换。 |
-| **`.kgg`** | 现代格式，酷狗手机端专属加密 | ⚠️ 需要 (必须导入 DB) | 受限。如果没有导入 PC 端的 `KGMusicV3.db`，手机端无法直接解密。 |
-| **`.kgg.flac`** | 现代格式，酷狗手机端无损加密 | ⚠️ 需要 (必须导入 DB) | 受限。如果没有导入 PC 端的 `KGMusicV3.db`，手机端无法直接解密。 |
+| **`.kgg`** | 现代格式，酷狗专属加密 | ⚠️ 需要逐曲密钥 | 已支持。Root 设备一键直接提取；未 Root 设备可放 `kgg.key` / `KGMusicV3.db` 于公共目录或设置中导入。 |
+| **`.kgg.flac`** | 现代格式，酷狗无损加密 | ⚠️ 需要逐曲密钥 | 已支持。Root 设备一键直接提取；未 Root 设备可放 `kgg.key` / `KGMusicV3.db` 于公共目录或设置中导入。 |
 
 
   ---
