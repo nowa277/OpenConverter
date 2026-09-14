@@ -3,6 +3,7 @@ package com.openconverter.app.engine
 import com.openconverter.app.decoders.Decoder
 import com.openconverter.app.decoders.DecoderRegistry
 import com.openconverter.app.decoders.StreamingDecoder
+import com.openconverter.app.decoders.kgg.KugouKeySyncManager
 import com.openconverter.app.ffmpeg.FfmpegRunner
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
