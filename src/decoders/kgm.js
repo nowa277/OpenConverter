@@ -169,32 +169,86 @@ function decryptBuffer(kgmBuf) {
   kgmBuf.copy(key, 0, 0x1C, 0x2C);
   key[16] = 0;
 
-  const audio = Buffer.from(kgmBuf.slice(headerLen));
-  for (let i = 0; i < audio.length; i++) {
-    let med8 = key[(i % 17)] ^ audio[i];
-    med8 ^= (med8 & 0x0f) << 4;
-    let msk8 = getMask(i);
-    msk8 ^= (msk8 & 0x0f) << 4;
-    audio[i] = med8 ^ msk8;
-    if (isVpr) {
-      audio[i] ^= VPR_MASK_DIFF[i % 17];
-    }
-  }
+  const audio = Buffer.from(kgmBuf.subarray(headerLen));
+  decryptInPlace(audio, key, isVpr, 0);
   return audio;
 }
 
-function decodeFile(inputPath, outputDir) {
-  const input = fs.readFileSync(inputPath);
-  const audio = decryptBuffer(input);
-  const format = inferFormat(audio);
+function decryptInPlace(audio, key, isVpr, startOffset) {
+  for (let i = 0; i < audio.length; i++) {
+    const pos = startOffset + i;
+    let med8 = key[pos % 17] ^ audio[i];
+    med8 ^= (med8 & 0x0f) << 4;
+    let msk8 = getMask(pos);
+    msk8 ^= (msk8 & 0x0f) << 4;
+    audio[i] = med8 ^ msk8;
+    if (isVpr) audio[i] ^= VPR_MASK_DIFF[pos % 17];
+  }
+}
 
-  const base = inputPath.replace(/\.(kgm|kgma|vpr)$/i, '');
-  const name = base.split(/[\\/]/).pop();
-  const outName = `${name}.${format}`;
-  const outPath = outputDir ? path.join(outputDir, outName) : `${base}.${format}`;
-  fs.mkdirSync(outputDir || '.', { recursive: true });
-  fs.writeFileSync(outPath, audio);
-  return { outputPath: outPath, format };
+function parseHeader(prefix) {
+  if (prefix.length < 0x2C) {
+    throw new Error(`KGM/VPR: file too small (${prefix.length} < 0x2C)`);
+  }
+  let isVpr = false;
+  if (prefix.subarray(0, 16).equals(KGM_HEADER)) isVpr = false;
+  else if (prefix.subarray(0, 16).equals(VPR_HEADER)) isVpr = true;
+  else throw new Error('KGM/VPR: bad magic');
+  const headerLen = prefix.readUInt32LE(0x10);
+  if (headerLen < 0x2C) throw new Error(`KGM/VPR: invalid header length ${headerLen}`);
+  const key = Buffer.alloc(17);
+  prefix.copy(key, 0, 0x1C, 0x2C);
+  key[16] = 0;
+  return { isVpr, headerLen, key };
+}
+
+function decodeFile(inputPath, outputDir) {
+  const stat = fs.statSync(inputPath);
+  const stagingDir = outputDir || path.dirname(inputPath);
+  fs.mkdirSync(stagingDir, { recursive: true });
+  const tmpPath = path.join(stagingDir, `.${path.basename(inputPath)}.oc-partial`);
+  let fd;
+  let outFd;
+  try {
+    fd = fs.openSync(inputPath, 'r');
+    const prefix = Buffer.alloc(0x2C);
+    const got = fs.readSync(fd, prefix, 0, 0x2C, 0);
+    if (got < 0x2C) throw new Error(`KGM/VPR: file too small (${got} < 0x2C)`);
+    const { isVpr, headerLen, key } = parseHeader(prefix);
+    if (headerLen > stat.size) throw new Error(`KGM/VPR: invalid header length ${headerLen}`);
+
+    outFd = fs.openSync(tmpPath, 'w');
+    const CHUNK = 64 * 1024;
+    const buf = Buffer.alloc(CHUNK);
+    let audioOffset = 0;
+    let filePos = headerLen;
+    let probe = Buffer.alloc(0);
+    while (filePos < stat.size) {
+      const n = fs.readSync(fd, buf, 0, Math.min(CHUNK, stat.size - filePos), filePos);
+      if (n <= 0) break;
+      const chunk = buf.subarray(0, n);
+      decryptInPlace(chunk, key, isVpr, audioOffset);
+      if (probe.length < 16) probe = Buffer.concat([probe, chunk.subarray(0, 16 - probe.length)]);
+      fs.writeSync(outFd, chunk, 0, n);
+      audioOffset += n;
+      filePos += n;
+    }
+    fs.closeSync(outFd);
+    outFd = null;
+
+    const format = inferFormat(probe.length ? probe : Buffer.alloc(0));
+    const base = inputPath.replace(/\.(kgm|kgma|vpr)$/i, '');
+    const name = base.split(/[\\/]/).pop();
+    const outPath = path.join(stagingDir, `${name}.${format}`);
+    fs.renameSync(tmpPath, outPath);
+    return { outputPath: outPath, format };
+  } catch (err) {
+    try { if (outFd != null) fs.closeSync(outFd); } catch {}
+    try { fs.unlinkSync(tmpPath); } catch {}
+    throw err;
+  } finally {
+    try { if (fd != null) fs.closeSync(fd); } catch {}
+  }
 }
 
 module.exports = {

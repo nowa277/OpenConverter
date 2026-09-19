@@ -46,6 +46,15 @@ class DecoderParityTest {
         assertEquals(expectedSha, sha256(r.audio))
     }
 
+    @Test fun kgm_streaming_matches_bytearray_path() {
+        val cipher = loadResource("test-kgm/synthetic-kgm.kgm")
+        val buffered = KgmDecoder.decrypt(cipher)
+        val streamed = java.io.ByteArrayOutputStream()
+        val format = KgmDecoder.decrypt(java.io.ByteArrayInputStream(cipher), streamed, 64)
+        assertEquals(buffered.format, format)
+        org.junit.Assert.assertArrayEquals(buffered.audio, streamed.toByteArray())
+    }
+
     @Test fun kgma_synthetic_matches_js_oracle() {
         val oracle = loadOracle("test-kgm")
         val expectedSha = oracle.getString("synthetic-kgma.kgma")

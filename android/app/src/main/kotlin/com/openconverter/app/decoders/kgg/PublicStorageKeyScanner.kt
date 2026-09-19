@@ -27,7 +27,8 @@ object PublicStorageKeyScanner {
                         name == "kgg.key" ||
                         name.endsWith(".kgg.key") ||
                         name.contains("mggkey") ||
-                        name.endsWith("kgmusicv3.db")
+                        name.endsWith("kgmusicv3.db") ||
+                        name == "kugou_music_v2.db"
                     }
                     .forEach { file ->
                         val keys = parseCandidateFile(file)

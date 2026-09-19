@@ -1,5 +1,9 @@
 package com.openconverter.app.decoders
 
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
+import java.io.OutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -10,7 +14,7 @@ import java.nio.ByteOrder
  * masks driven by 272-byte lookup tables. VPR has an extra 17-byte
  * post-XOR difference table.
  */
-object KgmDecoder : Decoder {
+object KgmDecoder : StreamingDecoder {
 
     override val supportedExtensions: Set<String> = setOf(".kgm", ".kgma", ".vpr")
 
@@ -106,32 +110,97 @@ object KgmDecoder : Decoder {
     }
 
     override fun decrypt(input: ByteArray): DecryptResult {
-        require(input.size >= 0x2C) { "KGM/VPR: file too small (${input.size} < 0x2C)" }
+        val output = ByteArrayOutputStream()
+        val format = decrypt(ByteArrayInputStream(input), output)
+        return DecryptResult(audio = output.toByteArray(), format = format)
+    }
+
+    override fun decrypt(input: InputStream, output: OutputStream, bufferSize: Int): String {
+        require(bufferSize > 0) { "KGM buffer size must be positive" }
+        val prefix = readExact(input, HEADER_MIN)
+        require(prefix.size >= HEADER_MIN) { "KGM/VPR: file too small (${prefix.size} < 0x2C)" }
         val isVpr = when {
-            headerEquals(input, KGM_HEADER) -> false
-            headerEquals(input, VPR_HEADER) -> true
+            headerEquals(prefix, KGM_HEADER) -> false
+            headerEquals(prefix, VPR_HEADER) -> true
             else -> throw IllegalArgumentException("KGM/VPR: bad magic")
         }
-        val headerLen = ByteBuffer.wrap(input, 0x10, 4).order(ByteOrder.LITTLE_ENDIAN).int
-        require(headerLen in 0x2C..input.size) { "KGM/VPR: invalid header length $headerLen" }
+        val headerLen = ByteBuffer.wrap(prefix, 0x10, 4).order(ByteOrder.LITTLE_ENDIAN).int
+        require(headerLen >= HEADER_MIN) { "KGM/VPR: invalid header length $headerLen" }
 
         // 17-byte key: bytes [0x1C..0x2C], then key[16] = 0
         val key = ByteArray(17)
-        System.arraycopy(input, 0x1C, key, 0, 16)
+        System.arraycopy(prefix, 0x1C, key, 0, 16)
         key[16] = 0
 
-        val audio = ByteArray(input.size - headerLen)
-        System.arraycopy(input, headerLen, audio, 0, audio.size)
+        skipExact(input, headerLen - prefix.size)
 
-        for (i in audio.indices) {
-            var med8 = (key[i % 17].toInt() and 0xff) xor (audio[i].toInt() and 0xff)
+        val probe = ByteArrayOutputStream(PROBE_SIZE)
+        var format: String? = null
+        var offset = 0
+        val buffer = ByteArray(bufferSize)
+        while (true) {
+            val n = input.read(buffer)
+            if (n < 0) break
+            if (n == 0) continue
+            decryptInPlace(buffer, n, offset, key, isVpr)
+            offset += n
+            if (format == null) {
+                val take = minOf(n, PROBE_SIZE - probe.size())
+                if (take > 0) probe.write(buffer, 0, take)
+                if (probe.size() >= PROBE_SIZE) format = FormatSniffer.sniff(probe.toByteArray())
+            }
+            output.write(buffer, 0, n)
+        }
+        if (format == null) {
+            require(offset > 0) { "KGM/VPR: invalid header length $headerLen" }
+            format = FormatSniffer.sniff(probe.toByteArray())
+        }
+        return format
+    }
+
+    private fun decryptInPlace(buf: ByteArray, length: Int, startOffset: Int, key: ByteArray, isVpr: Boolean) {
+        for (i in 0 until length) {
+            val pos = startOffset + i
+            var med8 = (key[pos % 17].toInt() and 0xff) xor (buf[i].toInt() and 0xff)
             med8 = med8 xor ((med8 and 0x0f) shl 4)
-            var msk8 = getMask(i)
+            var msk8 = getMask(pos)
             msk8 = msk8 xor ((msk8 and 0x0f) shl 4)
             var b = (med8 xor msk8) and 0xff
-            if (isVpr) b = b xor (VPR_MASK_DIFF[i % 17].toInt() and 0xff)
-            audio[i] = b.toByte()
+            if (isVpr) b = b xor (VPR_MASK_DIFF[pos % 17].toInt() and 0xff)
+            buf[i] = b.toByte()
         }
-        return DecryptResult(audio = audio, format = FormatSniffer.sniff(audio))
+    }
+
+    private fun readExact(input: InputStream, size: Int): ByteArray {
+        val out = ByteArray(size)
+        var count = 0
+        while (count < size) {
+            val n = input.read(out, count, size - count)
+            if (n < 0) return out.copyOf(count)
+            if (n == 0) continue
+            count += n
+        }
+        return out
+    }
+
+    private fun skipExact(input: InputStream, bytes: Int) {
+        var remaining = bytes
+        val discard = ByteArray(DEFAULT_BUFFER_SIZE)
+        while (remaining > 0) {
+            val skipped = input.skip(remaining.toLong())
+            if (skipped > 0) {
+                remaining -= skipped.toInt()
+                continue
+            }
+            val n = input.read(discard, 0, minOf(remaining, discard.size))
+            require(n >= 0) { "KGM/VPR: invalid header length" }
+            if (n == 0) continue
+            remaining -= n
+        }
+    }
+
+    companion object {
+        private const val HEADER_MIN = 0x2C
+        private const val PROBE_SIZE = 16
     }
 }
