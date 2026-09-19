@@ -16,6 +16,9 @@ import java.nio.ByteOrder
  */
 object KgmDecoder : StreamingDecoder {
 
+    private const val HEADER_MIN = 0x2C
+    private const val PROBE_SIZE = 16
+
     override val supportedExtensions: Set<String> = setOf(".kgm", ".kgma", ".vpr")
 
     private val KGM_HEADER = byteArrayOf(
@@ -197,10 +200,5 @@ object KgmDecoder : StreamingDecoder {
             if (n == 0) continue
             remaining -= n
         }
-    }
-
-    companion object {
-        private const val HEADER_MIN = 0x2C
-        private const val PROBE_SIZE = 16
     }
 }
