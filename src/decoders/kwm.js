@@ -83,17 +83,53 @@ function inferFormat(audio) {
 }
 
 function decodeFile(inputPath, outputDir, _opts = {}) {
-  const input = fs.readFileSync(inputPath);
-  const audio = decryptBuffer(input);
-  const format = inferFormat(audio);
-
-  const base = inputPath.replace(/\.kwm$/i, '');
-  const name = base.split(/[\\/]/).pop();
-  const outName = `${name}.${format}`;
-  const outPath = outputDir ? path.join(outputDir, outName) : `${base}.${format}`;
-  fs.mkdirSync(outputDir || '.', { recursive: true });
-  fs.writeFileSync(outPath, audio);
-  return { outputPath: outPath, format };
+  const stat = fs.statSync(inputPath);
+  if (stat.size < AUDIO_OFFSET) throw new Error(`KWM: file too small (${stat.size} < ${AUDIO_OFFSET})`);
+  const stagingDir = outputDir || path.dirname(inputPath);
+  fs.mkdirSync(stagingDir, { recursive: true });
+  const tmpPath = path.join(stagingDir, `.${path.basename(inputPath)}.oc-partial`);
+  let fd;
+  let outFd;
+  try {
+    fd = fs.openSync(inputPath, 'r');
+    const header = Buffer.alloc(AUDIO_OFFSET);
+    if (fs.readSync(fd, header, 0, AUDIO_OFFSET, 0) < AUDIO_OFFSET) {
+      throw new Error(`KWM: file too small (${stat.size} < ${AUDIO_OFFSET})`);
+    }
+    if (!header.slice(0, MAGIC_LEN).equals(MAGIC)) {
+      throw new Error('KWM: bad magic, expected "yeelion-kuwo" at offset 0');
+    }
+    const mask = buildMask(header.readUInt32LE(SEED_OFFSET));
+    outFd = fs.openSync(tmpPath, 'w');
+    const CHUNK = 64 * 1024;
+    const buf = Buffer.alloc(CHUNK);
+    let audioOffset = 0;
+    let filePos = AUDIO_OFFSET;
+    let probe = Buffer.alloc(0);
+    while (filePos < stat.size) {
+      const n = fs.readSync(fd, buf, 0, Math.min(CHUNK, stat.size - filePos), filePos);
+      if (n <= 0) break;
+      for (let i = 0; i < n; i++) buf[i] ^= mask[(audioOffset + i) % MASK_SIZE];
+      if (probe.length < 16) probe = Buffer.concat([probe, buf.subarray(0, Math.min(n, 16 - probe.length))]);
+      fs.writeSync(outFd, buf, 0, n);
+      audioOffset += n;
+      filePos += n;
+    }
+    fs.closeSync(outFd);
+    outFd = null;
+    const format = inferFormat(probe.length ? probe : Buffer.alloc(0));
+    const base = inputPath.replace(/\.kwm$/i, '');
+    const name = base.split(/[\\/]/).pop();
+    const outPath = path.join(stagingDir, `${name}.${format}`);
+    fs.renameSync(tmpPath, outPath);
+    return { outputPath: outPath, format };
+  } catch (err) {
+    try { if (outFd != null) fs.closeSync(outFd); } catch {}
+    try { fs.unlinkSync(tmpPath); } catch {}
+    throw err;
+  } finally {
+    try { if (fd != null) fs.closeSync(fd); } catch {}
+  }
 }
 
 module.exports = {

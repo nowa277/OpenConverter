@@ -176,23 +176,105 @@ function imageExtension(imageData) {
  * cover image, it is written next to the audio as `<name>.cover.<jpg|png>`
  * and returned as `coverPath` so the caller can embed it and delete it.
  */
-function decodeFile(inputPath, outputDir, opts = {}) {
-  const ncm = fs.readFileSync(inputPath);
-  const { audio, meta, imageData } = decryptBuffer(ncm);
-  const ext = inferExtension(meta);
-  const base = inputPath.replace(/\.ncm$/i, '');
-  const name = base.split(/[\\/]/).pop();
-  const dir = outputDir || path.dirname(inputPath);
-  fs.mkdirSync(dir, { recursive: true });
-  const outPath = path.join(dir, `${name}.${ext}`);
-  fs.writeFileSync(outPath, audio);
-
-  let coverPath = null;
-  if (imageData && imageData.length > 0 && opts.extractCover !== false) {
-    coverPath = path.join(dir, `${name}.cover.${imageExtension(imageData)}`);
-    fs.writeFileSync(coverPath, imageData);
+function readExact(fd, size, pos) {
+  const buf = Buffer.alloc(size);
+  let got = 0;
+  while (got < size) {
+    const n = fs.readSync(fd, buf, got, size - got, pos + got);
+    if (n <= 0) return buf.subarray(0, got);
+    got += n;
   }
-  return { outputPath: outPath, format: ext, hasImage: !!imageData, coverPath, tags: extractTags(meta) };
+  return buf;
+}
+
+function decodeFile(inputPath, outputDir, opts = {}) {
+  const stat = fs.statSync(inputPath);
+  const stagingDir = outputDir || path.dirname(inputPath);
+  fs.mkdirSync(stagingDir, { recursive: true });
+  const tmpPath = path.join(stagingDir, `.${path.basename(inputPath)}.oc-partial`);
+  let fd;
+  let outFd;
+  try {
+    fd = fs.openSync(inputPath, 'r');
+    const magic = readExact(fd, 8, 0);
+    if (!magic.equals(MAGIC)) throw new Error('not a valid NCM file: missing CTENFDAM magic');
+    let pos = 10;
+    const keyLength = readExact(fd, 4, pos).readUInt32LE(0);
+    pos += 4;
+    if (keyLength <= 0 || keyLength > stat.size) throw new Error(`Invalid key length: ${keyLength}`);
+    const keyEnc = readExact(fd, keyLength, pos);
+    pos += keyLength;
+    xorInPlace(keyEnc, 0x64);
+    let keyPlain = pkcs7Unpad(aesEcbDecrypt(keyEnc, CORE_KEY));
+    if (keyPlain.length < PREFIX_LEN || keyPlain.slice(0, PREFIX_LEN).toString('ascii') !== 'neteasecloudmusic') {
+      throw new Error('Key block did not start with neteasecloudmusic');
+    }
+    const S = buildRc4Sbox(keyPlain.slice(PREFIX_LEN));
+    const k = Buffer.alloc(256);
+    for (let i = 0; i < 256; i++) k[i] = S[(S[i] + S[(i + S[i]) & 0xff]) & 0xff];
+
+    const metaLength = readExact(fd, 4, pos).readUInt32LE(0);
+    pos += 4;
+    let meta = null;
+    if (metaLength > 0) {
+      if (pos + metaLength > stat.size) throw new Error('Meta length exceeds file size');
+      const metaEnc = readExact(fd, metaLength, pos);
+      pos += metaLength;
+      xorInPlace(metaEnc, 0x63);
+      const b64 = metaEnc.slice(22).toString('utf8');
+      const metaAes = aesEcbDecrypt(Buffer.from(b64, 'base64'), META_KEY);
+      const metaJson = pkcs7Unpad(metaAes).toString('utf8').slice(6);
+      try { meta = JSON.parse(metaJson); } catch { meta = null; }
+    }
+
+    pos += 5;
+    const imageSpace = readExact(fd, 4, pos).readUInt32LE(0);
+    pos += 4;
+    const imageSize = readExact(fd, 4, pos).readUInt32LE(0);
+    pos += 4;
+    let imageData = null;
+    if (imageSize > 0) imageData = readExact(fd, imageSize, pos);
+    pos += imageSize;
+    pos += imageSpace - imageSize;
+    if (pos > stat.size) throw new Error('Header parsing ran past end of file');
+
+    outFd = fs.openSync(tmpPath, 'w');
+    const CHUNK = 64 * 1024;
+    const buf = Buffer.alloc(CHUNK);
+    let audioOffset = 0;
+    let filePos = pos;
+    let probe = Buffer.alloc(0);
+    while (filePos < stat.size) {
+      const n = fs.readSync(fd, buf, 0, Math.min(CHUNK, stat.size - filePos), filePos);
+      if (n <= 0) break;
+      for (let i = 0; i < n; i++) buf[i] ^= k[(audioOffset + i + 1) % 256];
+      if (probe.length < 16) probe = Buffer.concat([probe, buf.subarray(0, Math.min(n, 16 - probe.length))]);
+      fs.writeSync(outFd, buf, 0, n);
+      audioOffset += n;
+      filePos += n;
+    }
+    fs.closeSync(outFd);
+    outFd = null;
+
+    const ext = inferExtension(meta);
+    const base = inputPath.replace(/\.ncm$/i, '');
+    const name = base.split(/[\\/]/).pop();
+    const outPath = path.join(stagingDir, `${name}.${ext}`);
+    fs.renameSync(tmpPath, outPath);
+
+    let coverPath = null;
+    if (imageData && imageData.length > 0 && opts.extractCover !== false) {
+      coverPath = path.join(stagingDir, `${name}.cover.${imageExtension(imageData)}`);
+      fs.writeFileSync(coverPath, imageData);
+    }
+    return { outputPath: outPath, format: ext, hasImage: !!imageData, coverPath, tags: extractTags(meta) };
+  } catch (err) {
+    try { if (outFd != null) fs.closeSync(outFd); } catch {}
+    try { fs.unlinkSync(tmpPath); } catch {}
+    throw err;
+  } finally {
+    try { if (fd != null) fs.closeSync(fd); } catch {}
+  }
 }
 
 module.exports = {

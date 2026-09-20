@@ -448,10 +448,75 @@ function detectKey(buf) {
 }
 
 function applyMask(buf, mask) {
+  applyMaskRange(buf, mask, 0);
+}
+
+function applyMaskRange(buf, mask, start) {
   const len = buf.length;
-  const limit1 = Math.min(len, 32768);
-  for (let i = 0; i < limit1; i++) buf[i] ^= mask[i];
-  for (let i = 32768; i < len; i++) buf[i] ^= mask[i % 32768];
+  for (let i = 0; i < len; i++) {
+    const idx = start + i;
+    buf[i] ^= mask[idx < 32768 ? idx : idx % 32768];
+  }
+}
+
+function readAt(fd, pos, size) {
+  const buf = Buffer.alloc(size);
+  let got = 0;
+  while (got < size) {
+    const n = fs.readSync(fd, buf, got, size - got, pos + got);
+    if (n <= 0) return buf.subarray(0, got);
+    got += n;
+  }
+  return buf;
+}
+
+function detectKeyFromFd(fd, len) {
+  if (len < 0x18) return null;
+  const head = readAt(fd, 0, 4);
+  if (head.toString('ascii') === 'STag') {
+    const ekeyLen = readAt(fd, 0x14, 4).readUInt32LE(0);
+    const audioOffset = 0x18 + ekeyLen;
+    if (ekeyLen > 0 && ekeyLen <= MAX_EKEY_LEN && audioOffset < len) {
+      const ekey = readAt(fd, 0x18, ekeyLen).toString('ascii').trim();
+      if (EKEY_RE.test(ekey)) return { ekey, audioOffset, audioLen: len - audioOffset };
+    }
+    return null;
+  }
+  const tail16 = readAt(fd, Math.max(0, len - 16), Math.min(16, len));
+  const tail4 = tail16.subarray(tail16.length - 4).toString('ascii');
+  if (len >= 8 && tail16.subarray(tail16.length - 8).toString('ascii') === 'musicex\x00') {
+    const tailSize = tail16.readUInt32LE(tail16.length - 16);
+    if (tailSize > 0 && tailSize < len - 16) {
+      const tail = readAt(fd, len - 16 - tailSize, tailSize);
+      if (tail.length >= 184) {
+        const songMid = tail.toString('utf16le', 28, 88).replace(/\0+$/, '');
+        const filename = tail.toString('utf16le', 88, 184).replace(/\0+$/, '');
+        const fileMid = filename.replace(/\.(mflac|mgg)$/i, '');
+        return { format: 'musicex', songMid, fileMid, audioOffset: 0, audioLen: len - 16 - tailSize };
+      }
+    }
+    throw new Error('This file was encrypted with a newer QQ Music client (musicex) without an embedded key. Please provide your QQ Music Cookie in Settings to unlock it.');
+  }
+  if (tail4 === 'STag' && len >= MIN_TAIL_CONTAINER_LEN) {
+    throw new Error('This file contains an STag but no embedded key. Please provide your QQ Music Cookie in Settings or downgrade your client.');
+  }
+  if (tail4 === 'QTag') {
+    const metaLen = tail16.readUInt32BE(tail16.length - 8);
+    if (metaLen > 0 && metaLen < len - 8) {
+      const audioLen = len - 8 - metaLen;
+      const rawMeta = readAt(fd, audioLen, metaLen).toString('utf-8');
+      const ekey = rawMeta.split(',')[0].trim();
+      if (ekey && EKEY_RE.test(ekey)) return { ekey, audioOffset: 0, audioLen };
+    }
+    return null;
+  }
+  const rawLen = tail16.readUInt32LE(tail16.length - 4);
+  if (rawLen > 0 && rawLen <= MAX_EKEY_LEN && rawLen < len - 4) {
+    const audioLen = len - 4 - rawLen;
+    const ekey = readAt(fd, audioLen, rawLen).toString('ascii').trim();
+    if (EKEY_RE.test(ekey)) return { ekey, audioOffset: 0, audioLen };
+  }
+  return null;
 }
 
 function decryptV1Buffer(qmcBuf) {
@@ -492,54 +557,113 @@ function detectAudioFormat(audio) {
   return null;
 }
 
+function streamDecrypt(fd, start, audioLen, writePath, decryptChunk) {
+  const outFd = fs.openSync(writePath, 'w');
+  try {
+    const CHUNK = 64 * 1024;
+    const buf = Buffer.alloc(CHUNK);
+    let offset = 0;
+    let probe = Buffer.alloc(0);
+    while (offset < audioLen) {
+      const n = fs.readSync(fd, buf, 0, Math.min(CHUNK, audioLen - offset), start + offset);
+      if (n <= 0) break;
+      const slice = buf.subarray(0, n);
+      decryptChunk(slice, offset);
+      if (probe.length < 16) probe = Buffer.concat([probe, slice.subarray(0, Math.min(n, 16 - probe.length))]);
+      fs.writeSync(outFd, slice, 0, n);
+      offset += n;
+    }
+    return probe;
+  } finally {
+    fs.closeSync(outFd);
+  }
+}
+
 function decodeV1File(inputPath, outputDir) {
   const ext = path.extname(inputPath).toLowerCase();
   const outExtHint = EXT_MAP_V1[ext] || 'mp3';
-  const input = fs.readFileSync(inputPath);
-  const audio = decryptV1Buffer(input);
-  const fmt = inferFormat(audio, outExtHint);
-  const base = inputPath.replace(/\.[^./]+$/, '');
-  const name = base.split(/[\\/]/).pop();
-  const outPath = outputDir ? path.join(outputDir, `${name}.${fmt}`) : `${base}.${fmt}`;
-  fs.mkdirSync(outputDir || '.', { recursive: true });
-  fs.writeFileSync(outPath, audio);
-  return { outputPath: outPath, format: fmt };
+  const stat = fs.statSync(inputPath);
+  const stagingDir = outputDir || path.dirname(inputPath);
+  fs.mkdirSync(stagingDir, { recursive: true });
+  const tmpPath = path.join(stagingDir, `.${path.basename(inputPath)}.oc-partial`);
+  const fd = fs.openSync(inputPath, 'r');
+  try {
+    const probe = streamDecrypt(fd, 0, stat.size, tmpPath, (chunk, start) => {
+      applyMaskRange(chunk, V1_MASK, start);
+    });
+    const fmt = inferFormat(probe, outExtHint);
+    const base = inputPath.replace(/\.[^./]+$/, '');
+    const name = base.split(/[\\/]/).pop();
+    const outPath = path.join(stagingDir, `${name}.${fmt}`);
+    fs.renameSync(tmpPath, outPath);
+    return { outputPath: outPath, format: fmt };
+  } catch (err) {
+    try { fs.unlinkSync(tmpPath); } catch {}
+    throw err;
+  } finally {
+    fs.closeSync(fd);
+  }
 }
 
 async function decodeV2File(inputPath, outputDir, opts = {}) {
   const ext = path.extname(inputPath).toLowerCase();
   const outExtHint = EXT_MAP_V2[ext] || 'mp3';
-  const input = fs.readFileSync(inputPath);
-  
-  const detected = detectKey(input);
-  let audio;
-  if (detected) {
-    let ekey = detected.ekey;
-    if (detected.format === 'musicex') {
-      ekey = await fetchEkeyFromApi(detected.songMid, detected.fileMid, opts.qqCookie, opts);
-      if (!ekey) {
-        throw new Error('QQ Music VIP Cookie required (or cookie expired). Please log into QQ Music with a VIP account, play a VIP song, and click Settings -> Scan QQ Music Memory.');
+  const stat = fs.statSync(inputPath);
+  const stagingDir = outputDir || path.dirname(inputPath);
+  fs.mkdirSync(stagingDir, { recursive: true });
+  const tmpPath = path.join(stagingDir, `.${path.basename(inputPath)}.oc-partial`);
+  const fd = fs.openSync(inputPath, 'r');
+  try {
+    const detected = detectKeyFromFd(fd, stat.size);
+    let ekey;
+    let audioOffset = 0;
+    let audioLen = stat.size;
+    if (detected) {
+      ekey = detected.ekey;
+      if (detected.format === 'musicex') {
+        ekey = await fetchEkeyFromApi(detected.songMid, detected.fileMid, opts.qqCookie, opts);
+        if (!ekey) {
+          throw new Error('QQ Music VIP Cookie required (or cookie expired). Please log into QQ Music with a VIP account, play a VIP song, and click Settings -> Scan QQ Music Memory.');
+        }
       }
-    }
-    const cipherText = input.subarray(detected.audioOffset, detected.audioOffset + detected.audioLen);
-    audio = decryptV2Buffer(cipherText, ekey);
-  } else {
-    if (!opts.ekey) {
+      audioOffset = detected.audioOffset;
+      audioLen = detected.audioLen;
+    } else if (!opts.ekey) {
       throw new Error('No embedded key found in this QMCv2 file. Paste your QQ Music ekey in Settings, or provide a Cookie so the key can be fetched.');
+    } else {
+      ekey = opts.ekey;
     }
-    audio = decryptV2Buffer(input, opts.ekey);
-  }
 
-  const fmt = detectAudioFormat(audio);
-  if (!fmt) {
-    throw new Error(`QMCv2 decryption failed: decrypted data is not a recognized audio stream (expected ${outExtHint}). The ekey / QQ Music Cookie may be expired or mismatched.`);
+    const derivedKey = qmcDeriveKey(ekey);
+    const probe = derivedKey.length > 300
+      ? (() => {
+          const rc4 = new QmcRC4Cipher(derivedKey);
+          return streamDecrypt(fd, audioOffset, audioLen, tmpPath, (chunk, start) => {
+            rc4.decrypt(chunk, start);
+          });
+        })()
+      : (() => {
+          const mask = getMapMask(derivedKey);
+          return streamDecrypt(fd, audioOffset, audioLen, tmpPath, (chunk, start) => {
+            applyMaskRange(chunk, mask, start);
+          });
+        })();
+
+    const fmt = detectAudioFormat(probe);
+    if (!fmt) {
+      throw new Error(`QMCv2 decryption failed: decrypted data is not a recognized audio stream (expected ${outExtHint}). The ekey / QQ Music Cookie may be expired or mismatched.`);
+    }
+    const base = inputPath.replace(/\.[^./]+$/, '');
+    const name = base.split(/[\\/]/).pop();
+    const outPath = path.join(stagingDir, `${name}.${fmt}`);
+    fs.renameSync(tmpPath, outPath);
+    return { outputPath: outPath, format: fmt };
+  } catch (err) {
+    try { fs.unlinkSync(tmpPath); } catch {}
+    throw err;
+  } finally {
+    fs.closeSync(fd);
   }
-  const base = inputPath.replace(/\.[^./]+$/, '');
-  const name = base.split(/[\\/]/).pop();
-  const outPath = outputDir ? path.join(outputDir, `${name}.${fmt}`) : `${base}.${fmt}`;
-  fs.mkdirSync(outputDir || '.', { recursive: true });
-  fs.writeFileSync(outPath, audio);
-  return { outputPath: outPath, format: fmt };
 }
 
 async function decodeFile(inputPath, outputDir, opts = {}) {

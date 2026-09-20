@@ -14,6 +14,7 @@
  */
 
 const fs = require('node:fs');
+const path = require('node:path');
 
 const header = require('./header');
 const ekey = require('./ekey');
@@ -121,14 +122,65 @@ function decodeFile(inputPath, outputDir, opts) {
   }
   const map = parseKeyMap(keyText);
   const provider = memoryKeyProvider(map);
-  const input = fs.readFileSync(inputPath);
-  const { audio, format } = decrypt(input, provider);
-  const base = inputPath.replace(/\.[^./]+$/, '');
-  const name = base.split(/[\\/]/).pop();
-  const outPath = outputDir ? `${outputDir}/${name}.${format}` : `${base}.${format}`;
-  fs.mkdirSync(outputDir || '.', { recursive: true });
-  fs.writeFileSync(outPath, audio);
-  return { outputPath: outPath, format };
+  const stat = fs.statSync(inputPath);
+  const stagingDir = outputDir || path.dirname(inputPath);
+  fs.mkdirSync(stagingDir, { recursive: true });
+  const tmpPath = path.join(stagingDir, `.${path.basename(inputPath)}.oc-partial`);
+  const fd = fs.openSync(inputPath, 'r');
+  let outFd;
+  try {
+    const prefixLen = Math.min(header.PREFIX_SIZE, stat.size);
+    const prefix = Buffer.alloc(prefixLen);
+    if (prefixLen < header.MAGIC.length || fs.readSync(fd, prefix, 0, prefixLen, 0) < prefixLen) {
+      throw new Error('Not a valid KGG v5 file (invalid magic)');
+    }
+    if (!prefix.subarray(0, header.MAGIC.length).equals(header.MAGIC)) {
+      throw new Error('Not a valid KGG v5 file (invalid magic)');
+    }
+    const hdr = header.parse(prefix);
+    if (hdr.cryptoVersion !== 5) {
+      throw new Error(`KGG crypto version ${hdr.cryptoVersion} belongs to the legacy decoder`);
+    }
+    const encoded = provider.find(hdr.encryptionKeyId);
+    if (!encoded) {
+      const total = provider.count();
+      if (total === 0 || total === -1) {
+        throw new Error('No KGG keys imported; import a kgg.key file or KGMusicV3.db in Settings');
+      }
+      throw new Error(`Missing KGG key for ${hdr.encryptionKeyId}`);
+    }
+    const v1Key = ekey.unwrap(encoded);
+    const cipher = qmc2.makeCipher(v1Key);
+    const audioLen = stat.size - hdr.headerLength;
+    if (audioLen <= 0) throw new Error('KGG audio data is empty');
+    outFd = fs.openSync(tmpPath, 'w');
+    const CHUNK = 64 * 1024;
+    const buf = Buffer.alloc(CHUNK);
+    let offset = 0;
+    let probe = Buffer.alloc(0);
+    while (offset < audioLen) {
+      const n = fs.readSync(fd, buf, 0, Math.min(CHUNK, audioLen - offset), hdr.headerLength + offset);
+      if (n <= 0) break;
+      cipher.apply(buf, n, BigInt(offset));
+      if (probe.length < PROBE_SIZE) probe = Buffer.concat([probe, buf.subarray(0, Math.min(n, PROBE_SIZE - probe.length))]);
+      fs.writeSync(outFd, buf, 0, n);
+      offset += n;
+    }
+    fs.closeSync(outFd);
+    outFd = null;
+    const format = sniffFormat(probe.subarray(0, Math.min(PROBE_SIZE, probe.length)));
+    const base = inputPath.replace(/\.[^./]+$/, '');
+    const name = base.split(/[\\/]/).pop();
+    const outPath = outputDir ? `${outputDir}/${name}.${format}` : `${base}.${format}`;
+    fs.renameSync(tmpPath, outPath);
+    return { outputPath: outPath, format };
+  } catch (err) {
+    try { if (outFd != null) fs.closeSync(outFd); } catch {}
+    try { fs.unlinkSync(tmpPath); } catch {}
+    throw err;
+  } finally {
+    fs.closeSync(fd);
+  }
 }
 
 module.exports = {

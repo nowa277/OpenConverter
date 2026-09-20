@@ -37,6 +37,15 @@ class DecoderParityTest {
         assertEquals(expectedSha, sha256(r.audio))
     }
 
+    @Test fun kwm_streaming_matches_bytearray_path() {
+        val cipher = loadResource("test-kwm/synthetic-kwm.kwm")
+        val buffered = KwmDecoder.decrypt(cipher)
+        val streamed = java.io.ByteArrayOutputStream()
+        val format = KwmDecoder.decrypt(java.io.ByteArrayInputStream(cipher), streamed, 64)
+        assertEquals(buffered.format, format)
+        org.junit.Assert.assertArrayEquals(buffered.audio, streamed.toByteArray())
+    }
+
     // ----- KGM / KGMA / VPR -----
     @Test fun kgm_synthetic_matches_js_oracle() {
         val oracle = loadOracle("test-kgm")
@@ -80,6 +89,15 @@ class DecoderParityTest {
         assertEquals(expectedSha, sha256(r.audio))
     }
 
+    @Test fun qmcv1_streaming_matches_bytearray_path() {
+        val cipher = loadResource("test-qmc/synthetic-qmc0.qmc0")
+        val buffered = QmcDecoder.decrypt(cipher)
+        val streamed = java.io.ByteArrayOutputStream()
+        val format = QmcDecoder.decrypt(java.io.ByteArrayInputStream(cipher), streamed, 64)
+        assertEquals(buffered.format, format)
+        org.junit.Assert.assertArrayEquals(buffered.audio, streamed.toByteArray())
+    }
+
     // ----- QMC v2 -----
     @Test fun qmcv2_synthetic_mflac_matches_js_oracle() {
         val oracle = loadOracle("test-qmc-v2")
@@ -99,6 +117,14 @@ class DecoderParityTest {
         assertEquals(expectedSha, sha256(r.audio))
     }
 
+    @Test fun qmcv2_streaming_matches_bytearray_path() {
+        val cipher = loadResource("test-qmc-v2/synthetic-mflac.mflac")
+        val buffered = QmcDecoder.decrypt(cipher)
+        val streamed = java.io.ByteArrayOutputStream()
+        val format = QmcDecoder.decrypt(java.io.ByteArrayInputStream(cipher), streamed, 64)
+        assertEquals(buffered.format, format)
+        org.junit.Assert.assertArrayEquals(buffered.audio, streamed.toByteArray())
+    }
 
     // ----- NCM (real fixture, AES + RC4) -----
     // Real NCM sample is copyrighted and not tracked in the public repo.
@@ -114,6 +140,15 @@ class DecoderParityTest {
         val cipher = loadResource("test-ncm/sample.ncm")
         val r = NcmDecoder.decrypt(cipher)
         assertEquals(expectedSha, sha256(r.audio))
+    }
+
+    @Test fun ncm_streaming_matches_bytearray_path() {
+        val cipher = loadResource("test-ncm/sample.ncm")
+        val buffered = NcmDecoder.decrypt(cipher)
+        val streamed = java.io.ByteArrayOutputStream()
+        val format = NcmDecoder.decrypt(java.io.ByteArrayInputStream(cipher), streamed, 64)
+        assertEquals(buffered.format, format)
+        org.junit.Assert.assertArrayEquals(buffered.audio, streamed.toByteArray())
     }
 
     // ----- Registry wiring -----

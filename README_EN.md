@@ -26,6 +26,10 @@ A lightweight format conversion and decryption tool for audio workflows.<br/>
 * **Privacy First, Fully Offline**: All decryption, transcoding, and processing run completely on the local device. No audio data is uploaded, zero network interaction, safe and secure.
 * **True Audio Transcoding (FFmpeg)**: Not a simple rename or extraction. Built-in FFmpeg / FFmpegKit transcoding backend supports converting to MP3, FLAC, WAV, M4A, and OGG, with customizable output bitrates (e.g., 320 kbps, 256 kbps, etc.).
 
+### What's new in v1.4.2 (Android)
+* **Streaming decrypt for the remaining formats**: `.ncm` / `.kwm` / `.qmc*` / `.mflac` / `.mgg` no longer load the whole file into the heap, so large NetEase / Kuwo / QQ Music tracks also avoid OOM.
+* **KGM / KGG stay streamed**: `.kgm` / `.kgma` / `.vpr` / `.kgg` keep the 1.4.1 chunked path.
+
 ### What's new in v1.4.1 (Android)
 * **Large-file OOM fix**: `.kgm` / `.kgma` / `.vpr` now decrypt in a stream, so 35MB+ tracks no longer load the whole file into the heap.
 * **Newer KuGou key locations**: scans `mggkey*`, `KGMusicV3.db`, and `kugou_music_v2.db` across official / lite / HiFi packages, with a 20MB per-file cap.
@@ -37,6 +41,9 @@ A lightweight format conversion and decryption tool for audio workflows.<br/>
 * **SAF Document Picker Path Memory**: Implements `EXTRA_INITIAL_URI` support to automatically open the picker in the last selected or output folder.
 * **Persistent Settings & SAF Permissions**: Preserves output folder SAF write access (via `takePersistableUriPermission`), format preferences, and bitrates across app restarts.
 * **Redesigned Settings Screen**: KuGou key status card now clearly displays readiness (Direct Root / Ready) and total indexed keys.
+
+### What's new in v0.3.8 (desktop / CLI)
+* **Streaming decrypt for every cipher**: `.ncm` / `.kwm` / `.qmc*` / `.mflac` / `.mgg` / `.kgg` now follow the same 64KiB chunked path as `.kgm`, so large files are not read entirely into memory.
 
 ### What's new in v0.3.7 (desktop / CLI)
 * **Streaming KGM decrypt**: desktop and CLI read/write `.kgm` / `.kgma` / `.vpr` in 64KiB chunks instead of loading the whole file.
@@ -112,10 +119,10 @@ openconverter
 
 Download the latest APK files from the [Releases page](https://github.com/nowa277/OpenConverter/releases) to install:
 
-* **arm64-v8a**: `openconverter-v1.4.1-android-arm64-v8a.apk` (Recommended, suitable for the vast majority of modern smartphones)
-* **x86_64**: `openconverter-v1.4.1-android-x86_64.apk` (Suitable for running and debugging on Android Emulators)
+* **arm64-v8a**: `openconverter-v1.4.2-android-arm64-v8a.apk` (Recommended, suitable for the vast majority of modern smartphones)
+* **x86_64**: `openconverter-v1.4.2-android-x86_64.apk` (Suitable for running and debugging on Android Emulators)
 
-KGG v5 requires per-track keys. In **v1.4.1**, several automatic mechanisms are available:
+KGG v5 requires per-track keys. In **v1.4.2**, several automatic mechanisms are available:
 1. **Rooted Devices**: One-click Direct Root sync via Settings (supports KernelSU / APatch / Magisk) directly extracts MMKV and SQLite keys;
 2. **Non-Rooted Devices**: Automatic public storage scanner scans `/sdcard/Download` or `/sdcard/Music` for `kgg.key` or `KGMusicV3.db`. You can also manually import keys via the system document picker. All keys remain safely on-device.
 

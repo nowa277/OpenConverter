@@ -6,6 +6,7 @@ import kotlinx.coroutines.withContext
 import rikka.shizuku.Shizuku
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
+import java.util.concurrent.TimeUnit
 
 object KugouKeySyncManager {
     private val KUGOU_PACKAGES = listOf(
@@ -36,20 +37,35 @@ object KugouKeySyncManager {
         }.getOrDefault(false)
     }
 
+    @Volatile private var rootProbeDone = false
+    @Volatile private var rootAvailable = false
+
     fun isRootAvailable(): Boolean {
-        val checkCommands = listOf(
-            arrayOf("su", "-c", "id"),
-            arrayOf("su", "0", "id"),
-            arrayOf("su", "root", "id"),
-            arrayOf("/system/xbin/su", "0", "id"),
-            arrayOf("/system/bin/su", "-c", "id"),
-        )
-        return checkCommands.any { cmd ->
-            runCatching {
-                val process = Runtime.getRuntime().exec(cmd)
-                process.waitFor() == 0
-            }.getOrDefault(false)
+        if (rootProbeDone) return rootAvailable
+        synchronized(this) {
+            if (rootProbeDone) return rootAvailable
+            val checkCommands = listOf(
+                arrayOf("su", "-c", "id"),
+                arrayOf("su", "0", "id"),
+                arrayOf("su", "root", "id"),
+                arrayOf("/system/xbin/su", "0", "id"),
+                arrayOf("/system/bin/su", "-c", "id"),
+            )
+            rootAvailable = checkCommands.any { cmd ->
+                runCatching {
+                    val process = Runtime.getRuntime().exec(cmd)
+                    val finished = process.waitFor(400, TimeUnit.MILLISECONDS)
+                    if (!finished) {
+                        process.destroyForcibly()
+                        false
+                    } else {
+                        process.exitValue() == 0
+                    }
+                }.getOrDefault(false)
+            }
+            rootProbeDone = true
         }
+        return rootAvailable
     }
 
     suspend fun syncKeys(): Map<String, String> = withContext(Dispatchers.IO) {

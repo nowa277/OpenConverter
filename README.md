@@ -26,7 +26,11 @@
 * **隐私至上，完全离线**：所有的解密、转码与处理均完全在本地设备上运行。不上传任何音频数据，零网络交互，安全可靠。
 * **真实音频转码 (FFmpeg)**：并非简单重命名或提取，内置 FFmpeg / FFmpegKit 转码后端，支持转码为 MP3 / FLAC / WAV / M4A / OGG，并可根据需要自由选择输出码率（如 320k, 256k 等）。
 
-### v1.4.1 最新更新（Android 端）：
+### v1.4.2 最新更新（Android 端）：
+* **其余格式也改为流式解密**：`.ncm` / `.kwm` / `.qmc*` / `.mflac` / `.mgg` 不再整文件进堆，网易云 / 酷我 / QQ 音乐大文件同样避免 OOM。
+* **KGM / KGG 延续 1.4.1 的流式路径**：`.kgm` / `.kgma` / `.vpr` / `.kgg` 仍按块解密。
+
+### v1.4.1 更新（Android 端）：
 * **大文件不再内存溢出**：`.kgm` / `.kgma` / `.vpr` 改为分块流式解密，35MB+ 歌曲不再整文件进堆。
 * **新版酷狗密钥扫描**：除 `kugou_music_v2.db` 外，同时检索 `mggkey*`、`KGMusicV3.db`，覆盖官方包 / 极速版 / HiFi，并限制单文件读取上限以免二次 OOM。
 
@@ -37,6 +41,9 @@
 * **SAF 选歌路径记忆**：适配 Android DocumentsContract `EXTRA_INITIAL_URI`，选择音频时自动优先定位到上次选歌目录或输出目录，无需重复逐层寻找。
 * **设置与权限持久化**：输出文件夹 SAF 写入权限（`takePersistableUriPermission` 校验维护）、目标音频格式与比特率持久化保存，应用重启不重置。
 * **设置界面重构**：优化酷狗密钥状态看板，直观展示就绪状态（Direct Root / Ready）与已同步密钥总量。
+
+### v0.3.8 更新（桌面端 / CLI）：
+* **全格式流式解密**：`.ncm` / `.kwm` / `.qmc*` / `.mflac` / `.mgg` / `.kgg` 与已有的 `.kgm` 一样按 64KiB 分块读写，大文件不再整文件读入内存。
 
 ### v0.3.7 更新（桌面端 / CLI）：
 * **KGM 流式解密**：桌面与 CLI 按 64KiB 分块读写 `.kgm` / `.kgma` / `.vpr`，大文件不再整文件读入内存。
@@ -110,10 +117,10 @@ sudo apt install ./openconverter-v***-linux-amd64.deb
 
 从 [Releases 页面](https://github.com/nowa277/OpenConverter/releases) 下载最新的 APK 文件安装：
 
-* **arm64-v8a**：`openconverter-v1.4.1-android-arm64-v8a.apk` (推荐，适合绝大多数现代智能手机)
-* **x86_64**：`openconverter-v1.4.1-android-x86_64.apk` (适合在 Android 模拟器上运行与调试)
+* **arm64-v8a**：`openconverter-v1.4.2-android-arm64-v8a.apk` (推荐，适合绝大多数现代智能手机)
+* **x86_64**：`openconverter-v1.4.2-android-x86_64.apk` (适合在 Android 模拟器上运行与调试)
 
-Android 端 KGG v5 解密依赖对应歌曲的逐曲密钥。在 **v1.4.1** 中，应用支持多种获取途径：
+Android 端 KGG v5 解密依赖对应歌曲的逐曲密钥。在 **v1.4.2** 中，应用支持多种获取途径：
 1. **已 Root 手机**：进入设置点击“立即同步”，通过原生 Root（KernelSU/APatch/Magisk）全自动拉取本地酷狗 MMKV/SQLite 密钥；
 2. **未 Root 手机**：支持公共存储自动扫描，将备份或导出的 `kgg.key`、`mggkey*` 或 `KGMusicV3.db` 放入 `/sdcard/Download` 或 `/sdcard/Music`，App 将自动发现并解析；也可在设置页通过 SAF 选择器手动导入。密钥仅在应用私有空间保存，绝不上载。
 

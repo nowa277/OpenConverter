@@ -1,11 +1,17 @@
 package com.openconverter.app.decoders
 
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
+import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.abs
 import kotlin.math.tan
 
-object QmcDecoder : Decoder {
+object QmcDecoder : StreamingDecoder {
 
     override val supportedExtensions: Set<String> = setOf(
         ".qmc0", ".qmc3", ".qmcflac", ".qmcogg", ".qmc1", ".qmc2", ".tkm",
@@ -69,7 +75,7 @@ object QmcDecoder : Decoder {
         }
     }
 
-    private data class DetectedKey(val ekey: ByteArray, val audioLen: Int)
+    private data class DetectedKey(val ekey: ByteArray, val audioOffset: Int, val audioLen: Int)
 
     private fun detectKey(buf: ByteArray): DetectedKey? {
         val len = buf.size
@@ -97,7 +103,7 @@ object QmcDecoder : Decoder {
                             val ekeyBase64 = buf.sliceArray(0x18 until ekeyEnd).decodeToString().trim()
                             if (ekeyBase64.all { it in 'A'..'Z' || it in 'a'..'z' || it in '0'..'9' || it == '+' || it == '/' || it == '=' || it.isWhitespace() }) {
                                 val ekeyBytes = Base64Decoder.decode(ekeyBase64)
-                                return DetectedKey(ekeyBytes, ekeyEnd)
+                                return DetectedKey(ekeyBytes, ekeyEnd, len - ekeyEnd)
                             }
                         }
                     }
@@ -113,7 +119,7 @@ object QmcDecoder : Decoder {
                     val parts = rawMeta.split(',')
                     if (parts.isNotEmpty() && parts[0].isNotEmpty()) {
                         val ekeyBytes = Base64Decoder.decode(parts[0])
-                        return DetectedKey(ekeyBytes, len - 8 - metaLen)
+                        return DetectedKey(ekeyBytes, 0, len - 8 - metaLen)
                     }
                 }
             }
@@ -124,7 +130,7 @@ object QmcDecoder : Decoder {
                 val ekeyBase64 = buf.sliceArray(len - 4 - keyLen until len - 4).decodeToString().trim()
                 if (ekeyBase64.all { it in 'A'..'Z' || it in 'a'..'z' || it in '0'..'9' || it == '+' || it == '/' || it == '=' || it.isWhitespace() }) {
                     val ekeyBytes = Base64Decoder.decode(ekeyBase64)
-                    return DetectedKey(ekeyBytes, len - 4 - keyLen)
+                    return DetectedKey(ekeyBytes, 0, len - 4 - keyLen)
                 }
             }
         } catch (t: Throwable) {}
@@ -366,13 +372,14 @@ object QmcDecoder : Decoder {
     }
 
     private fun applyMask(buf: ByteArray, mask: ByteArray) {
-        val len = buf.size
-        val limit1 = minOf(len, 32768)
-        for (i in 0 until limit1) {
-            buf[i] = (buf[i].toInt() xor mask[i].toInt()).toByte()
-        }
-        for (i in 32768 until len) {
-            buf[i] = (buf[i].toInt() xor mask[i % 32767].toInt()).toByte()
+        applyMaskRange(buf, buf.size, 0, mask)
+    }
+
+    private fun applyMaskRange(buf: ByteArray, length: Int, startOffset: Int, mask: ByteArray) {
+        for (i in 0 until length) {
+            val pos = startOffset + i
+            val mi = if (pos < 32768) pos else pos % 32767
+            buf[i] = (buf[i].toInt() xor mask[mi].toInt()).toByte()
         }
     }
 
@@ -407,19 +414,139 @@ object QmcDecoder : Decoder {
     }
 
     override fun decrypt(input: ByteArray): DecryptResult {
-        val detected = detectKey(input)
-        val audio = if (detected != null) {
-            val cipher = input.sliceArray(0 until detected.audioLen)
-            decryptV2(cipher, detected.ekey)
-        } else {
-            decryptV1(input)
+        val output = ByteArrayOutputStream()
+        val format = decrypt(ByteArrayInputStream(input), output)
+        return DecryptResult(audio = output.toByteArray(), format = format)
+    }
+
+    override fun decrypt(input: InputStream, output: OutputStream, bufferSize: Int): String {
+        require(bufferSize > 0) { "QMC buffer size must be positive" }
+        val tmp = File.createTempFile("oc-qmc-", ".bin")
+        try {
+            tmp.outputStream().use { input.copyTo(it, bufferSize) }
+            return RandomAccessFile(tmp, "r").use { raf -> decryptRaf(raf, output, bufferSize) }
+        } finally {
+            tmp.delete()
         }
-        val format = if (detected != null) {
-            detectAudioFormat(audio)
-                ?: throw IllegalArgumentException("QMCv2 decryption failed: decrypted data is not a recognized audio stream")
-        } else {
-            FormatSniffer.sniff(audio)
+    }
+
+    private fun decryptRaf(raf: RandomAccessFile, output: OutputStream, bufferSize: Int): String {
+        val size = raf.length()
+        require(size > 0L) { "QMC: empty input" }
+        require(size <= Int.MAX_VALUE.toLong()) { "QMC: file too large to decrypt" }
+        val detected = detectKey(raf, size)
+        val audioOffset = detected?.audioOffset ?: 0
+        val audioLen = detected?.audioLen ?: size.toInt()
+        val derivedKey = detected?.let { qmcDeriveKey(it.ekey) }
+        val rc4 = if (derivedKey != null && derivedKey.size > 300) QmcRC4Cipher(derivedKey) else null
+        val mask = when {
+            detected == null -> V1_MASK
+            rc4 != null -> null
+            else -> getMapMask(derivedKey!!)
         }
-        return DecryptResult(audio = audio, format = format)
+        val buf = ByteArray(bufferSize)
+        var offset = 0
+        var remaining = audioLen
+        raf.seek(audioOffset.toLong())
+        val probe = ByteArrayOutputStream(16)
+        var format: String? = null
+        while (remaining > 0) {
+            val n = raf.read(buf, 0, minOf(buf.size, remaining))
+            if (n <= 0) break
+            if (rc4 != null) {
+                val chunk = buf.copyOf(n)
+                rc4.decrypt(chunk, offset)
+                System.arraycopy(chunk, 0, buf, 0, n)
+            } else {
+                applyMaskRange(buf, n, offset, mask!!)
+            }
+            if (format == null) {
+                val take = minOf(n, 16 - probe.size())
+                if (take > 0) probe.write(buf, 0, take)
+                if (probe.size() >= 16) {
+                    format = if (detected != null) {
+                        detectAudioFormat(probe.toByteArray())
+                            ?: throw IllegalArgumentException("QMCv2 decryption failed: decrypted data is not a recognized audio stream")
+                    } else {
+                        FormatSniffer.sniff(probe.toByteArray())
+                    }
+                }
+            }
+            output.write(buf, 0, n)
+            remaining -= n
+            offset += n
+        }
+        if (format == null) {
+            format = if (detected != null) {
+                detectAudioFormat(probe.toByteArray())
+                    ?: throw IllegalArgumentException("QMCv2 decryption failed: decrypted data is not a recognized audio stream")
+            } else {
+                FormatSniffer.sniff(probe.toByteArray())
+            }
+        }
+        return format
+    }
+
+    private fun readRaf(raf: RandomAccessFile, pos: Long, n: Int): ByteArray {
+        val out = ByteArray(n)
+        raf.seek(pos)
+        raf.readFully(out)
+        return out
+    }
+
+    private fun detectKey(raf: RandomAccessFile, len: Long): DetectedKey? {
+        if (len >= 8) {
+            val tail = String(readRaf(raf, len - 8, 8), Charsets.ISO_8859_1)
+            if (tail == "musicex\u0000") {
+                throw IllegalArgumentException("This file was encrypted with a newer QQ Music client (musicex) without an embedded key. Please downgrade your client or provide a key database.")
+            }
+        }
+        if (len >= 4) {
+            val tail4 = String(readRaf(raf, len - 4, 4), Charsets.US_ASCII)
+            if (tail4 == "STag") {
+                throw IllegalArgumentException("This file contains an STag but no embedded key. Please downgrade your QQ Music client or provide a key database.")
+            }
+        }
+        if (len < 8) return null
+        if (len >= 0x18) {
+            try {
+                val head = String(readRaf(raf, 0, 4), Charsets.US_ASCII)
+                if (head == "STag") {
+                    val ekeyLen = ByteBuffer.wrap(readRaf(raf, 0x14, 4)).order(ByteOrder.LITTLE_ENDIAN).int
+                    if (ekeyLen in 1 until 0xFFFF) {
+                        val ekeyEnd = 0x18 + ekeyLen
+                        if (ekeyEnd < len) {
+                            val ekeyBase64 = String(readRaf(raf, 0x18, ekeyLen), Charsets.US_ASCII).trim()
+                            if (ekeyBase64.all { it in 'A'..'Z' || it in 'a'..'z' || it in '0'..'9' || it == '+' || it == '/' || it == '=' || it.isWhitespace() }) {
+                                return DetectedKey(Base64Decoder.decode(ekeyBase64), ekeyEnd, (len - ekeyEnd).toInt())
+                            }
+                        }
+                    }
+                }
+            } catch (_: Throwable) {}
+        }
+        try {
+            val qTag = String(readRaf(raf, len - 4, 4), Charsets.US_ASCII)
+            if (qTag == "QTag") {
+                val metaLen = ByteBuffer.wrap(readRaf(raf, len - 8, 4)).order(ByteOrder.BIG_ENDIAN).int
+                if (metaLen > 0 && metaLen < len - 8) {
+                    val rawMeta = String(readRaf(raf, len - 8 - metaLen, metaLen), Charsets.US_ASCII)
+                    val parts = rawMeta.split(',')
+                    if (parts.isNotEmpty() && parts[0].isNotEmpty()) {
+                        return DetectedKey(Base64Decoder.decode(parts[0]), 0, (len - 8 - metaLen).toInt())
+                    }
+                }
+            }
+        } catch (_: Throwable) {}
+        try {
+            val keyLen = ByteBuffer.wrap(readRaf(raf, len - 4, 4)).order(ByteOrder.LITTLE_ENDIAN).int
+            if (keyLen in 1 until 0xFFFF && keyLen < len - 4) {
+                val ekeyBase64 = String(readRaf(raf, len - 4 - keyLen, keyLen), Charsets.US_ASCII).trim()
+                if (ekeyBase64.all { it in 'A'..'Z' || it in 'a'..'z' || it in '0'..'9' || it == '+' || it == '/' || it == '=' || it.isWhitespace() }) {
+                    return DetectedKey(Base64Decoder.decode(ekeyBase64), 0, (len - 4 - keyLen).toInt())
+                }
+            }
+        } catch (_: Throwable) {}
+        return null
     }
 }

@@ -1,5 +1,9 @@
 package com.openconverter.app.decoders
 
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
+import java.io.OutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -17,12 +21,13 @@ import java.nio.ByteOrder
  *   0x014..0x400  Reserved
  *   0x400..end   Encrypted audio
  */
-object KwmDecoder : Decoder {
+object KwmDecoder : StreamingDecoder {
     private val MAGIC = "yeelion-kuwo".toByteArray(Charsets.US_ASCII)         // 10 bytes
     private val ROOT  = "MoOtOiTvINGwd2E6n0E1i7L5t2IoOoNk".toByteArray(Charsets.US_ASCII) // 32 bytes
     private const val MASK_SIZE = 32
     private const val AUDIO_OFFSET = 0x400 // 1024
     private const val SEED_OFFSET = 0x10   // 16
+    private const val PROBE_SIZE = 16
 
     override val supportedExtensions: Set<String> = setOf(".kwm")
 
@@ -37,18 +42,51 @@ object KwmDecoder : Decoder {
     }
 
     override fun decrypt(input: ByteArray): DecryptResult {
-        require(input.size >= AUDIO_OFFSET) { "KWM: file too small (${input.size} < $AUDIO_OFFSET)" }
-        for (i in MAGIC.indices) require(input[i] == MAGIC[i]) { "KWM: bad magic at offset $i" }
+        val output = ByteArrayOutputStream()
+        val format = decrypt(ByteArrayInputStream(input), output)
+        return DecryptResult(audio = output.toByteArray(), format = format)
+    }
 
-        // uint32 LE seed at offset 0x10. Convert to unsigned long for decimal stringification.
-        val seed = ByteBuffer.wrap(input, SEED_OFFSET, 4).order(ByteOrder.LITTLE_ENDIAN).int.toLong() and 0xFFFF_FFFFL
+    override fun decrypt(input: InputStream, output: OutputStream, bufferSize: Int): String {
+        require(bufferSize > 0) { "KWM buffer size must be positive" }
+        val header = readExact(input, AUDIO_OFFSET)
+        require(header.size >= AUDIO_OFFSET) { "KWM: file too small (${header.size} < $AUDIO_OFFSET)" }
+        for (i in MAGIC.indices) require(header[i] == MAGIC[i]) { "KWM: bad magic at offset $i" }
+        val seed = ByteBuffer.wrap(header, SEED_OFFSET, 4).order(ByteOrder.LITTLE_ENDIAN).int.toLong() and 0xFFFF_FFFFL
         val mask = buildMask(seed)
 
-        val audioLen = input.size - AUDIO_OFFSET
-        val audio = ByteArray(audioLen)
-        for (i in 0 until audioLen) {
-            audio[i] = (input[AUDIO_OFFSET + i].toInt() xor mask[i % MASK_SIZE].toInt()).toByte()
+        val probe = ByteArrayOutputStream(PROBE_SIZE)
+        var format: String? = null
+        var offset = 0
+        val buffer = ByteArray(bufferSize)
+        while (true) {
+            val n = input.read(buffer)
+            if (n < 0) break
+            if (n == 0) continue
+            for (i in 0 until n) {
+                buffer[i] = (buffer[i].toInt() xor mask[(offset + i) % MASK_SIZE].toInt()).toByte()
+            }
+            offset += n
+            if (format == null) {
+                val take = minOf(n, PROBE_SIZE - probe.size())
+                if (take > 0) probe.write(buffer, 0, take)
+                if (probe.size() >= PROBE_SIZE) format = FormatSniffer.sniff(probe.toByteArray())
+            }
+            output.write(buffer, 0, n)
         }
-        return DecryptResult(audio = audio, format = FormatSniffer.sniff(audio))
+        require(offset > 0) { "KWM: file too small (${header.size} < $AUDIO_OFFSET)" }
+        return format ?: FormatSniffer.sniff(probe.toByteArray())
+    }
+
+    private fun readExact(input: InputStream, size: Int): ByteArray {
+        val out = ByteArray(size)
+        var count = 0
+        while (count < size) {
+            val n = input.read(out, count, size - count)
+            if (n < 0) return out.copyOf(count)
+            if (n == 0) continue
+            count += n
+        }
+        return out
     }
 }

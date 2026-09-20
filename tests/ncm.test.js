@@ -132,6 +132,16 @@ test('ncm: no meta / no image yields null tags and cover', () => {
   assert.ok(fs.readFileSync(r.outputPath).equals(audio));
 });
 
+test('ncm: streaming decodeFile matches decryptBuffer', () => {
+  const audio = Buffer.alloc(8192, 0x3c);
+  const { ncm: file } = buildSyntheticNcm(audio, { format: 'mp3' }, null);
+  const inPath = path.join(OUT_DIR, 'stream.ncm');
+  fs.writeFileSync(inPath, file);
+  const buffered = ncm.decryptBuffer(file);
+  const r = ncm.decodeFile(inPath, OUT_DIR);
+  assert.ok(fs.readFileSync(r.outputPath).equals(buffered.audio));
+});
+
 test('ncm: rejects non-NCM input', () => {
   assert.throws(() => ncm.decryptBuffer(Buffer.from('definitely not an ncm file')), /CTENFDAM/);
 });
