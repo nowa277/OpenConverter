@@ -30,6 +30,10 @@ A lightweight format conversion and decryption tool for audio workflows.<br/>
 * **Streaming decrypt for the remaining formats**: `.ncm` / `.kwm` / `.qmc*` / `.mflac` / `.mgg` no longer load the whole file into the heap, so large NetEase / Kuwo / QQ Music tracks also avoid OOM.
 * **KGM / KGG stay streamed**: `.kgm` / `.kgma` / `.vpr` / `.kgg` keep the 1.4.1 chunked path.
 
+### Android NCM tags, cover, and offline lyrics
+* **Tags and cover from the .ncm file**: title / artist / album and the embedded picture are written into MP3 / FLAC / M4A (WAV/OGG skip cover). Same-format output is remuxed so tags are not dropped.
+* **Optional local NetEase lyrics**: Settings → NetEase lyrics cache. Pick `files` or a copy of `LrcDownload` / `LrcCache`. Matching uses the song id inside the .ncm and writes a sibling `.lrc`. Missing lyrics do not fail conversion. No network, no root.
+
 ### What's new in v1.4.1 (Android)
 * **Large-file OOM fix**: `.kgm` / `.kgma` / `.vpr` now decrypt in a stream, so 35MB+ tracks no longer load the whole file into the heap.
 * **Newer KuGou key locations**: scans `mggkey*`, `KGMusicV3.db`, and `kugou_music_v2.db` across official / lite / HiFi packages, with a 20MB per-file cap.
