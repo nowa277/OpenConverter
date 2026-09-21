@@ -523,7 +523,11 @@ function bindEvents() {
   $('win-min').addEventListener('click', () => api.invoke('win:minimize'));
   winMaxBtn.addEventListener('click', () => api.invoke('win:toggleMaximize'));
   $('win-close').addEventListener('click', () => api.invoke('win:close'));
-  $('window-bar').addEventListener('dblclick', (e) => { if (e.target.closest('.window-bar-drag')) api.invoke('win:toggleMaximize'); });
+  $('window-bar').addEventListener('dblclick', (e) => {
+    if (e.target.closest('.window-bar-drag') || (e.target.closest('#window-bar') && !e.target.closest('.window-bar-controls'))) {
+      api.invoke('win:toggleMaximize');
+    }
+  });
   api.on('win:maximizedChanged', ({ maximized }) => { winMaxBtn.title = maximized ? 'Restore' : 'Maximize'; });
 
   api.on('convert:progress', ({ filePath, stage, percent }) => {
