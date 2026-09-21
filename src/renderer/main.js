@@ -765,7 +765,7 @@ const ACTIVE = new Set(['queued', 'decrypt', 'encode']);
 
 const SWIPE_ACTION_WIDTH = 88;
 
-function bindQueueSwipe(li, face, f) {
+function bindQueueSwipe(li, face, f, action) {
   let dragging = false;
   let startX = 0;
   let origin = 0;
@@ -791,12 +791,18 @@ function bindQueueSwipe(li, face, f) {
     setX(swipe.rubberOffset(e.clientX - startX + origin, SWIPE_ACTION_WIDTH));
   });
 
+  const snapBack = () => {
+    face.style.transition = 'transform .2s ease';
+    setX(0);
+  };
+
   const finish = () => {
     if (!dragging) return;
     dragging = false;
     face.style.transition = 'transform .2s ease';
     if (swipe.shouldCollapse(x, li.getBoundingClientRect().width)) {
       removeFile(f);
+      if (state.files.includes(f)) snapBack();
       return;
     }
     setX(swipe.snapTarget(x, SWIPE_ACTION_WIDTH));
@@ -804,6 +810,10 @@ function bindQueueSwipe(li, face, f) {
 
   li.addEventListener('pointerup', finish);
   li.addEventListener('pointercancel', finish);
+  action.onclick = () => {
+    removeFile(f);
+    if (state.files.includes(f)) snapBack();
+  };
 }
 
 function buildQueueItem(f) {
@@ -820,9 +830,9 @@ function buildQueueItem(f) {
       el('button', { class: 'btn btn-icon act-remove', title: t('btn_remove'), onclick: () => removeFile(f) }, icon('i-x')),
     ),
   );
-  const action = el('button', { type: 'button', class: 'swipe-action', 'data-i18n': 'btn_remove', onclick: () => removeFile(f) }, t('btn_remove'));
+  const action = el('button', { type: 'button', class: 'swipe-action', 'data-i18n': 'btn_remove' }, t('btn_remove'));
   const li = el('li', { class: 'queue-item', 'data-id': f.id }, action, face);
-  bindQueueSwipe(li, face, f);
+  bindQueueSwipe(li, face, f, action);
   if (motionOK()) li.classList.add('entering');
   li.addEventListener('animationend', () => li.classList.remove('entering'), { once: true });
   return li;
