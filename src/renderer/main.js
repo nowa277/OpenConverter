@@ -7,6 +7,8 @@
  * on every state change.
  */
 
+import { mountIslands, remountAppearanceLabels } from './ui/islands.jsx';
+
 const api = window.api;
 
 const state = {
@@ -270,7 +272,7 @@ const VIEW_TITLES = { convert: 'title_convert_audio', history: 'title_history', 
 
 function applyLanguage() {
   const lang = currentLang();
-  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+  document.documentElement.lang = currentLang() === 'zh' ? 'zh' : 'en';
 
   document.querySelectorAll('[data-i18n]').forEach((el) => {
     const translation = TRANSLATIONS[lang]?.[el.dataset.i18n] ?? TRANSLATIONS.en[el.dataset.i18n];
@@ -286,6 +288,7 @@ function applyLanguage() {
   if (state.view === 'history') loadHistory();
   renderAbout();
   renderFfmpegStatus();
+  remountAppearanceLabels();
 }
 
 function renderAbout() {
@@ -416,6 +419,7 @@ async function init() {
   bindEvents();
   updateQualityVisibility();
   applyLanguage();
+  mountIslands();
 
   // Non-blocking: these can arrive after first paint.
   api.invoke('decoders:list').then((d) => { state.decoders = d; renderAbout(); });
