@@ -109,9 +109,23 @@ button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focu
 .traffic-light:active { transform: scale(0.9); }
 .traffic-light svg { opacity: 0; transition: opacity var(--dur-fast) ease; }
 .window-bar-controls:hover .traffic-light svg { opacity: 1; }
-.traffic-light-close { background: #ff5f57; }
-.traffic-light-min   { background: #febc2e; }
-.traffic-light-max   { background: #28c840; }
+html[data-os="mac"] .traffic-light-close { background: #ff5f57; }
+html[data-os="mac"] .traffic-light-min { background: #febc2e; }
+html[data-os="mac"] .traffic-light-max { background: #28c840; }
+html[data-os="win"] .window-bar { display: none; }
+html[data-os="win"] #app { height: 100%; }
+html[data-os="linux"] .window-bar { flex-direction: row; }
+html[data-os="linux"] .window-bar-controls { order: 2; margin-left: auto; }
+html[data-os="linux"] .window-bar-drag { order: 1; position: absolute; left: 0; right: 0; text-align: center; pointer-events: none; }
+html[data-os="linux"] .traffic-light {
+  width: 28px; height: 28px; border-radius: 6px; background: transparent; border: 0; color: var(--text-secondary);
+}
+html[data-os="linux"] .traffic-light svg { display: none; }
+html[data-os="linux"] .traffic-light-min::after { content: "−"; }
+html[data-os="linux"] .traffic-light-max::after { content: "□"; }
+html[data-os="linux"] .traffic-light-close::after { content: "×"; }
+html[data-os="linux"] .traffic-light-close:hover { background: #f3727f; color: #fff; }
+html[data-os="mac"] .window-bar-controls { order: 0; }
 .window-bar-drag {
   flex: 1; height: 100%; -webkit-app-region: drag;
   display: flex; align-items: center; justify-content: center;

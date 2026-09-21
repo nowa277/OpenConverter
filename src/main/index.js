@@ -67,7 +67,8 @@ function createWindow() {
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#121212' : '#fafafa',
     title: 'OpenConverter',
     show: false,
-    // Linux + macOS: custom traffic-light title bar. Windows: OS-native bar.
+    // Windows keeps the OS frame. macOS and Linux use a custom bar with
+    // different button glyphs; Linux is not given macOS traffic lights.
     frame: process.platform === 'win32',
     titleBarStyle: process.platform === 'win32' ? 'default' : 'hidden',
     icon: path.join(__dirname, '..', '..', 'build', 'icons', 'icon.png'),
