@@ -37,4 +37,8 @@ function feedbackText(kind, uiLang) {
   return kind === 'ok' ? 'Done' : 'Failed';
 }
 
-module.exports = { FEEDBACK_WIDTH, FEEDBACK_MS, segmentLabels, feedbackText };
+function feedbackClass(kind) {
+  return kind === 'ok' ? 'is-ok' : 'is-bad';
+}
+
+module.exports = { FEEDBACK_WIDTH, FEEDBACK_MS, segmentLabels, feedbackText, feedbackClass };

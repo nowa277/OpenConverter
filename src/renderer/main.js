@@ -9,6 +9,7 @@
 
 import { mountIslands, remountAppearanceLabels } from './ui/islands.jsx';
 import { mountPills, refreshPillLabels } from './ui/pill.js';
+import copy from '../shared/ui-copy.js';
 
 const api = window.api;
 
@@ -50,16 +51,16 @@ const TRANSLATIONS = {
     label_output: 'Output:',
     btn_choose_folder: 'Choose folder',
     btn_open_folder: 'Open output folder',
-    ekey_panel_title: 'QQ Music ekey & Cookie (required for .mflac / .mgg / .bkc)',
-    ekey_placeholder: 'Paste base64 ekey from QQ Music client DB',
+    ekey_panel_title: 'QQ Music',
+    ekey_placeholder: 'EKey',
     btn_save: 'Save',
-    qq_cookie_placeholder: 'Paste QQ Music Cookie (for mgg/mflac API fetch)',
-    btn_scan_qq_memory: 'Auto Scan Memory',
-    ekey_hint: 'Only needed for QQ Music cache files (.mflac0, .mgg). Use Auto Scan while QQ Music is running to extract the Cookie automatically. Leave empty if you only need NCM / QMC0 / KGM / KWM.',
-    dropzone_text: 'Drop .ncm / .qmc / .kgm files here',
+    qq_cookie_placeholder: 'Cookie',
+    btn_scan_qq_memory: 'Scan',
+    ekey_hint: 'Only .mflac / .mgg. Scan while QQ Music is open.',
+    dropzone_text: 'Drop here',
     dropzone_hint_or: 'or',
-    dropzone_hint_browse: 'browse',
-    dropzone_hint_choose: 'to choose',
+    dropzone_hint_browse: 'browse files',
+    dropzone_hint_choose: '',
     drop_overlay_text: 'Release to add files',
     queue_title: 'Queue',
     btn_add_more: 'Add files',
@@ -131,12 +132,12 @@ const TRANSLATIONS = {
     time_hours_ago: '{hours}h ago',
     time_days_ago: '{days}d ago',
     ncm_lyrics_title: 'Fetch lyrics',
-    ncm_lyrics_hint: 'When converting NetEase tracks, match lyrics and write them into the output. On by default: requests the song id from NetEase. No audio is uploaded. Can be turned off.',
+    ncm_lyrics_hint: 'NetEase tracks sync lyrics by default. No audio is uploaded.',
     kgg_panel_title: 'KuGou Music KGG Settings (required for .kgg / .kgg.flac)',
-    kgg_autoscan_label: 'Auto-scan database on startup',
+    kgg_autoscan_label: 'Auto scan',
     kgg_scan_now_btn: 'Scan now',
-    kgg_import_btn: 'Import DB / Key',
-    kgg_linux_warning: 'KuGou decryption is not supported on Linux natively. Import a keys file if needed.',
+    kgg_import_btn: 'Import key',
+    kgg_linux_warning: 'Linux cannot read the KuGou library. Import a key.',
     kgg_autoscan_hint: 'Scan local client\'s database to extract ekeys automatically. Or manually import your KGMusicV3.db / kgg.key file.',
     toast_kgg_scan_success: 'Scan complete: found {count} new keys (total {total})',
     toast_kgg_import_success: 'Import complete: added {count} keys (total {total})',
@@ -163,16 +164,16 @@ const TRANSLATIONS = {
     label_output: '输出目录：',
     btn_choose_folder: '选择目录',
     btn_open_folder: '打开输出目录',
-    ekey_panel_title: 'QQ 音乐 ekey 与 Cookie (解密 .mflac / .mgg / .bkc 必需)',
-    ekey_placeholder: '粘贴本地 QQ 音乐客户端数据库中的 Base64 ekey',
+    ekey_panel_title: 'QQ 音乐',
+    ekey_placeholder: 'EKey',
     btn_save: '保存',
-    qq_cookie_placeholder: '粘贴 QQ 音乐 Cookie（用于 mgg/mflac 接口拉取）',
-    btn_scan_qq_memory: '自动扫描内存',
-    ekey_hint: '仅在处理 QQ 音乐缓存文件 (.mflac0, .mgg) 时才需要。在 QQ 音乐运行时点击自动扫描即可提取。若仅需处理 NCM / QMC0 / KGM / KWM，请保持为空。',
-    dropzone_text: '拖曳 .ncm / .qmc / .kgm 等加密音频文件到这里',
-    dropzone_hint_or: '或者',
-    dropzone_hint_browse: '点击浏览',
-    dropzone_hint_choose: '选择文件',
+    qq_cookie_placeholder: 'Cookie',
+    btn_scan_qq_memory: '扫描',
+    ekey_hint: '仅 .mflac / .mgg 需要。QQ 音乐开着时可以扫描。',
+    dropzone_text: '拖到这里',
+    dropzone_hint_or: '或',
+    dropzone_hint_browse: '浏览文件',
+    dropzone_hint_choose: '',
     drop_overlay_text: '松开即可添加文件',
     queue_title: '等待队列',
     btn_add_more: '添加文件',
@@ -244,12 +245,12 @@ const TRANSLATIONS = {
     time_hours_ago: '{hours} 小时前',
     time_days_ago: '{days} 天前',
     ncm_lyrics_title: '获取歌词',
-    ncm_lyrics_hint: '转换网易云歌曲时自动匹配歌词并写入音频。默认会向网易请求歌曲 id，可关闭。不上传音频。',
+    ncm_lyrics_hint: '网易云曲目默认同步歌词，可关闭。不上传音频。',
     kgg_panel_title: '酷狗音乐 KGG 设置 (解密 .kgg / .kgg.flac 必需)',
-    kgg_autoscan_label: '自动扫描本地播放器数据库',
+    kgg_autoscan_label: '自动扫描',
     kgg_scan_now_btn: '立即扫描',
-    kgg_import_btn: '导入密钥或数据库',
-    kgg_linux_warning: 'Linux 端暂不支持直接解析酷狗本地播放器。如需转换，可手动导入从其他平台抽取的密钥文件。',
+    kgg_import_btn: '导入密钥',
+    kgg_linux_warning: 'Linux 不能直接读取酷狗本地库，请导入密钥。',
     kgg_autoscan_hint: '自动扫描酷狗客户端的本地数据库并提取歌曲密钥。或者手动导入您的 KGMusicV3.db / kgg.key 文件。',
     toast_kgg_scan_success: '扫描完成：发现 {count} 个新密钥 (总计 {total} 个)',
     toast_kgg_import_success: '导入完成：新增 {count} 个密钥 (总计 {total} 个)',
@@ -479,22 +480,34 @@ function bindEvents() {
 
   // ekey (QQ Music)
   $('ekey-save-btn').addEventListener('click', async () => {
+    const btn = $('ekey-save-btn');
     const v = $('ekey-input').value.trim();
     const c = $('qq-cookie-input').value.trim();
-    await api.invoke('config:set', { patch: { qmcEkey: v, qqCookie: c } });
-    toast(v || c ? t('toast_ekey_saved') : t('toast_ekey_cleared'), 'ok');
+    try {
+      await api.invoke('config:set', { patch: { qmcEkey: v, qqCookie: c } });
+      toast(v || c ? t('toast_ekey_saved') : t('toast_ekey_cleared'), 'ok');
+      flashButton(btn, 'ok');
+    } catch {
+      flashButton(btn, 'bad');
+    }
   });
 
-  $('qq-scan-btn').addEventListener('click', () => withBusy($('qq-scan-btn'), async () => {
-    const res = await api.invoke('qqmusic:extractCookie');
-    if (res.ok) {
-      $('qq-cookie-input').value = res.cookie;
-      await api.invoke('config:set', { patch: { qqCookie: res.cookie, qqGuid: res.guid, qqUin: res.uin } });
-      toast(t('toast_qq_scan_success', { uin: res.uin }), 'ok');
-    } else {
-      toast(res.error || 'Failed to scan memory', 'error');
-    }
-  }));
+  $('qq-scan-btn').addEventListener('click', async () => {
+    const btn = $('qq-scan-btn');
+    let kind = 'bad';
+    await withBusy(btn, async () => {
+      const res = await api.invoke('qqmusic:extractCookie');
+      if (res.ok) {
+        $('qq-cookie-input').value = res.cookie;
+        await api.invoke('config:set', { patch: { qqCookie: res.cookie, qqGuid: res.guid, qqUin: res.uin } });
+        toast(t('toast_qq_scan_success', { uin: res.uin }), 'ok');
+        kind = 'ok';
+      } else {
+        toast(res.error || 'Failed to scan memory', 'error');
+      }
+    });
+    flashButton(btn, kind);
+  });
 
   $('ncm-lyrics-enabled').addEventListener('change', (e) => {
     api.invoke('config:set', { patch: { ncmLyricsEnabled: e.target.checked } });
@@ -644,6 +657,19 @@ async function withBusy(btn, fn) {
   btn.classList.add('busy');
   try { await fn(); } catch (err) { toast(err.message || 'Error', 'error'); }
   finally { btn.disabled = false; btn.classList.remove('busy'); }
+}
+
+function flashButton(btn, kind) {
+  if (!btn || btn.dataset.busy) return;
+  const home = btn.textContent;
+  btn.dataset.busy = '1';
+  btn.textContent = copy.feedbackText(kind, currentLang() === 'zh' ? 'zh' : 'en');
+  btn.classList.add(copy.feedbackClass(kind));
+  setTimeout(() => {
+    btn.textContent = home;
+    btn.classList.remove('is-ok', 'is-bad');
+    delete btn.dataset.busy;
+  }, copy.FEEDBACK_MS);
 }
 
 // ---------- views ----------

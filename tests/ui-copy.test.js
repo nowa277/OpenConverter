@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { segmentLabels, feedbackText, FEEDBACK_WIDTH, FEEDBACK_MS } = require('../src/shared/ui-copy');
+const { segmentLabels, feedbackText, feedbackClass, FEEDBACK_WIDTH, FEEDBACK_MS } = require('../src/shared/ui-copy');
 
 test('chinese language abbreviations', () => {
   const rows = segmentLabels('language', 'zh');
@@ -31,4 +31,9 @@ test('feedback copy and constants', () => {
   assert.equal(feedbackText('bad', 'zh'), '失败');
   assert.equal(feedbackText('ok', 'en'), 'Done');
   assert.equal(feedbackText('bad', 'en'), 'Failed');
+});
+
+test('feedback class names', () => {
+  assert.equal(feedbackClass('ok'), 'is-ok');
+  assert.equal(feedbackClass('bad'), 'is-bad');
 });

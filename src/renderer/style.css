@@ -379,6 +379,17 @@ body:not([data-view="convert"]) .page-tools { display: none; }
 .btn-primary.busy { background: var(--accent); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+#ekey-save-btn, #qq-scan-btn {
+  width: 88px;
+  flex: 0 0 88px;
+  text-align: center;
+  box-sizing: border-box;
+  justify-content: center;
+  transition: background-color .35s ease, color .35s ease;
+}
+#ekey-save-btn.is-ok, #qq-scan-btn.is-ok { background: var(--accent); color: #121212; }
+#ekey-save-btn.is-bad, #qq-scan-btn.is-bad { background: #f3727f; color: #fff; }
+
 /* ---------- Queue ---------- */
 .queue { margin-top: 16px; }
 .queue-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 12px; }
