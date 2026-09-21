@@ -20,6 +20,7 @@ const DEFAULTS = {
   qqGuid: '', // GUID paired with the QQ Music cookie
   qqUin: '', // UIN paired with the QQ Music cookie
   kggAutoScan: false,
+  ncmLyricsDir: '', // NetEase lyrics cache root; empty = unset
 };
 
 let store = null;

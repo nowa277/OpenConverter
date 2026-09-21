@@ -8,6 +8,7 @@
  *   convert:cancelAll
  *   file:pickInput       { multi }
  *   file:pickOutputDir
+ *   file:pickNcmLyricsDir
  *   file:showInFolder    { path }
  *   file:openPath        { path }
  *   config:get / config:set { patch }
@@ -152,6 +153,7 @@ const HANDLERS = {
         const decodeOpts = await decodeOptsFor(inputPath);
         const r = await pipeline.convertOne({
           inputPath, outputDir, format, quality, decodeOpts, ffmpegBin, ffprobeBin,
+          ncmLyricsDir: config.get().ncmLyricsDir || '',
           signal: controller.signal,
           onProgress: ({ stage, percent }) => send('convert:progress', { jobId, filePath: inputPath, stage, percent }),
         });
@@ -216,6 +218,14 @@ const HANDLERS = {
     const r = await dialog.showOpenDialog(mainWindow, {
       title: 'Select output directory',
       properties: ['openDirectory', 'createDirectory'],
+    });
+    return { dir: r.canceled ? null : r.filePaths[0] };
+  },
+
+  'file:pickNcmLyricsDir': async () => {
+    const r = await dialog.showOpenDialog(mainWindow, {
+      title: 'Select NetEase lyrics folder',
+      properties: ['openDirectory'],
     });
     return { dir: r.canceled ? null : r.filePaths[0] };
   },
