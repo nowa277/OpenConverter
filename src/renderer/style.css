@@ -317,6 +317,7 @@ body:not([data-view="convert"]) .page-tools { display: none; }
 .link-btn { background: transparent; border: 0; color: var(--accent); font: inherit; cursor: pointer; padding: 0; text-decoration: underline; }
 .link-btn:hover { color: var(--accent-hover); }
 .dropzone-formats { margin-top: 12px; font-size: 11px; color: var(--text-dim); font-family: 'SF Mono', Menlo, monospace; }
+.about-legal { font-size: var(--t-note); line-height: 1.6; }
 
 /* Full-window drop overlay */
 .drop-overlay {
@@ -361,11 +362,13 @@ body:not([data-view="convert"]) .page-tools { display: none; }
 .btn-text { background: transparent; color: var(--text-secondary); padding: 8px 12px; }
 .btn-text:hover:not(:disabled) { color: var(--text); background: var(--bg-hover); }
 .btn-text:disabled { opacity: 0.4; }
-.btn-icon {
-  width: 32px; height: 32px; padding: 0; border-radius: 50%;
+.btn-icon, .icon-btn {
+  width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%;
   background: transparent; color: var(--text-secondary);
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer;
 }
-.btn-icon:hover:not(:disabled) { color: var(--text); background: var(--bg-elevated-2); }
+.btn-icon:hover:not(:disabled), .icon-btn:hover:not(:disabled) { color: var(--text); background: var(--bg-elevated-2); }
 
 /* Busy spinner replaces the button content */
 .btn.busy { color: transparent !important; pointer-events: none; }

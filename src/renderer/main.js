@@ -295,9 +295,14 @@ function applyLanguage() {
 }
 
 function renderAbout() {
+  const legal = $('about-disclaimer');
+  if (legal) legal.textContent = '本项目仅作为个人音频学习、文件格式整理及兼容性研究的技术工具使用，不涉及任何版权音频内容的提供、分发或存储。使用者在使用过程中应严格遵守相关法律法规，尊重音乐作品著作权人的合法权益，不得将本工具用于任何侵犯著作权的行为。由于使用本工具引发的任何法律争议或纠纷，均由使用者自行承担，与本项目作者及贡献者无关。';
   if (!state.decoders) return;
-  const formatsJoined = state.decoders.supported.map((e) => e.replace('.', '')).join(' · ');
-  $('supported-formats').textContent = t('supported_formats_prefix') + formatsJoined;
+  const formatsEl = $('supported-formats');
+  if (formatsEl) {
+    const formatsJoined = state.decoders.supported.map((e) => e.replace('.', '')).join(' · ');
+    formatsEl.textContent = t('supported_formats_prefix') + formatsJoined;
+  }
 
   const needKey = new Set(state.decoders.requiresKey || []);
   const all = [...state.decoders.supported, ...(state.decoders.plain || [])];

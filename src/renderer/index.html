@@ -122,10 +122,11 @@
       <section class="content" id="content">
         <div id="view-convert" class="view active">
           <div class="output-picker">
-            <span class="output-picker-label" data-i18n="label_output">Output:</span>
-            <span id="output-dir" class="output-dir-text" title="">Not set</span>
-            <button id="open-output-btn" class="btn btn-icon" data-i18n-title="btn_open_folder" title="Open folder" hidden><svg class="ico"><use href="#i-folder"/></svg></button>
-            <button id="pick-output-btn" class="btn btn-spotify" data-i18n="btn_choose_folder">Choose folder</button>
+            <button id="open-output-btn" class="icon-btn" type="button" aria-label="output">
+              <svg class="ico"><use href="#i-folder"/></svg>
+            </button>
+            <span id="output-dir" class="output-dir-text"></span>
+            <button id="pick-output-btn" class="btn btn-text" type="button" data-i18n="btn_choose_folder">Choose folder</button>
           </div>
 
           <div id="dropzone" class="dropzone" tabindex="0" role="button">
@@ -133,13 +134,11 @@
               <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="dz-music"><use href="#i-music"/></svg>
               <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="dz-upload"><use href="#i-upload"/></svg>
             </div>
-            <div class="dropzone-text" data-i18n="dropzone_text">Drop .ncm / .qmc / .kgm files here</div>
+            <div class="dropzone-text" data-i18n="dropzone_text">Drop here</div>
             <div class="dropzone-hint">
               <span data-i18n="dropzone_hint_or">or</span>
-              <button id="pick-input-btn" class="link-btn" data-i18n="dropzone_hint_browse">browse</button>
-              <span data-i18n="dropzone_hint_choose">to choose</span>
+              <button id="pick-input-btn" class="link-btn" data-i18n="dropzone_hint_browse">browse files</button>
             </div>
-            <div class="dropzone-formats" id="supported-formats"></div>
           </div>
 
           <div class="queue" id="queue" hidden>
@@ -276,6 +275,7 @@
                 <h3 class="about-name">OpenConverter <span id="about-version" class="about-version"></span></h3>
                 <p data-i18n="about_desc1" class="dim">OpenConverter is an open-source audio format converter.</p>
                 <p data-i18n="about_desc2" class="dim">It supports encrypted formats (NCM, QMC, KGM, KWM) via pure-JavaScript decoders and uses <code>ffmpeg</code> for format conversion.</p>
+                <p id="about-disclaimer" class="dim about-legal"></p>
               </div>
             </div>
 
