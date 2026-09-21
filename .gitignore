@@ -73,6 +73,7 @@ errors_screenshots/
 # Untracked v0.4.x residue (kept locally as reference, not under v1)
 android-v040-residue/
 .superpowers/
+.worktrees/
 
 # Promotional video project (generated locally, not committed)
 promo-video/
