@@ -530,6 +530,27 @@ class ConversionEngineTest {
         assertTrue(fs.writes.map { it.second }.contains("song.lrc"))
     }
 
+    @Test fun lyrics_ffmetadata_cacheFile_cancellation_propagates() = runTest {
+        val ncm = taggedNcm(musicId = "9", tags = mapOf("title" to "Hello"))
+        val fs = FakeFileSystemPort(
+            reads = mapOf("uri:ncm" to byteArrayOf(1)),
+            cacheFileErrors = mapOf("lyrics_0.ffm" to CancellationException("ffm cancelled")),
+        )
+        val ffmpeg = FakeFfmpegRunner(fs, outputBytes = ID3)
+        val resolver = LyricResolverPort { "[00:00.00]Bye" }
+        val engine = ConversionEngine(DecoderRegistry(listOf(ncm)), ffmpeg, fs, RecordingProgressSink(), lyricResolver = resolver)
+        var threw = false
+        try {
+            engine.convertAll(
+                ConversionRequest(listOf("uri:ncm"), listOf("song.ncm"), "mp3", "tree:out", null, PLAIN_EXTS),
+            )
+        } catch (_: CancellationException) {
+            threw = true
+        }
+        assertTrue("CancellationException must propagate from ffmetadata cacheFile", threw)
+        assertTrue("ffmpeg must not run after cancel", ffmpeg.calls.isEmpty())
+    }
+
     private fun fakeStreamingDecoder(audio: ByteArray, format: String): StreamingDecoder =
         object : StreamingDecoder {
             override val supportedExtensions = setOf(".kgg")

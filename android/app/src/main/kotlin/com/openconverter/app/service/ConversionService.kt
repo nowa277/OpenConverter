@@ -100,39 +100,38 @@ class ConversionService : Service() {
         // Promote to foreground BEFORE starting work (5-s rule).
         startForegroundCompat(buildNotification(0, inputs.size, "Starting…", null))
 
-        val fs = AndroidFileSystemPort(applicationContext).also { it.clearStaleCache() }
-        val ffmpeg = FfmpegKitRunner()
-        val sink = ServiceProgressSink(this, _progress, inputs.size)
-        val kggKeys = (application as OpenConverterApp).kggKeyStore
-        val prefs = getSharedPreferences("prefs", MODE_PRIVATE)
-        val lyricsEnabled = prefs.getBoolean("ncm_lyrics_enabled", true)
-        val extraRoots = mutableListOf<File>()
-        if (lyricsEnabled) {
-            val standardDirs = listOf(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
-                File("/sdcard/Download"),
-                File("/sdcard/Music"),
-                File("/sdcard/下载"),
-            )
-            extraRoots += PublicStorageLyricScanner.scanRoots(standardDirs)
-            val privateFiles = File("/data/data/com.netease.cloudmusic/files")
-            if (privateFiles.canRead()) extraRoots += privateFiles
-        }
-        val lyricResolver = NeteaseLyricResolver(
-            enabled = lyricsEnabled,
-            extraRoots = extraRoots,
-            fetchJson = { NeteaseLyricHttp.fetchJson(it) },
-            open = { root, rel -> File(root, rel).takeIf { it.isFile }?.readBytes() },
-        )
-        val engine = ConversionEngine(
-            DefaultDecoders.registry(kggKeys), ffmpeg, fs, sink, RealClock(),
-            lyricResolver = lyricResolver,
-        )
-
-        val history: HistoryPort = JsonHistoryStore(applicationContext.filesDir)
         currentJob = scope.launch {
             try {
+                val fs = AndroidFileSystemPort(applicationContext).also { it.clearStaleCache() }
+                val ffmpeg = FfmpegKitRunner()
+                val sink = ServiceProgressSink(this@ConversionService, _progress, inputs.size)
+                val kggKeys = (application as OpenConverterApp).kggKeyStore
+                val prefs = getSharedPreferences("prefs", MODE_PRIVATE)
+                val lyricsEnabled = prefs.getBoolean("ncm_lyrics_enabled", true)
+                val extraRoots = mutableListOf<File>()
+                if (lyricsEnabled) {
+                    val standardDirs = listOf(
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
+                        File("/sdcard/Download"),
+                        File("/sdcard/Music"),
+                        File("/sdcard/下载"),
+                    )
+                    extraRoots += PublicStorageLyricScanner.scanRoots(standardDirs)
+                    val privateFiles = File("/data/data/com.netease.cloudmusic/files")
+                    if (privateFiles.canRead()) extraRoots += privateFiles
+                }
+                val lyricResolver = NeteaseLyricResolver(
+                    enabled = lyricsEnabled,
+                    extraRoots = extraRoots,
+                    fetchJson = { NeteaseLyricHttp.fetchJson(it) },
+                    open = { root, rel -> File(root, rel).takeIf { it.isFile }?.readBytes() },
+                )
+                val engine = ConversionEngine(
+                    DefaultDecoders.registry(kggKeys), ffmpeg, fs, sink, RealClock(),
+                    lyricResolver = lyricResolver,
+                )
+                val history: HistoryPort = JsonHistoryStore(applicationContext.filesDir)
                 val results: List<FileResult> = engine.convertAll(req)
                 results.forEachIndexed { i, r ->
                     history.append(toRecord(i, r, names, target))

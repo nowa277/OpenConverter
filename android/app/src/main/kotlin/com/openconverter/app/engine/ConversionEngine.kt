@@ -172,7 +172,8 @@ class ConversionEngine(
                     meta.putAll(tags)
                     meta["lyrics"] = lrc!!
                     metaPath = fs.cacheFile("lyrics_${i}.ffm", Ffmetadata.bytes(meta))
-                } catch (_: Throwable) {
+                } catch (t: Throwable) {
+                    if (t is CancellationException || t is InterruptedException) throw t
                     metaPath = null
                 }
             }

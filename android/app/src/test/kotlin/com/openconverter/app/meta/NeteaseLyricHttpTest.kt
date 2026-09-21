@@ -1,6 +1,7 @@
 package com.openconverter.app.meta
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
 import java.io.ByteArrayInputStream
@@ -43,6 +44,7 @@ class NeteaseLyricHttpTest {
         assertEquals(setOf("id", "lv", "kv", "tv"), queryKeys(conn.url))
         assertEquals("186016", queryValue(conn.url, "id"))
         assertEquals(1, conn.connectCount)
+        assertFalse(conn.instanceFollowRedirects)
     }
 
     @Test

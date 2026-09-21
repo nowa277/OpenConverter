@@ -2,6 +2,7 @@ package com.openconverter.app.meta
 
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 
 object NeteaseLyricHttp {
     private const val USER_AGENT = "Mozilla/5.0"
@@ -18,10 +19,12 @@ object NeteaseLyricHttp {
     ): String? {
         val id = musicId.trim()
         if (id.isEmpty()) return null
-        val url = URL("https://music.163.com/api/song/lyric?id=$id&lv=-1&kv=-1&tv=-1")
+        val encodedId = URLEncoder.encode(id, "UTF-8")
+        val url = URL("https://music.163.com/api/song/lyric?id=$encodedId&lv=-1&kv=-1&tv=-1")
         var conn: HttpURLConnection? = null
         return try {
             conn = open(url)
+            conn.instanceFollowRedirects = false
             conn.requestMethod = "GET"
             conn.connectTimeout = timeoutMs
             conn.readTimeout = timeoutMs

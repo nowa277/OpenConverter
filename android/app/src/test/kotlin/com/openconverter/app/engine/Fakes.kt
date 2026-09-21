@@ -10,6 +10,7 @@ import java.io.OutputStream
 class FakeFileSystemPort(
     private val reads: Map<String, ByteArray> = emptyMap(),
     private val readErrors: Map<String, Throwable> = emptyMap(),
+    private val cacheFileErrors: Map<String, Throwable> = emptyMap(),
 ) : FileSystemPort {
     val cache: MutableMap<String, ByteArray> = mutableMapOf()
     val cacheWrites: MutableList<Pair<String, ByteArray>> = mutableListOf()
@@ -23,6 +24,7 @@ class FakeFileSystemPort(
     }
     override fun openInput(uri: String): InputStream = ByteArrayInputStream(readBytes(uri))
     override fun cacheFile(name: String, bytes: ByteArray): String {
+        cacheFileErrors[name]?.let { throw it }
         val path = "/cache/$name"
         cache[path] = bytes
         cacheWrites += path to bytes
