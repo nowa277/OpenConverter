@@ -37,6 +37,62 @@ function probeTags(file) {
   return execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'stream=codec_type:format_tags=title', '-of', 'default=noprint_wrappers=1', file], { stdio: 'pipe' }).toString();
 }
 
+// Copied from tests/ncm.test.js (that file runs tests on require, so it is not a helper module).
+const CORE_KEY = Buffer.from('687A4852416D736F356B496E62617857', 'hex');
+const META_KEY = Buffer.from('2331346C6A6B5F215C5D2630553C2728', 'hex');
+const PREFIX = Buffer.from('neteasecloudmusic', 'ascii');
+
+function aesEcbEncrypt(block, key) {
+  const c = crypto.createCipheriv('aes-128-ecb', key, null);
+  c.setAutoPadding(false);
+  return Buffer.concat([c.update(block), c.final()]);
+}
+function pkcs7Pad(buf) {
+  const pad = 16 - (buf.length % 16);
+  return Buffer.concat([buf, Buffer.alloc(pad, pad)]);
+}
+function buildRc4Sbox(key) {
+  const S = Buffer.alloc(256);
+  for (let i = 0; i < 256; i++) S[i] = i;
+  let j = 0;
+  for (let i = 0; i < 256; i++) {
+    j = (j + S[i] + key[i % key.length]) & 0xff;
+    const tmp = S[i]; S[i] = S[j]; S[j] = tmp;
+  }
+  return S;
+}
+function rc4Transform(S, data) {
+  const k = Buffer.alloc(256);
+  for (let i = 0; i < 256; i++) k[i] = S[(S[i] + S[(i + S[i]) & 0xff]) & 0xff];
+  const out = Buffer.alloc(data.length);
+  for (let i = 0; i < data.length; i++) out[i] = data[i] ^ k[(i + 1) % 256];
+  return out;
+}
+function u32(n) { const b = Buffer.alloc(4); b.writeUInt32LE(n); return b; }
+
+function buildSyntheticNcm(audio, metaObj, image) {
+  const rc4Key = crypto.randomBytes(16);
+  let keyEnc = aesEcbEncrypt(pkcs7Pad(Buffer.concat([PREFIX, rc4Key])), CORE_KEY);
+  for (let i = 0; i < keyEnc.length; i++) keyEnc[i] ^= 0x64;
+
+  let metaBlock = Buffer.alloc(0);
+  if (metaObj) {
+    const json = Buffer.from('music:' + JSON.stringify(metaObj), 'utf8');
+    const enc = aesEcbEncrypt(pkcs7Pad(json), META_KEY).toString('base64');
+    metaBlock = Buffer.from('163 key(Don\'t modify):' + enc, 'utf8');
+    for (let i = 0; i < metaBlock.length; i++) metaBlock[i] ^= 0x63;
+  }
+  const img = image || Buffer.alloc(0);
+  return {
+    ncm: Buffer.concat([
+      Buffer.from('CTENFDAM', 'ascii'), Buffer.alloc(2), u32(keyEnc.length), keyEnc,
+      u32(metaBlock.length), metaBlock, Buffer.alloc(5),
+      u32(img.length), u32(img.length), img,
+      rc4Transform(buildRc4Sbox(rc4Key), audio),
+    ]),
+  };
+}
+
 test('pipeline: plain audio with same container is copied, not re-encoded', { skip: skipNoFfmpeg }, async () => {
   const src = path.join(OUT_DIR, 'plain.mp3');
   const bytes = makeMp3(src);
@@ -99,4 +155,42 @@ test('pipeline: pre-aborted signal rejects with "aborted"', async () => {
   const c = new AbortController();
   c.abort();
   await assert.rejects(pipeline.convertOne({ inputPath: src, outputDir: OUT_DIR, format: 'mp3', signal: c.signal }), /aborted/);
+});
+
+test('pipeline: ncm lyric hit writes sibling .lrc and still succeeds', { skip: skipNoFfmpeg }, async () => {
+  const audio = makeMp3(path.join(OUT_DIR, 'ncm-lyric-hit-src.mp3'));
+  const meta = { musicName: 'Sine Test', artist: [['Synth', 1], ['Wave', 2]], album: 'Unit Tests', format: 'mp3', musicId: 1406472218 };
+  const { ncm: file } = buildSyntheticNcm(audio, meta, null);
+  const ncmPath = path.join(OUT_DIR, 'ncm-lyric-hit.ncm');
+  fs.writeFileSync(ncmPath, file);
+
+  const lyricsRoot = path.join(OUT_DIR, 'lyrics-hit');
+  fs.mkdirSync(path.join(lyricsRoot, 'LrcDownload'), { recursive: true });
+  const nested = '{"t":0,"c":[{"tx":"Hello "}]}\n{"t":1230,"c":[{"tx":"World"}]}';
+  fs.writeFileSync(path.join(lyricsRoot, 'LrcDownload', '1406472218'), JSON.stringify({ lrc: nested }));
+
+  const r = await pipeline.convertOne({
+    inputPath: ncmPath, outputDir: path.join(OUT_DIR, 'ncm-lyric-hit-out'), format: 'mp3', ncmLyricsDir: lyricsRoot,
+  });
+  const lrcPath = r.outputPath.replace(/\.mp3$/, '.lrc');
+  assert.ok(fs.existsSync(r.outputPath));
+  const text = fs.readFileSync(lrcPath, 'utf8');
+  assert.match(text, /^\[\d{2}:\d{2}/);
+});
+
+test('pipeline: ncm lyric miss does not fail conversion or write .lrc', { skip: skipNoFfmpeg }, async () => {
+  const audio = makeMp3(path.join(OUT_DIR, 'ncm-lyric-miss-src.mp3'));
+  const meta = { musicName: 'Sine Test', artist: [['Synth', 1], ['Wave', 2]], album: 'Unit Tests', format: 'mp3', musicId: 1406472218 };
+  const { ncm: file } = buildSyntheticNcm(audio, meta, null);
+  const ncmPath = path.join(OUT_DIR, 'ncm-lyric-miss.ncm');
+  fs.writeFileSync(ncmPath, file);
+
+  const emptyRoot = path.join(OUT_DIR, 'lyrics-empty');
+  fs.mkdirSync(emptyRoot, { recursive: true });
+
+  const r = await pipeline.convertOne({
+    inputPath: ncmPath, outputDir: path.join(OUT_DIR, 'ncm-lyric-miss-out'), format: 'mp3', ncmLyricsDir: emptyRoot,
+  });
+  assert.ok(fs.existsSync(r.outputPath));
+  assert.ok(!fs.existsSync(r.outputPath.replace(/\.mp3$/, '.lrc')));
 });
