@@ -26,13 +26,13 @@
 * **隐私至上，完全离线**：所有的解密、转码与处理均完全在本地设备上运行。不上传任何音频数据，零网络交互，安全可靠。
 * **真实音频转码 (FFmpeg)**：并非简单重命名或提取，内置 FFmpeg / FFmpegKit 转码后端，支持转码为 MP3 / FLAC / WAV / M4A / OGG，并可根据需要自由选择输出码率（如 320k, 256k 等）。
 
-### v1.4.2 最新更新（Android 端）：
-* **其余格式也改为流式解密**：`.ncm` / `.kwm` / `.qmc*` / `.mflac` / `.mgg` 不再整文件进堆，网易云 / 酷我 / QQ 音乐大文件同样避免 OOM。
-* **KGM / KGG 延续 1.4.1 的流式路径**：`.kgm` / `.kgma` / `.vpr` / `.kgg` 仍按块解密。
-
-### Android 端网易云标签、封面与离线歌词
+### v1.4.3 最新更新（Android 端）：
 * **标签和封面来自 .ncm 文件本身**：曲名 / 歌手 / 专辑和内嵌封面写入 MP3 / FLAC / M4A（WAV/OGG 不嵌封面）。同格式输出会做一次封装，避免丢掉标签。
 * **可选本机网易云歌词**：设置 → 网易云歌词缓存。选择 `files` 或拷贝出的 `LrcDownload` / `LrcCache`。按 .ncm 内歌曲 id 匹配，并在音频旁写出 `.lrc`。找不到歌词不影响转音频。不联网、不需要 Root。
+
+### v1.4.2 更新（Android 端）：
+* **其余格式也改为流式解密**：`.ncm` / `.kwm` / `.qmc*` / `.mflac` / `.mgg` 不再整文件进堆，网易云 / 酷我 / QQ 音乐大文件同样避免 OOM。
+* **KGM / KGG 延续 1.4.1 的流式路径**：`.kgm` / `.kgma` / `.vpr` / `.kgg` 仍按块解密。
 
 ### v1.4.1 更新（Android 端）：
 * **大文件不再内存溢出**：`.kgm` / `.kgma` / `.vpr` 改为分块流式解密，35MB+ 歌曲不再整文件进堆。
@@ -121,10 +121,10 @@ sudo apt install ./openconverter-v***-linux-amd64.deb
 
 从 [Releases 页面](https://github.com/nowa277/OpenConverter/releases) 下载最新的 APK 文件安装：
 
-* **arm64-v8a**：`openconverter-v1.4.2-android-arm64-v8a.apk` (推荐，适合绝大多数现代智能手机)
-* **x86_64**：`openconverter-v1.4.2-android-x86_64.apk` (适合在 Android 模拟器上运行与调试)
+* **arm64-v8a**：`openconverter-v1.4.3-android-arm64-v8a.apk` (推荐，适合绝大多数现代智能手机)
+* **x86_64**：`openconverter-v1.4.3-android-x86_64.apk` (适合在 Android 模拟器上运行与调试)
 
-Android 端 KGG v5 解密依赖对应歌曲的逐曲密钥。在 **v1.4.2** 中，应用支持多种获取途径：
+Android 端 KGG v5 解密依赖对应歌曲的逐曲密钥。在 **v1.4.3** 中，应用支持多种获取途径：
 1. **已 Root 手机**：进入设置点击“立即同步”，通过原生 Root（KernelSU/APatch/Magisk）全自动拉取本地酷狗 MMKV/SQLite 密钥；
 2. **未 Root 手机**：支持公共存储自动扫描，将备份或导出的 `kgg.key`、`mggkey*` 或 `KGMusicV3.db` 放入 `/sdcard/Download` 或 `/sdcard/Music`，App 将自动发现并解析；也可在设置页通过 SAF 选择器手动导入。密钥仅在应用私有空间保存，绝不上载。
 
