@@ -188,7 +188,15 @@ async function convertOne(job) {
     // distinct suffix when that happens.
     let ffmpegOut = decryptedPath.replace(/\.[^.]+$/, '') + `.${format}`;
     if (ffmpegOut === decryptedPath) ffmpegOut = decryptedPath.replace(/\.[^.]+$/, '') + `.converted.${format}`;
-    await ffmpeg.run(decryptedPath, ffmpegOut, { ...ffmpegOpts, coverPath, ...metaKw });
+    try {
+      await ffmpeg.run(decryptedPath, ffmpegOut, { ...ffmpegOpts, coverPath, ...metaKw });
+    } catch (e) {
+      if (e.message === 'aborted') throw e;
+      if (!metadataFile) throw e;
+      // Embed is best-effort: retry the transcode without the lyrics file.
+      safeUnlink(ffmpegOut);
+      await ffmpeg.run(decryptedPath, ffmpegOut, { ...ffmpegOpts, coverPath, metadata: tags });
+    }
     safeUnlink(decryptedPath);
     return finishEncrypted(ffmpegOut, true);
   } catch (e) {

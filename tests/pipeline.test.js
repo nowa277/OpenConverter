@@ -307,3 +307,48 @@ test('pipeline: flac re-encode embeds lyrics via ffmetadata', { skip: skipNoFfmp
   assert.match(probe, /TAG:title=Sine Test/i);
   assert.match(probe, /TAG:lyrics=\[00:00\.00\]FlacNet/i);
 });
+
+test('pipeline: re-encode embed failure still writes lrc and succeeds', { skip: skipNoFfmpeg }, async () => {
+  const audio = makeMp3(path.join(OUT_DIR, 'ncm-lyric-reenc-fail-src.mp3'));
+  const meta = { musicName: 'Sine Test', artist: [['Synth', 1], ['Wave', 2]], album: 'Unit Tests', format: 'mp3', musicId: 424245 };
+  const { ncm: file } = buildSyntheticNcm(audio, meta, null);
+  const ncmPath = path.join(OUT_DIR, 'ncm-lyric-reenc-fail.ncm');
+  fs.writeFileSync(ncmPath, file);
+
+  const binDir = path.join(OUT_DIR, 'ncm-lyric-reenc-fail-bin');
+  fs.mkdirSync(binDir, { recursive: true });
+  const realFfmpeg = execFileSync('sh', ['-c', 'command -v ffmpeg'], { encoding: 'utf8' }).trim();
+  const callLog = path.join(binDir, 'calls.log');
+  const ffmpegBin = path.join(binDir, 'ffmpeg');
+  fs.writeFileSync(ffmpegBin, `#!/bin/sh
+printf '%s\\n' "$@" >> '${callLog}'
+echo --- >> '${callLog}'
+for a in "$@"; do
+  case "$a" in
+    *.ffmetadata) exit 1 ;;
+  esac
+done
+exec '${realFfmpeg.replace(/'/g, `'\\''`)}' "$@"
+`);
+  fs.chmodSync(ffmpegBin, 0o755);
+
+  const r = await pipeline.convertOne({
+    inputPath: ncmPath, outputDir: path.join(OUT_DIR, 'ncm-lyric-reenc-fail-out'), format: 'flac',
+    ncmLyricsEnabled: true, ffmpegBin,
+    fetchJson: async () => '{"lrc":{"lyric":"[00:00.00]RetryOk"}}',
+    listRoots: () => [],
+  });
+  assert.ok(fs.existsSync(r.outputPath));
+  assert.strictEqual(fs.readFileSync(r.outputPath.replace(/\.flac$/, '.lrc'), 'utf8').trim(), '[00:00.00]RetryOk');
+  const log = fs.readFileSync(callLog, 'utf8');
+  const runs = log.split('\n---\n').filter((block) => block.includes('-i'));
+  assert.ok(runs.length >= 2, 'embed fail must retry transcode');
+  assert.ok(runs[0].includes('.ffmetadata'));
+  assert.ok(!runs[1].includes('.ffmetadata'));
+  const probe = execFileSync('ffprobe', [
+    '-v', 'error', '-show_entries', 'format_tags=title,lyrics',
+    '-of', 'default=noprint_wrappers=1', r.outputPath,
+  ], { stdio: 'pipe' }).toString();
+  assert.match(probe, /TAG:title=Sine Test/i);
+  assert.ok(!/TAG:lyrics=/i.test(probe));
+});
