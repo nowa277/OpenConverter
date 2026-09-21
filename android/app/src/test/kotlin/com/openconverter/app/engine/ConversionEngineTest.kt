@@ -3,6 +3,7 @@ package com.openconverter.app.engine
 import com.openconverter.app.decoders.Decoder
 import com.openconverter.app.decoders.DecoderRegistry
 import com.openconverter.app.decoders.DecryptResult
+import com.openconverter.app.decoders.StreamDecryptResult
 import com.openconverter.app.decoders.StreamingDecoder
 import java.io.InputStream
 import java.io.OutputStream
@@ -354,6 +355,70 @@ class ConversionEngineTest {
         assertEquals(3, ffmpeg.calls.size)
         // Concurrency should have reached exactly 2 (as Semaphore(2) limits it to 2)
         assertEquals(2, maxActive.get())
+    }
+
+    @Test fun ncm_same_format_with_tags_remuxes_copyAudio() = runTest {
+        val ncm = object : StreamingDecoder {
+            override val supportedExtensions = setOf(".ncm")
+            override fun decrypt(input: ByteArray) = error("byte-array path must not be used")
+            override fun decrypt(input: InputStream, output: OutputStream, bufferSize: Int): String {
+                input.readBytes()
+                output.write(ID3)
+                return "mp3"
+            }
+            override fun decryptStreaming(input: InputStream, output: OutputStream, bufferSize: Int): StreamDecryptResult {
+                decrypt(input, output, bufferSize)
+                return StreamDecryptResult(
+                    format = "mp3",
+                    tags = mapOf("title" to "Hello", "artist" to "A", "album" to "X"),
+                    cover = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x01),
+                    musicId = "1406472218",
+                )
+            }
+        }
+        val fs = FakeFileSystemPort(reads = mapOf("uri:ncm" to byteArrayOf(1, 2, 3)))
+        val ffmpeg = FakeFfmpegRunner(fs, outputBytes = ID3)
+        val engine = ConversionEngine(DecoderRegistry(listOf(ncm)), ffmpeg, fs, RecordingProgressSink())
+
+        val result = engine.convertAll(
+            ConversionRequest(
+                listOf("uri:ncm"), listOf("song.ncm"),
+                "mp3", "tree:out", null, PLAIN_EXTS,
+            ),
+        ).single()
+
+        assertNull(result.error)
+        assertEquals(1, ffmpeg.calls.size)
+        val call = ffmpeg.calls.single()
+        assertEquals(true, call.copyAudio)
+        assertEquals("Hello", call.metadata["title"])
+        assertEquals("A", call.metadata["artist"])
+        assertEquals("X", call.metadata["album"])
+        assertEquals("/cache/cover_0.jpg", call.coverPath)
+        assertTrue(call.input != call.output)
+        assertEquals("song.mp3", fs.writes.single().second)
+        assertTrue("/cache/cover_0.jpg" in fs.cleanups)
+    }
+
+    @Test fun ncm_same_format_without_tags_still_skips_ffmpeg() = runTest {
+        val ncm = object : StreamingDecoder {
+            override val supportedExtensions = setOf(".ncm")
+            override fun decrypt(input: ByteArray) = error("unused")
+            override fun decrypt(input: InputStream, output: OutputStream, bufferSize: Int): String {
+                input.readBytes()
+                output.write(ID3)
+                return "mp3"
+            }
+        }
+        val fs = FakeFileSystemPort(reads = mapOf("uri:ncm" to byteArrayOf(1)))
+        val ffmpeg = FakeFfmpegRunner(fs)
+        val engine = ConversionEngine(DecoderRegistry(listOf(ncm)), ffmpeg, fs, RecordingProgressSink())
+        val result = engine.convertAll(
+            ConversionRequest(listOf("uri:ncm"), listOf("song.ncm"), "mp3", "tree:out", null, PLAIN_EXTS),
+        ).single()
+        assertNull(result.error)
+        assertTrue(ffmpeg.calls.isEmpty())
+        assertEquals("song.mp3", fs.writes.single().second)
     }
 
     private fun fakeStreamingDecoder(audio: ByteArray, format: String): StreamingDecoder =

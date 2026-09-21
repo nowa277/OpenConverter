@@ -2,6 +2,7 @@ package com.openconverter.app.engine
 
 import com.openconverter.app.decoders.Decoder
 import com.openconverter.app.decoders.DecoderRegistry
+import com.openconverter.app.decoders.StreamDecryptResult
 import com.openconverter.app.decoders.StreamingDecoder
 import com.openconverter.app.decoders.kgg.KugouKeySyncManager
 import com.openconverter.app.ffmpeg.FfmpegRunner
@@ -53,6 +54,7 @@ class ConversionEngine(
     ): FileResult {
         var inPath: String? = null
         var outPath: String? = null
+        var coverPath: String? = null
         try {
             sink.onFileStart(i, total, displayName)
             coroutineContext.ensureActive()
@@ -64,30 +66,29 @@ class ConversionEngine(
             var streamedToCache = false
             val srcFormatExt: String
             val isPlain: Boolean
+            var tags: Map<String, String> = emptyMap()
+            var cover: ByteArray? = null
+            var musicId: String? = null
 
             if (streamingDecoder != null) {
                 inPath = fs.cachePath("in_${i}_dec")
-                var formatResult: String? = null
+                var streamResult: StreamDecryptResult? = null
                 try {
-                    formatResult = fs.openInput(uri).use { input ->
+                    streamResult = fs.openInput(uri).use { input ->
                         fs.openCacheOutput(inPath!!).use { output ->
-                            streamingDecoder.decrypt(input, output)
+                            streamingDecoder.decryptStreaming(input, output)
                         }
                     }
                 } catch (t: Throwable) {
                     val msg = t.message.orEmpty()
-                    // Auto-healing: If missing KGG key, try silent discovery and retry once
                     if (msg.contains("Missing KGG key for", ignoreCase = true) || msg.contains("No KGG keys imported", ignoreCase = true)) {
-                        val keyId = msg.substringAfter("Missing KGG key for ", "").substringBefore(";").trim()
                         val healed = runCatching {
                             KugouKeySyncManager.syncKeys().isNotEmpty()
                         }.getOrDefault(false)
-
                         if (healed) {
-                            // Retry decryption with newly discovered keys
-                            formatResult = fs.openInput(uri).use { input ->
+                            streamResult = fs.openInput(uri).use { input ->
                                 fs.openCacheOutput(inPath!!).use { output ->
-                                    streamingDecoder.decrypt(input, output)
+                                    streamingDecoder.decryptStreaming(input, output)
                                 }
                             }
                         } else {
@@ -97,7 +98,11 @@ class ConversionEngine(
                         throw t
                     }
                 }
-                srcFormatExt = requireNotNull(formatResult)
+                val streamed = requireNotNull(streamResult)
+                srcFormatExt = streamed.format
+                tags = streamed.tags
+                cover = streamed.cover
+                musicId = streamed.musicId
                 streamedToCache = true
                 isPlain = false
             } else {
@@ -105,6 +110,9 @@ class ConversionEngine(
                 val decoder = decoderMatch?.decoder
                 if (decoder != null) {
                     val result = decoder.decrypt(bytes)
+                    val parsed = com.openconverter.app.meta.NcmTrackMeta.fromJson(result.meta)
+                    tags = parsed.tags
+                    musicId = parsed.musicId
                     audio = result.audio
                     srcFormatExt = result.format
                     isPlain = false
@@ -120,8 +128,9 @@ class ConversionEngine(
             }
             coroutineContext.ensureActive()
 
-            // Direct write if format already matches and no bitrate change requested.
-            if (srcFormatExt == req.targetFormat && req.bitrate == null) {
+            // Direct write if format already matches, no bitrate change, and no tags/cover sidecar.
+            val hasSidecar = tags.isNotEmpty() || cover != null
+            if (srcFormatExt == req.targetFormat && req.bitrate == null && !hasSidecar) {
                 val outName = outName(displayName, req.targetFormat, decoderMatch?.encryptedExtension)
                 val outDocUri = if (streamedToCache) {
                     fs.writeOutputFromCache(
@@ -148,10 +157,18 @@ class ConversionEngine(
             coroutineContext.ensureActive()
 
             val probedMs = ffmpeg.probeDurationMs(inPath!!)
+            if (cover != null) {
+                val coverExt = com.openconverter.app.meta.NcmTrackMeta.coverExtension(cover)
+                coverPath = fs.cacheFile("cover_${i}.$coverExt", cover)
+            }
+            val copyAudio = srcFormatExt == req.targetFormat && req.bitrate == null
             val r = ffmpeg.execute(
-                inPath, outPath, req.targetFormat, req.bitrate,
+                inPath!!, outPath, req.targetFormat, req.bitrate,
                 totalDurationMs = probedMs,
                 onProgress = { p -> sink.onFileProgress(i, p) },
+                metadata = tags,
+                coverPath = coverPath,
+                copyAudio = copyAudio,
             )
             if (r.isFailure) {
                 val msg = r.exceptionOrNull()?.message ?: "ffmpeg failed"
@@ -169,6 +186,7 @@ class ConversionEngine(
         } catch (ce: CancellationException) {
             inPath?.let { fs.cleanup(it) }
             outPath?.let { fs.cleanup(it) }
+            coverPath?.let { fs.cleanup(it) }
             throw ce
         } catch (t: Throwable) {
             val msg = t.message ?: t::class.simpleName ?: "error"
@@ -177,6 +195,7 @@ class ConversionEngine(
         } finally {
             inPath?.let { fs.cleanup(it) }
             outPath?.let { fs.cleanup(it) }
+            coverPath?.let { fs.cleanup(it) }
         }
     }
 }
