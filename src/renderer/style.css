@@ -406,6 +406,27 @@ body:not([data-view="convert"]) .page-tools { display: none; }
 .queue-overall-bar > div { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent-dim), var(--accent-hover)); transition: width var(--dur-slow) var(--ease-out); }
 
 .queue-list { list-style: none; }
+.queue-list li { position: relative; overflow: hidden; }
+.swipe-action {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 88px;
+  border: 0; background: #f3727f; color: #fff; font-weight: 700;
+}
+.swipe-face { position: relative; background: var(--bg-elevated); }
+.queue-list .queue-item {
+  display: block;
+  padding: 0;
+}
+.queue-list .swipe-face {
+  display: grid;
+  grid-template-columns: 32px 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 12px 16px;
+  z-index: 1;
+  touch-action: pan-y;
+}
+.queue-list .queue-item:hover .swipe-face { background: var(--bg-hover); }
+.queue-list .queue-item.error .swipe-face { background: var(--danger-soft); }
 .queue-item {
   display: grid;
   grid-template-columns: 32px 1fr auto auto;

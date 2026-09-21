@@ -10,6 +10,7 @@
 import { mountIslands, remountAppearanceLabels } from './ui/islands.jsx';
 import { mountPills, refreshPillLabels } from './ui/pill.js';
 import copy from '../shared/ui-copy.js';
+import swipe from '../shared/swipe-math.js';
 
 const api = window.api;
 
@@ -762,8 +763,51 @@ function updateOutputDisplay() {
 const STATUS_KEYS = { pending: 'status_ready', queued: 'status_queued', decrypt: 'status_decrypt', encode: 'status_encode', done: 'status_done', error: 'status_error', cancelled: 'status_cancelled' };
 const ACTIVE = new Set(['queued', 'decrypt', 'encode']);
 
+const SWIPE_ACTION_WIDTH = 88;
+
+function bindQueueSwipe(li, face, f) {
+  let dragging = false;
+  let startX = 0;
+  let origin = 0;
+  let x = 0;
+
+  const setX = (next) => {
+    x = next;
+    face.style.transform = `translate3d(${next}px,0,0)`;
+  };
+
+  li.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    if (e.target.closest('button')) return;
+    dragging = true;
+    startX = e.clientX;
+    origin = x;
+    face.style.transition = 'none';
+    try { li.setPointerCapture(e.pointerId); } catch { /* capture is optional */ }
+  });
+
+  li.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    setX(swipe.rubberOffset(e.clientX - startX + origin, SWIPE_ACTION_WIDTH));
+  });
+
+  const finish = () => {
+    if (!dragging) return;
+    dragging = false;
+    face.style.transition = 'transform .2s ease';
+    if (swipe.shouldCollapse(x, li.getBoundingClientRect().width)) {
+      removeFile(f);
+      return;
+    }
+    setX(swipe.snapTarget(x, SWIPE_ACTION_WIDTH));
+  };
+
+  li.addEventListener('pointerup', finish);
+  li.addEventListener('pointercancel', finish);
+}
+
 function buildQueueItem(f) {
-  const li = el('li', { class: 'queue-item', 'data-id': f.id },
+  const face = el('div', { class: 'swipe-face' },
     el('div', { class: 'icon' }, icon('i-music', 'ico ico-music'), icon('i-check', 'ico ico-done'), icon('i-error', 'ico ico-error')),
     el('div', { class: 'meta' },
       el('div', { class: 'name', title: f.path }, f.name),
@@ -776,6 +820,9 @@ function buildQueueItem(f) {
       el('button', { class: 'btn btn-icon act-remove', title: t('btn_remove'), onclick: () => removeFile(f) }, icon('i-x')),
     ),
   );
+  const action = el('button', { type: 'button', class: 'swipe-action', 'data-i18n': 'btn_remove', onclick: () => removeFile(f) }, t('btn_remove'));
+  const li = el('li', { class: 'queue-item', 'data-id': f.id }, action, face);
+  bindQueueSwipe(li, face, f);
   if (motionOK()) li.classList.add('entering');
   li.addEventListener('animationend', () => li.classList.remove('entering'), { once: true });
   return li;
