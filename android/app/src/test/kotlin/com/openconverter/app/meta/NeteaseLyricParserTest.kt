@@ -1,6 +1,7 @@
 package com.openconverter.app.meta
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -28,5 +29,19 @@ class NeteaseLyricParserTest {
         assertNull(NeteaseLyricParser.toLrc(ByteArray(0)))
         assertNull(NeteaseLyricParser.toLrc("{}".toByteArray()))
         assertNull(NeteaseLyricParser.toLrc("not lyrics".toByteArray()))
+    }
+
+    @Test fun lrc_object_lyric_field_becomes_lrc() {
+        val outer = """{"lrc":{"lyric":"[00:00.00]Hello"}}"""
+        assertEquals("[00:00.00]Hello", NeteaseLyricParser.toLrc(outer.toByteArray(Charsets.UTF_8)))
+    }
+
+    @Test fun nested_lrc_object_must_not_dump_json() {
+        val outer = """{"lrc":{"version":1,"lyric":"[00:00.00]Hello"}}"""
+        val lrc = NeteaseLyricParser.toLrc(outer.toByteArray(Charsets.UTF_8))
+        assertEquals("[00:00.00]Hello", lrc)
+        assertFalse(lrc!!.contains("{"))
+        assertFalse(lrc.contains("\"lyric\""))
+        assertFalse(lrc.contains("version"))
     }
 }

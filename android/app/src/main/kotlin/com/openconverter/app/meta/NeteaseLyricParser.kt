@@ -4,6 +4,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 object NeteaseLyricParser {
+    private val LRC_TS = Regex("""^\[\d{2}:\d{2}""")
+
     fun toLrc(bytes: ByteArray): String? {
         if (bytes.isEmpty()) return null
         val text = bytes.toString(Charsets.UTF_8).trim()
@@ -17,15 +19,35 @@ object NeteaseLyricParser {
     private fun extractLrcField(text: String): String? {
         if (!text.startsWith("{")) return null
         return try {
-            JSONObject(text).optString("lrc").takeIf { it.isNotBlank() }
+            val obj = JSONObject(text)
+            val lrcNode = obj.opt("lrc") ?: return null
+            val body = lyricText(lrcNode) ?: return null
+            val translated = when (lrcNode) {
+                is JSONObject -> lyricText(lrcNode.opt("tlyric"))
+                else -> null
+            } ?: lyricText(obj.opt("tlyric"))
+            if (translated.isNullOrBlank()) body else "$body\n$translated"
         } catch (_: Exception) {
             null
         }
     }
 
+    private fun lyricText(node: Any?): String? = when (node) {
+        is JSONObject -> node.optString("lyric").takeIf { it.isNotBlank() }
+        is String -> node.takeIf { it.isNotBlank() }
+        else -> null
+    }
+
+    private fun looksLikeLrc(body: String): Boolean {
+        val lines = body.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toList()
+        if (lines.isEmpty()) return false
+        if (lines.any { it.startsWith("{") }) return false
+        return lines.any { LRC_TS.containsMatchIn(it) }
+    }
+
     private fun convertBody(body: String): String? {
         val trimmed = body.trim()
-        if (trimmed.contains(Regex("""\[\d{2}:\d{2}"""))) return trimmed.replace("\r\n", "\n")
+        if (looksLikeLrc(trimmed)) return trimmed.replace("\r\n", "\n")
         val lines = trimmed.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toList()
         if (lines.isEmpty()) return null
         val out = ArrayList<String>(lines.size)

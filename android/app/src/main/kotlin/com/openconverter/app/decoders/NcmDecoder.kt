@@ -32,6 +32,7 @@ object NcmDecoder : StreamingDecoder {
     private val META_KEY = hexToBytes("2331346C6A6B5F215C5D2630553C2728")
     private const val PREFIX_LEN = 17 // "neteasecloudmusic\0"
     private const val PROBE_SIZE = 16
+    private const val MAX_COVER_BYTES = 8 * 1024 * 1024
 
     override fun decrypt(input: ByteArray): DecryptResult {
         val output = ByteArrayOutputStream()
@@ -128,14 +129,18 @@ object NcmDecoder : StreamingDecoder {
         val imageSpace = readU32LE(input)
         val imageSize = readU32LE(input)
         require(imageSpace >= 0 && imageSize >= 0 && imageSize <= imageSpace) { "NCM: image overruns" }
-        val cover = if (imageSize > 0) {
+        val cover = if (imageSize in 1..MAX_COVER_BYTES) {
             val bytes = readExact(input, imageSize)
             require(bytes.size == imageSize) { "NCM: image truncated" }
             bytes
         } else {
             null
         }
-        skipExact(input, imageSpace - imageSize)
+        if (imageSize > MAX_COVER_BYTES) {
+            skipExact(input, imageSpace)
+        } else {
+            skipExact(input, imageSpace - imageSize)
+        }
         return ParsedHeader(buildRc4Sbox(rc4Key), meta, cover)
     }
 

@@ -88,8 +88,20 @@ fun SettingsScreen(
     var lyricTreeName by remember { mutableStateOf(prefs.getString("netease_lyric_tree_name", null)) }
     var showLyricGuide by remember { mutableStateOf(false) }
 
+    fun releaseLyricTreeGrant(uriString: String?) {
+        if (uriString.isNullOrBlank()) return
+        val previous = runCatching { Uri.parse(uriString) }.getOrNull() ?: return
+        val persisted = ctx.contentResolver.persistedUriPermissions.find { it.uri == previous }
+        var flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+        if (persisted?.isWritePermission == true) {
+            flags = flags or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        }
+        runCatching { ctx.contentResolver.releasePersistableUriPermission(previous, flags) }
+    }
+
     val lyricFolderPicker = rememberLauncherForActivityResult(SafAdapter.openOutputFolderContract()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
+        releaseLyricTreeGrant(prefs.getString("netease_lyric_tree_uri", null))
         val take = runCatching {
             ctx.contentResolver.takePersistableUriPermission(
                 uri,
@@ -236,6 +248,7 @@ fun SettingsScreen(
                             Row(
                                 modifier = Modifier
                                     .clickable {
+                                        releaseLyricTreeGrant(prefs.getString("netease_lyric_tree_uri", null) ?: lyricTreeUri)
                                         prefs.edit().remove("netease_lyric_tree_uri").remove("netease_lyric_tree_name").apply()
                                         lyricTreeUri = null
                                         lyricTreeName = null
