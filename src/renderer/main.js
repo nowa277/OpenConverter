@@ -770,6 +770,7 @@ function bindQueueSwipe(li, face, f, action) {
   let startX = 0;
   let origin = 0;
   let x = 0;
+  let rawX = 0;
 
   const setX = (next) => {
     x = next;
@@ -782,13 +783,15 @@ function bindQueueSwipe(li, face, f, action) {
     dragging = true;
     startX = e.clientX;
     origin = x;
+    rawX = origin;
     face.style.transition = 'none';
     try { li.setPointerCapture(e.pointerId); } catch { /* capture is optional */ }
   });
 
   li.addEventListener('pointermove', (e) => {
     if (!dragging) return;
-    setX(swipe.rubberOffset(e.clientX - startX + origin, SWIPE_ACTION_WIDTH));
+    rawX = e.clientX - startX + origin;
+    setX(swipe.rubberOffset(rawX, SWIPE_ACTION_WIDTH));
   });
 
   const snapBack = () => {
@@ -800,7 +803,7 @@ function bindQueueSwipe(li, face, f, action) {
     if (!dragging) return;
     dragging = false;
     face.style.transition = 'transform .2s ease';
-    if (swipe.shouldCollapse(x, li.getBoundingClientRect().width)) {
+    if (swipe.shouldCollapse(rawX, li.getBoundingClientRect().width)) {
       removeFile(f);
       if (state.files.includes(f)) snapBack();
       return;
