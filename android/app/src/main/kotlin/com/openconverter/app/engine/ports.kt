@@ -52,3 +52,7 @@ fun interface LyricLookupPort {
     /** UTF-8 LRC bytes, or null when the id is missing / unreadable / unparseable. */
     fun findLrcBytes(musicId: String): ByteArray?
 }
+
+fun interface LyricResolverPort {
+    suspend fun resolveLrc(musicId: String): String?
+}
