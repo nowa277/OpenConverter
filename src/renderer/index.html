@@ -2,13 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:;" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:;" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OpenConverter</title>
+  <script src="./os.js"></script>
   <link rel="stylesheet" href="./style.css" />
-  <script>
-    document.documentElement.dataset.os = /Mac/.test(navigator.userAgent) ? 'mac' : /Win/.test(navigator.userAgent) ? 'win' : 'linux';
-  </script>
 </head>
 <body>
   <!-- SVG symbol sheet: icons referenced with <use href="#i-..."> -->
@@ -208,7 +206,7 @@
                   <span data-i18n="ncm_lyrics_title">Fetch lyrics</span>
                   <span class="switch-host">
                     <div id="lyrics-island"></div>
-                    <input type="checkbox" id="ncm-lyrics-enabled" class="oc-select-proxy" checked />
+                    <input type="checkbox" id="ncm-lyrics-enabled" class="oc-select-proxy" aria-hidden="true" tabindex="-1" checked />
                   </span>
                 </label>
                 <p class="settings-hint" data-i18n="ncm_lyrics_hint">When converting NetEase tracks, match lyrics and write them into the output. On by default: requests the song id from NetEase. No audio is uploaded. Can be turned off.</p>
@@ -223,7 +221,7 @@
                     <span data-i18n="kgg_autoscan_label">Auto-scan database</span>
                     <span class="switch-host">
                       <div id="kgg-autoscan-island"></div>
-                      <input type="checkbox" id="kgg-autoscan-checkbox" class="switch oc-select-proxy" />
+                      <input type="checkbox" id="kgg-autoscan-checkbox" class="switch oc-select-proxy" aria-hidden="true" tabindex="-1" />
                     </span>
                   </label>
                   <div class="row">

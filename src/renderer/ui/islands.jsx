@@ -19,6 +19,8 @@ const QUALITY = [
   { value: '128k', label: '128k' },
 ];
 
+const roots = new Map();
+
 function writeSelect(id, value) {
   const select = document.getElementById(id);
   if (!select || select.value === value) return;
@@ -57,19 +59,6 @@ function useCheck(id) {
     return () => input.removeEventListener('change', sync);
   }, [id]);
   return checked;
-}
-
-function useUiLang() {
-  const lang = useSelect('language-select');
-  const [ui, setUi] = useState('en');
-  useEffect(() => {
-    const read = () => setUi(document.documentElement.lang === 'zh' ? 'zh' : 'en');
-    read();
-    const obs = new MutationObserver(read);
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
-    return () => obs.disconnect();
-  }, [lang]);
-  return ui;
 }
 
 const segmentColors = {
@@ -131,9 +120,13 @@ function SwitchIsland({ inputId, label }) {
 
 function mount(id, node) {
   const host = document.getElementById(id);
-  if (!host || host.dataset.mounted === '1') return;
-  host.dataset.mounted = '1';
-  createRoot(host).render(node);
+  if (!host) return;
+  let root = roots.get(id);
+  if (!root) {
+    root = createRoot(host);
+    roots.set(id, root);
+  }
+  root.render(node);
 }
 
 export function mountIslands() {
@@ -147,11 +140,6 @@ export function mountIslands() {
 }
 
 export function remountAppearanceLabels() {
-  ['language-island', 'theme-island'].forEach((id) => {
-    const host = document.getElementById(id);
-    if (host) delete host.dataset.mounted;
-    host?.replaceChildren();
-  });
   const ui = document.documentElement.lang === 'zh' ? 'zh' : 'en';
   mount('language-island', <SegmentIsland selectId="language-select" items={copy.segmentLabels('language', ui)} ariaLabel="language" />);
   mount('theme-island', <SegmentIsland selectId="theme-select" items={copy.segmentLabels('theme', ui)} ariaLabel="theme" />);

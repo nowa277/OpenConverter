@@ -337,6 +337,7 @@ export default function RubberSegment({
           aria-checked={i === index}
           tabIndex={i === index ? 0 : -1}
           disabled={disabled}
+          title={item.title}
           className="rubber-segment__item"
           onPointerDown={e => handlePointerDown(e, i)}
           onKeyDown={handleKeyDown}

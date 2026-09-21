@@ -49,7 +49,39 @@
   overflow: hidden;
 }
 .rubber-segment__copy { height: 100%; }
-.squish-switch { display: inline-flex; align-items: center; }
+.squish-switch {
+  width: var(--ss-w);
+  height: var(--ss-h);
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+}
+.squish-switch__track {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--ss-r);
+  background: var(--ss-track);
+  position: relative;
+  transition: background-color var(--ss-fade);
+}
+.squish-switch[data-on] .squish-switch__track {
+  background: var(--ss-track-on);
+}
+.squish-switch__thumb {
+  position: absolute;
+  top: var(--ss-inset);
+  left: 0;
+  width: var(--ss-thumb);
+  height: var(--ss-thumb);
+  border-radius: var(--ss-thumb-r);
+  background: var(--ss-thumb-color);
+  transition: background-color var(--ss-fade);
+}
+.squish-switch[data-on] .squish-switch__thumb {
+  background: var(--ss-thumb-on);
+}
 .oc-select-proxy {
   position: absolute;
   width: 1px;
