@@ -171,6 +171,7 @@ test('pipeline: ncm lyric hit writes sibling .lrc and still succeeds', { skip: s
 
   const r = await pipeline.convertOne({
     inputPath: ncmPath, outputDir: path.join(OUT_DIR, 'ncm-lyric-hit-out'), format: 'mp3', ncmLyricsDir: lyricsRoot,
+    listRoots: () => [],
   });
   const lrcPath = r.outputPath.replace(/\.mp3$/, '.lrc');
   assert.ok(fs.existsSync(r.outputPath));
@@ -190,7 +191,119 @@ test('pipeline: ncm lyric miss does not fail conversion or write .lrc', { skip: 
 
   const r = await pipeline.convertOne({
     inputPath: ncmPath, outputDir: path.join(OUT_DIR, 'ncm-lyric-miss-out'), format: 'mp3', ncmLyricsDir: emptyRoot,
+    fetchJson: async () => null,
+    listRoots: () => [],
   });
   assert.ok(fs.existsSync(r.outputPath));
   assert.ok(!fs.existsSync(r.outputPath.replace(/\.mp3$/, '.lrc')));
+});
+
+test('pipeline: lyrics disabled writes no lrc even when cache exists', { skip: skipNoFfmpeg }, async () => {
+  const audio = makeMp3(path.join(OUT_DIR, 'ncm-lyric-off-src.mp3'));
+  const meta = { musicName: 'Sine Test', artist: [['Synth', 1], ['Wave', 2]], album: 'Unit Tests', format: 'mp3', musicId: 1406472218 };
+  const { ncm: file } = buildSyntheticNcm(audio, meta, null);
+  const ncmPath = path.join(OUT_DIR, 'ncm-lyric-off.ncm');
+  fs.writeFileSync(ncmPath, file);
+
+  const lyricsRoot = path.join(OUT_DIR, 'lyrics-off');
+  fs.mkdirSync(path.join(lyricsRoot, 'LrcDownload'), { recursive: true });
+  fs.writeFileSync(path.join(lyricsRoot, 'LrcDownload', '1406472218'), JSON.stringify({ lrc: '[00:00.00]Off' }));
+
+  const r = await pipeline.convertOne({
+    inputPath: ncmPath, outputDir: path.join(OUT_DIR, 'ncm-lyric-off-out'), format: 'mp3',
+    ncmLyricsEnabled: false, ncmLyricsDir: lyricsRoot, listRoots: () => [],
+  });
+  const lrcPath = r.outputPath.replace(/\.mp3$/, '.lrc');
+  assert.ok(fs.existsSync(r.outputPath));
+  assert.ok(!fs.existsSync(lrcPath));
+});
+
+test('pipeline: http miss still succeeds', { skip: skipNoFfmpeg }, async () => {
+  const audio = makeMp3(path.join(OUT_DIR, 'ncm-lyric-http-miss-src.mp3'));
+  const meta = { musicName: 'Sine Test', artist: [['Synth', 1], ['Wave', 2]], album: 'Unit Tests', format: 'mp3', musicId: 1406472218 };
+  const { ncm: file } = buildSyntheticNcm(audio, meta, null);
+  const ncmPath = path.join(OUT_DIR, 'ncm-lyric-http-miss.ncm');
+  fs.writeFileSync(ncmPath, file);
+
+  const r = await pipeline.convertOne({
+    inputPath: ncmPath, outputDir: path.join(OUT_DIR, 'ncm-lyric-http-miss-out'), format: 'mp3',
+    ncmLyricsEnabled: true,
+    fetchJson: async () => null,
+    listRoots: () => [],
+  });
+  assert.ok(fs.existsSync(r.outputPath));
+  assert.ok(!fs.existsSync(r.outputPath.replace(/\.mp3$/, '.lrc')));
+});
+
+test('pipeline: fetchJson hit writes sibling lrc and embeds mp3 tags', { skip: skipNoFfmpeg }, async () => {
+  const audio = makeMp3(path.join(OUT_DIR, 'ncm-lyric-http-hit-src.mp3'));
+  const meta = { musicName: 'Sine Test', artist: [['Synth', 1], ['Wave', 2]], album: 'Unit Tests', format: 'mp3', musicId: 424242 };
+  const { ncm: file } = buildSyntheticNcm(audio, meta, null);
+  const ncmPath = path.join(OUT_DIR, 'ncm-lyric-http-hit.ncm');
+  fs.writeFileSync(ncmPath, file);
+
+  const r = await pipeline.convertOne({
+    inputPath: ncmPath, outputDir: path.join(OUT_DIR, 'ncm-lyric-http-hit-out'), format: 'mp3',
+    ncmLyricsEnabled: true,
+    fetchJson: async () => '{"lrc":{"lyric":"[00:00.00]FromNet"}}',
+    listRoots: () => [],
+  });
+  const lrcPath = r.outputPath.replace(/\.mp3$/, '.lrc');
+  assert.ok(fs.existsSync(r.outputPath));
+  assert.strictEqual(fs.readFileSync(lrcPath, 'utf8').trim(), '[00:00.00]FromNet');
+  const probe = execFileSync('ffprobe', [
+    '-v', 'error', '-show_entries', 'format_tags=title,artist,album,lyrics',
+    '-of', 'default=noprint_wrappers=1', r.outputPath,
+  ], { stdio: 'pipe' }).toString();
+  assert.match(probe, /TAG:title=Sine Test/i);
+  assert.match(probe, /TAG:artist=Synth \/ Wave/i);
+  assert.match(probe, /TAG:album=Unit Tests/i);
+  assert.match(probe, /TAG:lyrics=\[00:00\.00\]FromNet/i);
+});
+
+test('pipeline: wav writes sibling lrc without embedding lyrics', { skip: skipNoFfmpeg }, async () => {
+  const audio = makeMp3(path.join(OUT_DIR, 'ncm-lyric-wav-src.mp3'));
+  const meta = { musicName: 'Sine Test', artist: [['Synth', 1], ['Wave', 2]], album: 'Unit Tests', format: 'mp3', musicId: 424243 };
+  const { ncm: file } = buildSyntheticNcm(audio, meta, null);
+  const ncmPath = path.join(OUT_DIR, 'ncm-lyric-wav.ncm');
+  fs.writeFileSync(ncmPath, file);
+
+  const r = await pipeline.convertOne({
+    inputPath: ncmPath, outputDir: path.join(OUT_DIR, 'ncm-lyric-wav-out'), format: 'wav',
+    ncmLyricsEnabled: true,
+    fetchJson: async () => '{"lrc":{"lyric":"[00:00.00]WavOnly"}}',
+    listRoots: () => [],
+  });
+  const lrcPath = r.outputPath.replace(/\.wav$/, '.lrc');
+  assert.ok(fs.existsSync(r.outputPath));
+  assert.strictEqual(fs.readFileSync(lrcPath, 'utf8').trim(), '[00:00.00]WavOnly');
+  const probe = execFileSync('ffprobe', [
+    '-v', 'error', '-show_entries', 'format_tags',
+    '-of', 'default=noprint_wrappers=1', r.outputPath,
+  ], { stdio: 'pipe' }).toString();
+  assert.match(probe, /TAG:title=Sine Test/i);
+  assert.ok(!/TAG:lyrics=/i.test(probe));
+});
+
+test('pipeline: flac re-encode embeds lyrics via ffmetadata', { skip: skipNoFfmpeg }, async () => {
+  const audio = makeMp3(path.join(OUT_DIR, 'ncm-lyric-flac-src.mp3'));
+  const meta = { musicName: 'Sine Test', artist: [['Synth', 1], ['Wave', 2]], album: 'Unit Tests', format: 'mp3', musicId: 424244 };
+  const { ncm: file } = buildSyntheticNcm(audio, meta, null);
+  const ncmPath = path.join(OUT_DIR, 'ncm-lyric-flac.ncm');
+  fs.writeFileSync(ncmPath, file);
+
+  const r = await pipeline.convertOne({
+    inputPath: ncmPath, outputDir: path.join(OUT_DIR, 'ncm-lyric-flac-out'), format: 'flac',
+    ncmLyricsEnabled: true,
+    fetchJson: async () => '{"lrc":{"lyric":"[00:00.00]FlacNet"}}',
+    listRoots: () => [],
+  });
+  assert.ok(fs.existsSync(r.outputPath));
+  assert.strictEqual(fs.readFileSync(r.outputPath.replace(/\.flac$/, '.lrc'), 'utf8').trim(), '[00:00.00]FlacNet');
+  const probe = execFileSync('ffprobe', [
+    '-v', 'error', '-show_entries', 'format_tags=title,artist,album,lyrics',
+    '-of', 'default=noprint_wrappers=1', r.outputPath,
+  ], { stdio: 'pipe' }).toString();
+  assert.match(probe, /TAG:title=Sine Test/i);
+  assert.match(probe, /TAG:lyrics=\[00:00\.00\]FlacNet/i);
 });

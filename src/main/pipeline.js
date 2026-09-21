@@ -16,7 +16,10 @@ const fs = require('node:fs');
 const { Worker } = require('node:worker_threads');
 const decoders = require('../decoders');
 const ffmpeg = require('./ffmpeg');
-const { findLrc } = require('./netease-lyric-lookup');
+const { resolveLrc } = require('./netease-lyric-resolve');
+const { writeFfmetadata } = require('./ffmetadata');
+
+const EMBED_LYRICS_FORMATS = new Set(['mp3', 'flac', 'm4a']);
 
 // Plain (non-encrypted) audio containers we accept as input.
 const PLAIN_AUDIO_EXTS = new Set(['.mp3', '.flac', '.wav', '.m4a', '.aac', '.ogg', '.opus']);
@@ -65,11 +68,9 @@ async function decodeInline(inputPath, outputDir, opts) {
 
 function safeUnlink(p) { if (p) { try { fs.unlinkSync(p); } catch {} } }
 
-function maybeWriteLrc(audioPath, musicId, ncmLyricsDir) {
-  if (!ncmLyricsDir || !musicId) return;
+function maybeWriteLrc(audioPath, lrc) {
+  if (!lrc) return;
   try {
-    const lrc = findLrc(ncmLyricsDir, musicId);
-    if (!lrc) return;
     const lrcPath = audioPath.replace(/\.[^.]+$/, '') + '.lrc';
     fs.writeFileSync(lrcPath, lrc, 'utf8');
   } catch { /* fail-open */ }
@@ -86,11 +87,14 @@ function maybeWriteLrc(audioPath, musicId, ncmLyricsDir) {
  * @param {function} [job.onProgress]  ({ stage, percent }) => void
  * @param {string} [job.ffmpegBin]
  * @param {string} [job.ffprobeBin]
- * @param {string} [job.ncmLyricsDir]  NetEase lyrics cache root; writes a sibling .lrc on hit
+ * @param {string} [job.ncmLyricsDir]  extra NetEase lyrics cache root
+ * @param {boolean} [job.ncmLyricsEnabled=true]  skip lyrics entirely when false
+ * @param {function} [job.fetchJson]  injectable NetEase lyric HTTP for tests
+ * @param {function} [job.listRoots]  injectable cache-root list for tests
  * @returns {Promise<{ outputPath: string, format: string, durationMs: number, reencoded: boolean }>}
  */
 async function convertOne(job) {
-  const { inputPath, outputDir, format = 'mp3', quality = '320k', decodeOpts = {}, signal, ffmpegBin, ffprobeBin, ncmLyricsDir } = job;
+  const { inputPath, outputDir, format = 'mp3', quality = '320k', decodeOpts = {}, signal, ffmpegBin, ffprobeBin, ncmLyricsDir, ncmLyricsEnabled, fetchJson, listRoots } = job;
   const onProgress = job.onProgress || (() => {});
   const started = Date.now();
   fs.mkdirSync(outputDir, { recursive: true });
@@ -131,8 +135,34 @@ async function convertOne(job) {
   const coverPath = decoded.coverPath || null;
   const tags = decoded.tags || null;
   const decryptedExt = path.extname(decryptedPath).slice(1).toLowerCase();
+
+  let lrc = null;
+  if (ncmLyricsEnabled !== false && decoded.musicId) {
+    try {
+      lrc = await resolveLrc({
+        musicId: decoded.musicId,
+        enabled: ncmLyricsEnabled !== false,
+        extraRootDir: ncmLyricsDir,
+        fetchJson,
+        listRoots,
+      });
+    } catch { lrc = null; }
+  }
+
+  let metadataFile = null;
+  if (lrc && EMBED_LYRICS_FORMATS.has(format)) {
+    metadataFile = decryptedPath + '.ffmetadata';
+    try {
+      writeFfmetadata(metadataFile, { ...(tags || {}), lyrics: lrc });
+    } catch {
+      safeUnlink(metadataFile);
+      metadataFile = null;
+    }
+  }
+  const metaKw = metadataFile ? { metadataFile } : { metadata: tags };
+
   const finishEncrypted = (outputPath, reencoded) => {
-    maybeWriteLrc(outputPath, decoded.musicId, ncmLyricsDir);
+    maybeWriteLrc(outputPath, lrc);
     return finish(outputPath, reencoded);
   };
 
@@ -140,10 +170,10 @@ async function convertOne(job) {
     if (decryptedExt === format) {
       // Already the wanted container. If the decoder gave us tags or a cover,
       // re-mux with `-c:a copy` so they get embedded losslessly.
-      if (!tags && !coverPath) return finishEncrypted(decryptedPath, false);
+      if (!tags && !coverPath && !metadataFile) return finishEncrypted(decryptedPath, false);
       const tmpOut = decryptedPath.replace(/\.[^.]+$/, '') + `.tagged.${format}`;
       try {
-        await ffmpeg.run(decryptedPath, tmpOut, { ...ffmpegOpts, copyAudio: true, coverPath, metadata: tags });
+        await ffmpeg.run(decryptedPath, tmpOut, { ...ffmpegOpts, copyAudio: true, coverPath, ...metaKw });
         fs.renameSync(tmpOut, decryptedPath);
       } catch (e) {
         safeUnlink(tmpOut);
@@ -158,7 +188,7 @@ async function convertOne(job) {
     // distinct suffix when that happens.
     let ffmpegOut = decryptedPath.replace(/\.[^.]+$/, '') + `.${format}`;
     if (ffmpegOut === decryptedPath) ffmpegOut = decryptedPath.replace(/\.[^.]+$/, '') + `.converted.${format}`;
-    await ffmpeg.run(decryptedPath, ffmpegOut, { ...ffmpegOpts, coverPath, metadata: tags });
+    await ffmpeg.run(decryptedPath, ffmpegOut, { ...ffmpegOpts, coverPath, ...metaKw });
     safeUnlink(decryptedPath);
     return finishEncrypted(ffmpegOut, true);
   } catch (e) {
@@ -166,6 +196,7 @@ async function convertOne(job) {
     throw e;
   } finally {
     safeUnlink(coverPath);
+    safeUnlink(metadataFile);
   }
 }
 
