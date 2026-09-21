@@ -23,11 +23,13 @@ A lightweight format conversion and decryption tool for audio workflows.<br/>
 
 ## Project Highlights
 
-* **Privacy First**: All decryption, transcoding, and processing run completely on the local device. No audio data is uploaded.
+* **Privacy First**: Decryption and transcoding run on the local device. Lyrics may GET the song id unless the switch is off. No audio data is uploaded.
 * **True Audio Transcoding (FFmpeg)**: Not a simple rename or extraction. Built-in FFmpeg / FFmpegKit transcoding backend supports converting to MP3, FLAC, WAV, M4A, and OGG, with customizable output bitrates (e.g., 320 kbps, 256 kbps, etc.).
 
 ### What's new in v1.4.3 (Android)
 * **Tags and cover from the .ncm file**: title / artist / album and the embedded picture are written into MP3 / FLAC / M4A (WAV/OGG skip cover). Same-format output is remuxed so tags are not dropped.
+
+### Android NetEase lyrics (unreleased)
 * NetEase conversions fetch lyrics by default (local public cache first, else song id to NetEase; Settings can disable). Writes a sibling .lrc and embeds into MP3/FLAC/M4A. No audio is uploaded. Missing lyrics do not fail conversion.
 
 ### What's new in v1.4.2 (Android)
