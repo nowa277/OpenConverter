@@ -3,6 +3,7 @@ package com.openconverter.app.ui.settings
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.provider.DocumentsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -62,6 +63,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openconverter.app.R
+import com.openconverter.app.saf.SafAdapter
 import com.openconverter.app.ui.theme.OcBackground
 import com.openconverter.app.ui.theme.OcOnPrimary
 import com.openconverter.app.ui.theme.OcPrimary
@@ -82,6 +84,33 @@ fun SettingsScreen(
     val ctx = LocalContext.current
     val prefs = remember { ctx.getSharedPreferences("prefs", Context.MODE_PRIVATE) }
     var autoSyncEnabled by remember { mutableStateOf(prefs.getBoolean("auto_sync_kugou", true)) }
+    var lyricTreeUri by remember { mutableStateOf(prefs.getString("netease_lyric_tree_uri", null)) }
+    var lyricTreeName by remember { mutableStateOf(prefs.getString("netease_lyric_tree_name", null)) }
+    var showLyricGuide by remember { mutableStateOf(false) }
+
+    val lyricFolderPicker = rememberLauncherForActivityResult(SafAdapter.openOutputFolderContract()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val take = runCatching {
+            ctx.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+            )
+        }
+        if (take.isFailure) {
+            runCatching {
+                ctx.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        }
+        val name = runCatching {
+            DocumentsContract.getTreeDocumentId(uri).substringAfterLast(':').ifBlank { uri.lastPathSegment }
+        }.getOrNull() ?: "folder"
+        prefs.edit()
+            .putString("netease_lyric_tree_uri", uri.toString())
+            .putString("netease_lyric_tree_name", name)
+            .apply()
+        lyricTreeUri = uri.toString()
+        lyricTreeName = name
+    }
 
     val keySourcePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { viewModel.importKggKeys(it.toString()) }
@@ -130,6 +159,114 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+            }
+            item {
+                Text(
+                    stringResource(R.string.settings_ncm_lyrics_title),
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
+                )
+                Card(
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        Text(
+                            stringResource(R.string.settings_ncm_lyrics_description),
+                            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                if (lyricTreeName != null) {
+                                    stringResource(R.string.settings_ncm_lyrics_set, lyricTreeName!!)
+                                } else {
+                                    stringResource(R.string.settings_ncm_lyrics_unset)
+                                },
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .background(if (lyricTreeName != null) OcPrimary else MaterialTheme.colorScheme.outline, CircleShape)
+                                )
+                                Text(
+                                    if (lyricTreeName != null) stringResource(R.string.settings_kgg_keys_status_ready) else stringResource(R.string.settings_kgg_keys_status_empty),
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = if (lyricTreeName != null) OcPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = { lyricFolderPicker.launch(null) },
+                            shape = CircleShape,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = OcPrimary,
+                                contentColor = OcOnPrimary
+                            ),
+                            modifier = Modifier.fillMaxWidth().height(48.dp)
+                        ) {
+                            Text(
+                                stringResource(R.string.settings_ncm_lyrics_pick),
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .clickable {
+                                        prefs.edit().remove("netease_lyric_tree_uri").remove("netease_lyric_tree_name").apply()
+                                        lyricTreeUri = null
+                                        lyricTreeName = null
+                                    }
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    stringResource(R.string.settings_ncm_lyrics_clear),
+                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .clickable { showLyricGuide = true }
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(Icons.Default.Info, contentDescription = null, tint = OcPrimary, modifier = Modifier.size(16.dp))
+                                Text(
+                                    stringResource(R.string.settings_ncm_lyrics_guide_title),
+                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                                    color = OcPrimary
+                                )
+                            }
+                        }
+                    }
                 }
             }
             // KGG 密钥管理模块 (Spotify Spec 深度重构)
@@ -467,6 +604,19 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+
+    if (showLyricGuide) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showLyricGuide = false },
+            title = { Text(stringResource(R.string.settings_ncm_lyrics_guide_title)) },
+            text = { Text(stringResource(R.string.settings_ncm_lyrics_guide_content)) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { showLyricGuide = false }) {
+                    Text(stringResource(R.string.settings_kgg_root_guide_ok))
+                }
+            }
+        )
     }
 
     if (showRootGuide) {
