@@ -3,7 +3,6 @@ package com.openconverter.app.ui.settings
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.provider.DocumentsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -63,7 +62,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openconverter.app.R
-import com.openconverter.app.saf.SafAdapter
 import com.openconverter.app.ui.theme.OcBackground
 import com.openconverter.app.ui.theme.OcOnPrimary
 import com.openconverter.app.ui.theme.OcPrimary
@@ -84,45 +82,7 @@ fun SettingsScreen(
     val ctx = LocalContext.current
     val prefs = remember { ctx.getSharedPreferences("prefs", Context.MODE_PRIVATE) }
     var autoSyncEnabled by remember { mutableStateOf(prefs.getBoolean("auto_sync_kugou", true)) }
-    var lyricTreeUri by remember { mutableStateOf(prefs.getString("netease_lyric_tree_uri", null)) }
-    var lyricTreeName by remember { mutableStateOf(prefs.getString("netease_lyric_tree_name", null)) }
-    var showLyricGuide by remember { mutableStateOf(false) }
-
-    fun releaseLyricTreeGrant(uriString: String?) {
-        if (uriString.isNullOrBlank()) return
-        val previous = runCatching { Uri.parse(uriString) }.getOrNull() ?: return
-        val persisted = ctx.contentResolver.persistedUriPermissions.find { it.uri == previous }
-        var flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
-        if (persisted?.isWritePermission == true) {
-            flags = flags or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-        }
-        runCatching { ctx.contentResolver.releasePersistableUriPermission(previous, flags) }
-    }
-
-    val lyricFolderPicker = rememberLauncherForActivityResult(SafAdapter.openOutputFolderContract()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        releaseLyricTreeGrant(prefs.getString("netease_lyric_tree_uri", null))
-        val take = runCatching {
-            ctx.contentResolver.takePersistableUriPermission(
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
-            )
-        }
-        if (take.isFailure) {
-            runCatching {
-                ctx.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-        }
-        val name = runCatching {
-            DocumentsContract.getTreeDocumentId(uri).substringAfterLast(':').ifBlank { uri.lastPathSegment }
-        }.getOrNull() ?: "folder"
-        prefs.edit()
-            .putString("netease_lyric_tree_uri", uri.toString())
-            .putString("netease_lyric_tree_name", name)
-            .apply()
-        lyricTreeUri = uri.toString()
-        lyricTreeName = name
-    }
+    var ncmLyricsEnabled by remember { mutableStateOf(prefs.getBoolean("ncm_lyrics_enabled", true)) }
 
     val keySourcePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { viewModel.importKggKeys(it.toString()) }
@@ -186,99 +146,39 @@ fun SettingsScreen(
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 18.dp, vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Text(
-                            stringResource(R.string.settings_ncm_lyrics_description),
-                            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                             Text(
-                                if (lyricTreeName != null) {
-                                    stringResource(R.string.settings_ncm_lyrics_set, lyricTreeName!!)
-                                } else {
-                                    stringResource(R.string.settings_ncm_lyrics_unset)
-                                },
+                                stringResource(R.string.settings_ncm_lyrics_title),
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .background(if (lyricTreeName != null) OcPrimary else MaterialTheme.colorScheme.outline, CircleShape)
-                                )
-                                Text(
-                                    if (lyricTreeName != null) stringResource(R.string.settings_kgg_keys_status_ready) else stringResource(R.string.settings_kgg_keys_status_empty),
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = if (lyricTreeName != null) OcPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-
-                        Button(
-                            onClick = { lyricFolderPicker.launch(null) },
-                            shape = CircleShape,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = OcPrimary,
-                                contentColor = OcOnPrimary
-                            ),
-                            modifier = Modifier.fillMaxWidth().height(48.dp)
-                        ) {
+                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                stringResource(R.string.settings_ncm_lyrics_pick),
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                                stringResource(R.string.settings_ncm_lyrics_description),
+                                style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .clickable {
-                                        releaseLyricTreeGrant(prefs.getString("netease_lyric_tree_uri", null) ?: lyricTreeUri)
-                                        prefs.edit().remove("netease_lyric_tree_uri").remove("netease_lyric_tree_name").apply()
-                                        lyricTreeUri = null
-                                        lyricTreeName = null
-                                    }
-                                    .padding(vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(
-                                    stringResource(R.string.settings_ncm_lyrics_clear),
-                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-
-                            Row(
-                                modifier = Modifier
-                                    .clickable { showLyricGuide = true }
-                                    .padding(vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(Icons.Default.Info, contentDescription = null, tint = OcPrimary, modifier = Modifier.size(16.dp))
-                                Text(
-                                    stringResource(R.string.settings_ncm_lyrics_guide_title),
-                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-                                    color = OcPrimary
-                                )
-                            }
-                        }
+                        Switch(
+                            checked = ncmLyricsEnabled,
+                            onCheckedChange = {
+                                ncmLyricsEnabled = it
+                                prefs.edit().putBoolean("ncm_lyrics_enabled", it).apply()
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = OcOnPrimary,
+                                checkedTrackColor = OcPrimary,
+                                uncheckedThumbColor = Color(0xFFE0E0E0),
+                                uncheckedTrackColor = Color(0xFF333333),
+                            ),
+                        )
                     }
                 }
             }
@@ -617,19 +517,6 @@ fun SettingsScreen(
                 }
             }
         }
-    }
-
-    if (showLyricGuide) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showLyricGuide = false },
-            title = { Text(stringResource(R.string.settings_ncm_lyrics_guide_title)) },
-            text = { Text(stringResource(R.string.settings_ncm_lyrics_guide_content)) },
-            confirmButton = {
-                androidx.compose.material3.TextButton(onClick = { showLyricGuide = false }) {
-                    Text(stringResource(R.string.settings_kgg_root_guide_ok))
-                }
-            }
-        )
     }
 
     if (showRootGuide) {

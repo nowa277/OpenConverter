@@ -105,18 +105,22 @@ class ConversionService : Service() {
         val sink = ServiceProgressSink(this, _progress, inputs.size)
         val kggKeys = (application as OpenConverterApp).kggKeyStore
         val prefs = getSharedPreferences("prefs", MODE_PRIVATE)
-        val standardDirs = listOf(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
-            File("/sdcard/Download"),
-            File("/sdcard/Music"),
-            File("/sdcard/下载"),
-        )
-        val extraRoots = PublicStorageLyricScanner.scanRoots(standardDirs).toMutableList()
-        val privateFiles = File("/data/data/com.netease.cloudmusic/files")
-        if (privateFiles.canRead()) extraRoots += privateFiles
+        val lyricsEnabled = prefs.getBoolean("ncm_lyrics_enabled", true)
+        val extraRoots = mutableListOf<File>()
+        if (lyricsEnabled) {
+            val standardDirs = listOf(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
+                File("/sdcard/Download"),
+                File("/sdcard/Music"),
+                File("/sdcard/下载"),
+            )
+            extraRoots += PublicStorageLyricScanner.scanRoots(standardDirs)
+            val privateFiles = File("/data/data/com.netease.cloudmusic/files")
+            if (privateFiles.canRead()) extraRoots += privateFiles
+        }
         val lyricResolver = NeteaseLyricResolver(
-            enabled = prefs.getBoolean("ncm_lyrics_enabled", true),
+            enabled = lyricsEnabled,
             extraRoots = extraRoots,
             fetchJson = { NeteaseLyricHttp.fetchJson(it) },
             open = { root, rel -> File(root, rel).takeIf { it.isFile }?.readBytes() },

@@ -80,12 +80,6 @@
     <string name="settings_kgg_keys_status_ready">Ready</string>
     <string name="settings_kgg_keys_status_empty">Not loaded</string>
     <string name="settings_kgg_sync_failed_no_permission">No Root access detected and no key files found in public storage</string>
-    <string name="settings_ncm_lyrics_title">NetEase lyrics cache</string>
-    <string name="settings_ncm_lyrics_description">Optional. Pick the NetEase Cloud Music files folder, or a copy of LrcDownload / LrcCache. Lyrics are matched by the song id inside .ncm and written as a .lrc next to the audio. Conversion still succeeds if lyrics are missing. No network and no root.</string>
-    <string name="settings_ncm_lyrics_pick">Choose lyrics folder</string>
-    <string name="settings_ncm_lyrics_clear">Clear</string>
-    <string name="settings_ncm_lyrics_unset">Not set — audio tags and cover still work</string>
-    <string name="settings_ncm_lyrics_set">Folder: %1$s</string>
-    <string name="settings_ncm_lyrics_guide_title">How to grant lyrics access</string>
-    <string name="settings_ncm_lyrics_guide_content">On Android 13+ the system blocks most apps from Android/data.\n\nOption A: In the folder picker, try Android/data/com.netease.cloudmusic/files (works on some devices).\n\nOption B (recommended on non-root phones): copy LrcDownload (and LrcCache if present) from the NetEase files directory to Download/ncm-lyrics using a file manager or a USB computer, then pick that public folder here.</string>
+    <string name="settings_ncm_lyrics_title">Fetch lyrics</string>
+    <string name="settings_ncm_lyrics_description">When converting NetEase tracks, match lyrics and write them into the output. On by default: requests the song id from NetEase. No audio is uploaded. Can be turned off.</string>
 </resources>

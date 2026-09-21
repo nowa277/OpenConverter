@@ -80,12 +80,6 @@
     <string name="settings_kgg_keys_status_ready">已就绪</string>
     <string name="settings_kgg_keys_status_empty">未加载</string>
     <string name="settings_kgg_sync_failed_no_permission">未检测到 Root 权限或公共目录下暂无可用的密钥文件</string>
-    <string name="settings_ncm_lyrics_title">网易云歌词缓存</string>
-    <string name="settings_ncm_lyrics_description">可选。选择网易云音乐的 files 目录，或一份拷贝出来的 LrcDownload / LrcCache。转换时按 .ncm 内的歌曲 id 匹配，并在音频旁写出 .lrc。找不到歌词不影响转音频。不联网、不需要 Root。</string>
-    <string name="settings_ncm_lyrics_pick">选择歌词文件夹</string>
-    <string name="settings_ncm_lyrics_clear">清除</string>
-    <string name="settings_ncm_lyrics_unset">未设置 — 封面和标签仍会写入音频</string>
-    <string name="settings_ncm_lyrics_set">已选：%1$s</string>
-    <string name="settings_ncm_lyrics_guide_title">如何授权歌词目录</string>
-    <string name="settings_ncm_lyrics_guide_content">Android 13 起系统通常禁止第三方应用直接打开 Android/data。\n\n方法 A：在系统文件夹选择器中尝试 Android/data/com.netease.cloudmusic/files（部分机型可用）。\n\n方法 B（非 Root 推荐）：用文件管理器或电脑 USB 将 LrcDownload（以及 LrcCache）拷到 Download/ncm-lyrics，然后在此选择该公共目录。</string>
+    <string name="settings_ncm_lyrics_title">获取歌词</string>
+    <string name="settings_ncm_lyrics_description">转换网易云歌曲时自动匹配歌词并写入音频。默认会向网易请求歌曲 id，可关闭。不上传音频。</string>
 </resources>
