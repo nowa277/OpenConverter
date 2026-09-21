@@ -23,12 +23,12 @@ A lightweight format conversion and decryption tool for audio workflows.<br/>
 
 ## Project Highlights
 
-* **Privacy First, Fully Offline**: All decryption, transcoding, and processing run completely on the local device. No audio data is uploaded, zero network interaction, safe and secure.
+* **Privacy First**: All decryption, transcoding, and processing run completely on the local device. No audio data is uploaded.
 * **True Audio Transcoding (FFmpeg)**: Not a simple rename or extraction. Built-in FFmpeg / FFmpegKit transcoding backend supports converting to MP3, FLAC, WAV, M4A, and OGG, with customizable output bitrates (e.g., 320 kbps, 256 kbps, etc.).
 
 ### What's new in v1.4.3 (Android)
 * **Tags and cover from the .ncm file**: title / artist / album and the embedded picture are written into MP3 / FLAC / M4A (WAV/OGG skip cover). Same-format output is remuxed so tags are not dropped.
-* **Optional local NetEase lyrics**: Settings → NetEase lyrics cache. Pick `files` or a copy of `LrcDownload` / `LrcCache`. Matching uses the song id inside the .ncm and writes a sibling `.lrc`. Missing lyrics do not fail conversion. No network, no root.
+* NetEase conversions fetch lyrics by default (local public cache first, else song id to NetEase; Settings can disable). Writes a sibling .lrc and embeds into MP3/FLAC/M4A. No audio is uploaded. Missing lyrics do not fail conversion.
 
 ### What's new in v1.4.2 (Android)
 * **Streaming decrypt for the remaining formats**: `.ncm` / `.kwm` / `.qmc*` / `.mflac` / `.mgg` no longer load the whole file into the heap, so large NetEase / Kuwo / QQ Music tracks also avoid OOM.
@@ -49,8 +49,8 @@ A lightweight format conversion and decryption tool for audio workflows.<br/>
 ### What's new in v0.3.8 (desktop / CLI)
 * **Streaming decrypt for every cipher**: `.ncm` / `.kwm` / `.qmc*` / `.mflac` / `.mgg` / `.kgg` now follow the same 64KiB chunked path as `.kgm`, so large files are not read entirely into memory.
 
-### Desktop NetEase offline lyrics (unreleased)
-* **Optional local NetEase lyrics**: Settings → NetEase lyrics cache, or CLI `--ncm-lyrics-dir=`. Pick `files` or a copy of `LrcDownload` / `LrcCache`. Matching uses the song id inside the .ncm and writes a sibling `.lrc`. Missing lyrics do not fail conversion. No network.
+### Desktop NetEase lyrics (unreleased)
+* NetEase conversions fetch lyrics by default (local public cache first, else song id to NetEase; Settings can disable). Writes a sibling .lrc and embeds into MP3/FLAC/M4A. No audio is uploaded. Missing lyrics do not fail conversion.
 
 ### What's new in v0.3.7 (desktop / CLI)
 * **Streaming KGM decrypt**: desktop and CLI read/write `.kgm` / `.kgma` / `.vpr` in 64KiB chunks instead of loading the whole file.
