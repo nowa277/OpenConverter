@@ -178,6 +178,17 @@ async function convertOne(job) {
       } catch (e) {
         safeUnlink(tmpOut);
         if (e.message === 'aborted') throw e;
+        if (metadataFile) {
+          // Embed is best-effort: retry the remux without the lyrics file.
+          try {
+            await ffmpeg.run(decryptedPath, tmpOut, { ...ffmpegOpts, copyAudio: true, coverPath, metadata: tags });
+            fs.renameSync(tmpOut, decryptedPath);
+          } catch (e2) {
+            safeUnlink(tmpOut);
+            if (e2.message === 'aborted') throw e2;
+            // Tagging is best-effort: keep the untagged decrypted file.
+          }
+        }
         // Tagging is best-effort: keep the untagged decrypted file.
       }
       return finishEncrypted(decryptedPath, false);

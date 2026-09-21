@@ -352,3 +352,49 @@ exec '${realFfmpeg.replace(/'/g, `'\\''`)}' "$@"
   assert.match(probe, /TAG:title=Sine Test/i);
   assert.ok(!/TAG:lyrics=/i.test(probe));
 });
+
+test('pipeline: same-format remux embed failure retries without lyrics file', { skip: skipNoFfmpeg }, async () => {
+  const audio = makeMp3(path.join(OUT_DIR, 'ncm-lyric-remux-fail-src.mp3'));
+  const meta = { musicName: 'Sine Test', artist: [['Synth', 1], ['Wave', 2]], album: 'Unit Tests', format: 'mp3', musicId: 424246 };
+  const { ncm: file } = buildSyntheticNcm(audio, meta, null);
+  const ncmPath = path.join(OUT_DIR, 'ncm-lyric-remux-fail.ncm');
+  fs.writeFileSync(ncmPath, file);
+
+  const binDir = path.join(OUT_DIR, 'ncm-lyric-remux-fail-bin');
+  fs.mkdirSync(binDir, { recursive: true });
+  const realFfmpeg = execFileSync('sh', ['-c', 'command -v ffmpeg'], { encoding: 'utf8' }).trim();
+  const callLog = path.join(binDir, 'calls.log');
+  const ffmpegBin = path.join(binDir, 'ffmpeg');
+  fs.writeFileSync(ffmpegBin, `#!/bin/sh
+printf '%s\\n' "$@" >> '${callLog}'
+echo --- >> '${callLog}'
+for a in "$@"; do
+  case "$a" in
+    *.ffmetadata) exit 1 ;;
+  esac
+done
+exec '${realFfmpeg.replace(/'/g, `'\\''`)}' "$@"
+`);
+  fs.chmodSync(ffmpegBin, 0o755);
+
+  const r = await pipeline.convertOne({
+    inputPath: ncmPath, outputDir: path.join(OUT_DIR, 'ncm-lyric-remux-fail-out'), format: 'mp3',
+    ncmLyricsEnabled: true, ffmpegBin,
+    fetchJson: async () => '{"lrc":{"lyric":"[00:00.00]RemuxRetry"}}',
+    listRoots: () => [],
+  });
+  assert.ok(fs.existsSync(r.outputPath));
+  assert.strictEqual(fs.readFileSync(r.outputPath.replace(/\.mp3$/, '.lrc'), 'utf8').trim(), '[00:00.00]RemuxRetry');
+  const log = fs.readFileSync(callLog, 'utf8');
+  const runs = log.split('\n---\n').filter((block) => block.includes('-i'));
+  assert.ok(runs.length >= 2, 'embed fail must retry remux');
+  assert.ok(runs[0].includes('.ffmetadata'));
+  assert.ok(!runs[1].includes('.ffmetadata'));
+  assert.ok(runs[1].includes('-c:a') && runs[1].includes('copy'), 'retry must stay copy remux');
+  const remuxProbe = execFileSync('ffprobe', [
+    '-v', 'error', '-show_entries', 'format_tags=title,lyrics',
+    '-of', 'default=noprint_wrappers=1', r.outputPath,
+  ], { stdio: 'pipe' }).toString();
+  assert.match(remuxProbe, /TAG:title=Sine Test/i);
+  assert.ok(!/TAG:lyrics=/i.test(remuxProbe));
+});
