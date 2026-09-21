@@ -143,6 +143,10 @@ class DecoderParityTest {
     }
 
     @Test fun ncm_streaming_matches_bytearray_path() {
+        assumeTrue(
+            "test-ncm/sample.ncm not present (copyrighted fixture, not tracked)",
+            resourceExists("test-ncm/sample.ncm")
+        )
         val cipher = loadResource("test-ncm/sample.ncm")
         val buffered = NcmDecoder.decrypt(cipher)
         val streamed = java.io.ByteArrayOutputStream()
