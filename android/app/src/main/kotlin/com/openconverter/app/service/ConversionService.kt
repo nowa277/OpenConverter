@@ -14,6 +14,7 @@ import com.openconverter.app.R
 import com.openconverter.app.OpenConverterApp
 import com.openconverter.app.decoders.DefaultDecoders
 import com.openconverter.app.engine.AndroidFileSystemPort
+import com.openconverter.app.engine.AndroidSafLyricLookup
 import com.openconverter.app.engine.ConversionEngine
 import com.openconverter.app.engine.ConversionRequest
 import com.openconverter.app.engine.FileResult
@@ -99,7 +100,13 @@ class ConversionService : Service() {
         val ffmpeg = FfmpegKitRunner()
         val sink = ServiceProgressSink(this, _progress, inputs.size)
         val kggKeys = (application as OpenConverterApp).kggKeyStore
-        val engine = ConversionEngine(DefaultDecoders.registry(kggKeys), ffmpeg, fs, sink, RealClock())
+        val lyricTreeUri = getSharedPreferences("prefs", MODE_PRIVATE)
+            .getString("netease_lyric_tree_uri", null)
+        val lyricLookup = lyricTreeUri?.takeIf { it.isNotBlank() }?.let { AndroidSafLyricLookup(this, it) }
+        val engine = ConversionEngine(
+            DefaultDecoders.registry(kggKeys), ffmpeg, fs, sink, RealClock(),
+            lyricLookup = lyricLookup,
+        )
 
         val history: HistoryPort = JsonHistoryStore(applicationContext.filesDir)
         currentJob = scope.launch {
