@@ -49,6 +49,9 @@ A lightweight format conversion and decryption tool for audio workflows.<br/>
 ### What's new in v0.3.8 (desktop / CLI)
 * **Streaming decrypt for every cipher**: `.ncm` / `.kwm` / `.qmc*` / `.mflac` / `.mgg` / `.kgg` now follow the same 64KiB chunked path as `.kgm`, so large files are not read entirely into memory.
 
+### Desktop NetEase offline lyrics (unreleased)
+* **Optional local NetEase lyrics**: Settings → NetEase lyrics cache, or CLI `--ncm-lyrics-dir=`. Pick `files` or a copy of `LrcDownload` / `LrcCache`. Matching uses the song id inside the .ncm and writes a sibling `.lrc`. Missing lyrics do not fail conversion. No network.
+
 ### What's new in v0.3.7 (desktop / CLI)
 * **Streaming KGM decrypt**: desktop and CLI read/write `.kgm` / `.kgma` / `.vpr` in 64KiB chunks instead of loading the whole file.
 
