@@ -127,12 +127,14 @@ function checkFfmpeg(opts = {}) {
  * @param {boolean} [p.copyAudio]  true → `-c:a copy` (just re-mux / tag)
  * @param {string} [p.coverPath]   image file to embed as cover art
  * @param {object} [p.metadata]    { title, artist, album, ... }
+ * @param {string} [p.metadataFile] FFMETADATA1 file; mapped instead of `-metadata k=v`
  */
-function buildArgs({ inputPath, outputPath, format = 'mp3', quality = '320k', copyAudio = false, coverPath, metadata }) {
+function buildArgs({ inputPath, outputPath, format = 'mp3', quality = '320k', copyAudio = false, coverPath, metadata, metadataFile }) {
   const args = ['-y', '-i', inputPath];
   const wantCover = COVER_CAPABLE.has(format);
   const hasExternalCover = wantCover && coverPath && fs.existsSync(coverPath);
   if (hasExternalCover) args.push('-i', coverPath);
+  if (metadataFile) args.push('-i', metadataFile);
 
   // Stream mapping: always take audio from input 0; keep an attached picture
   // when the target container supports it (either the input's own, or the
@@ -160,18 +162,21 @@ function buildArgs({ inputPath, outputPath, format = 'mp3', quality = '320k', co
   }
 
   if (format === 'mp3') args.push('-id3v2_version', '3');
-  args.push('-map_metadata', '0');
-  for (const [k, v] of Object.entries(metadata || {})) {
-    if (v !== undefined && v !== null && String(v).length > 0) args.push('-metadata', `${k}=${v}`);
+  const metadataIndex = metadataFile ? (hasExternalCover ? 2 : 1) : 0;
+  args.push('-map_metadata', String(metadataIndex));
+  if (!metadataFile) {
+    for (const [k, v] of Object.entries(metadata || {})) {
+      if (v !== undefined && v !== null && String(v).length > 0) args.push('-metadata', `${k}=${v}`);
+    }
   }
   args.push(outputPath);
   return args;
 }
 
 async function run(inputPath, outputPath, options = {}) {
-  const { format = 'mp3', quality = '320k', onProgress, signal, ffmpegBin, ffprobeBin, copyAudio, coverPath, metadata } = options;
+  const { format = 'mp3', quality = '320k', onProgress, signal, ffmpegBin, ffprobeBin, copyAudio, coverPath, metadata, metadataFile } = options;
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  const args = buildArgs({ inputPath, outputPath, format, quality, copyAudio, coverPath, metadata });
+  const args = buildArgs({ inputPath, outputPath, format, quality, copyAudio, coverPath, metadata, metadataFile });
   const totalDuration = await runFfprobeDuration(inputPath, { ffprobeBin });
   await runFfmpeg(args, { onProgress, signal, totalDurationSec: totalDuration, ffmpegBin });
   return { outputPath };
