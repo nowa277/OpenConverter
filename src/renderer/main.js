@@ -8,6 +8,7 @@
  */
 
 import { mountIslands, remountAppearanceLabels } from './ui/islands.jsx';
+import { mountPills, refreshPillLabels } from './ui/pill.js';
 
 const api = window.api;
 
@@ -289,6 +290,7 @@ function applyLanguage() {
   renderAbout();
   renderFfmpegStatus();
   remountAppearanceLabels();
+  refreshPillLabels();
 }
 
 function renderAbout() {
@@ -633,6 +635,7 @@ function bindEvents() {
 
   const initialView = (location.hash || '').replace('#', '') || 'convert';
   switchView(initialView, false);
+  mountPills();
 }
 
 /** Disable a button and show a spinner while `fn` runs; toast on error. */

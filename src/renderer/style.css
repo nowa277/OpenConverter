@@ -157,10 +157,18 @@ html[data-os="mac"] .window-bar-controls { order: 0; }
 .brand-bars rect:nth-child(4) { animation-delay: 300ms; }
 .brand-bars rect:nth-child(5) { animation-delay: 400ms; }
 @keyframes eq { from { transform: scaleY(0.55); } to { transform: scaleY(1); } }
-.brand-title { font-size: 16px; font-weight: 700; }
+.brand-word {
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: -0.04em;
+  text-transform: lowercase;
+  color: var(--text);
+}
 
 .nav { position: relative; display: flex; flex-direction: column; gap: 2px; }
 .nav-indicator {
+  display: none;
   position: absolute; left: 0; top: 0; width: 100%; height: 40px;
   background: var(--bg-elevated-2); border-radius: var(--radius);
   transition: transform var(--dur-slow) var(--ease-out), height var(--dur-slow) var(--ease-out);
@@ -171,19 +179,28 @@ html[data-os="mac"] .window-bar-controls { order: 0; }
   background: var(--accent); border-radius: 0 3px 3px 0;
 }
 .nav-item {
-  position: relative; z-index: 1;
+  position: relative; z-index: 1; overflow: hidden;
   display: flex; align-items: center; gap: 10px;
   background: transparent; color: var(--text-secondary);
-  border: 0; padding: 10px 12px; border-radius: var(--radius);
+  border: 0; padding: 10px 12px; border-radius: 999px;
   text-align: left; cursor: pointer;
   transition: color var(--transition), background var(--transition), transform var(--dur-fast) var(--ease-out);
 }
 .nav-item:hover { color: var(--text); background: var(--bg-hover); }
 .nav-item:active { transform: scale(0.98); }
-.nav-item.active { color: var(--text); font-weight: 600; background: transparent; }
-.nav-item.active:hover { background: transparent; }
+.nav-item.active,
+.nav-item.active:hover { background: var(--accent); color: #121212; font-weight: 600; }
 .nav-item .ico { transition: transform var(--dur) var(--ease-spring); }
-.nav-item.active .ico { color: var(--accent); transform: scale(1.1); }
+.nav-item.active .ico { color: #121212; transform: scale(1.1); }
+.pill-circle {
+  position: absolute; left: 50%; border-radius: 50%;
+  background: var(--accent); pointer-events: none; z-index: 0;
+}
+.pill-label-hover {
+  position: absolute; inset: 0; display: flex; align-items: center; gap: 8px;
+  padding-left: 14px; color: #121212; font-weight: 700; pointer-events: none; z-index: 2;
+}
+.nav-item > svg, .nav-item > span[data-i18n] { position: relative; z-index: 1; }
 .nav-badge {
   margin-left: auto; min-width: 18px; height: 18px; padding: 0 6px;
   border-radius: 9px; background: var(--accent); color: var(--text-on-accent);
