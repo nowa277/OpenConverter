@@ -215,7 +215,9 @@ class ConversionEngine(
             val bytes = lookup.findLrcBytes(id) ?: return
             val audioName = outName(displayName, targetFormat, encryptedExtension)
             val lrcName = audioName.substringBeforeLast('.', audioName) + ".lrc"
-            fs.writeOutput(folderUri, lrcName, "text/plain", bytes)
+            // octet-stream: DocumentsContract.createDocument("text/plain", "song.lrc")
+            // becomes song.lrc.txt on some OEM SAF providers (vivo Android 13).
+            fs.writeOutput(folderUri, lrcName, "application/octet-stream", bytes)
         }
     }
 }
