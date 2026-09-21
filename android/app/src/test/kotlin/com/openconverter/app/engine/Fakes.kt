@@ -71,7 +71,15 @@ class FakeFfmpegRunner(
     var lastExecutedTotalDurationMs: Long? = null,
     private val executeResult: Result<Unit> = Result.success(Unit),
 ) : FfmpegRunner {
-    data class Call(val input: String, val output: String, val format: String, val bitrate: String?)
+    data class Call(
+        val input: String,
+        val output: String,
+        val format: String,
+        val bitrate: String?,
+        val metadata: Map<String, String> = emptyMap(),
+        val coverPath: String? = null,
+        val copyAudio: Boolean = false,
+    )
     val calls: MutableList<Call> = mutableListOf()
 
     override suspend fun probeDurationMs(path: String): Long = probeDurationMsReturn
@@ -82,9 +90,12 @@ class FakeFfmpegRunner(
         bitrate: String?,
         totalDurationMs: Long,
         onProgress: (percent: Int) -> Unit,
+        metadata: Map<String, String>,
+        coverPath: String?,
+        copyAudio: Boolean,
     ): Result<Unit> {
         lastExecutedTotalDurationMs = totalDurationMs
-        calls += Call(input, output, format, bitrate)
+        calls += Call(input, output, format, bitrate, metadata, coverPath, copyAudio)
         onProgress(50)
         val r = if (executeResult != Result.success(Unit)) executeResult else behavior(input, output, format, bitrate)
         if (r.isSuccess) {

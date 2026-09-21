@@ -35,8 +35,14 @@ class FfmpegKitRunner : FfmpegRunner {
         bitrate: String?,
         totalDurationMs: Long,
         onProgress: (percent: Int) -> Unit,
+        metadata: Map<String, String>,
+        coverPath: String?,
+        copyAudio: Boolean,
     ): Result<Unit> = suspendCancellableCoroutine { cont ->
-        val args = FfmpegArgs.build(input, output, format, bitrate).joinToString(" ") {
+        val args = FfmpegArgs.build(
+            input, output, format, bitrate,
+            metadata = metadata, coverPath = coverPath, copyAudio = copyAudio,
+        ).joinToString(" ") {
             if (it.contains(' ')) "\"$it\"" else it
         }
 
