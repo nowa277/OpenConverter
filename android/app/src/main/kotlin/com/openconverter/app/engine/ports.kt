@@ -47,3 +47,8 @@ interface Clock { fun nowMs(): Long }
 
 /** Default Clock backed by System.currentTimeMillis. */
 object SystemClock : Clock { override fun nowMs(): Long = System.currentTimeMillis() }
+
+fun interface LyricLookupPort {
+    /** UTF-8 LRC bytes, or null when the id is missing / unreadable / unparseable. */
+    fun findLrcBytes(musicId: String): ByteArray?
+}

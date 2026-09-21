@@ -421,6 +421,52 @@ class ConversionEngineTest {
         assertEquals("song.mp3", fs.writes.single().second)
     }
 
+    @Test fun writes_sibling_lrc_when_lookup_hits() = runTest {
+        val ncm = object : StreamingDecoder {
+            override val supportedExtensions = setOf(".ncm")
+            override fun decrypt(input: ByteArray) = error("unused")
+            override fun decrypt(input: InputStream, output: OutputStream, bufferSize: Int): String {
+                input.readBytes(); output.write(ID3); return "mp3"
+            }
+            override fun decryptStreaming(input: InputStream, output: OutputStream, bufferSize: Int): StreamDecryptResult {
+                decrypt(input, output, bufferSize)
+                return StreamDecryptResult("mp3", mapOf("title" to "Hello"), musicId = "1406472218")
+            }
+        }
+        val fs = FakeFileSystemPort(reads = mapOf("uri:ncm" to byteArrayOf(1)))
+        val ffmpeg = FakeFfmpegRunner(fs, outputBytes = ID3)
+        val lookup = LyricLookupPort { "[00:00.00]Hello".toByteArray() }
+        val engine = ConversionEngine(DecoderRegistry(listOf(ncm)), ffmpeg, fs, RecordingProgressSink(), lyricLookup = lookup)
+        engine.convertAll(ConversionRequest(listOf("uri:ncm"), listOf("song.ncm"), "mp3", "tree:out", null, PLAIN_EXTS))
+        val names = fs.writes.map { it.second }
+        assertTrue(names.contains("song.mp3"))
+        assertTrue(names.contains("song.lrc"))
+        assertEquals("[00:00.00]Hello", fs.writes.first { it.second == "song.lrc" }.third.toString(Charsets.UTF_8))
+    }
+
+    @Test fun missing_lyrics_do_not_fail_conversion() = runTest {
+        val ncm = object : StreamingDecoder {
+            override val supportedExtensions = setOf(".ncm")
+            override fun decrypt(input: ByteArray) = error("unused")
+            override fun decrypt(input: InputStream, output: OutputStream, bufferSize: Int): String {
+                input.readBytes(); output.write(ID3); return "mp3"
+            }
+            override fun decryptStreaming(input: InputStream, output: OutputStream, bufferSize: Int): StreamDecryptResult {
+                decrypt(input, output, bufferSize)
+                return StreamDecryptResult("mp3", mapOf("title" to "Hello"), musicId = "1")
+            }
+        }
+        val fs = FakeFileSystemPort(reads = mapOf("uri:ncm" to byteArrayOf(1)))
+        val ffmpeg = FakeFfmpegRunner(fs, outputBytes = ID3)
+        val lookup = LyricLookupPort { error("disk exploded") }
+        val engine = ConversionEngine(DecoderRegistry(listOf(ncm)), ffmpeg, fs, RecordingProgressSink(), lyricLookup = lookup)
+        val result = engine.convertAll(
+            ConversionRequest(listOf("uri:ncm"), listOf("song.ncm"), "mp3", "tree:out", null, PLAIN_EXTS),
+        ).single()
+        assertNull(result.error)
+        assertEquals(listOf("song.mp3"), fs.writes.map { it.second })
+    }
+
     private fun fakeStreamingDecoder(audio: ByteArray, format: String): StreamingDecoder =
         object : StreamingDecoder {
             override val supportedExtensions = setOf(".kgg")

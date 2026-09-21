@@ -31,6 +31,7 @@ class ConversionEngine(
     private val fs: FileSystemPort,
     private val sink: ProgressSink,
     private val clock: Clock = SystemClock,
+    private val lyricLookup: LyricLookupPort? = null,
 ) {
     suspend fun convertAll(req: ConversionRequest): List<FileResult> = coroutineScope {
         val total = req.inputUris.size
@@ -141,6 +142,7 @@ class ConversionEngine(
                         req.outputFolderUri, outName, mimeFor(req.targetFormat), requireNotNull(audio),
                     )
                 }
+                maybeWriteLrc(req.outputFolderUri, displayName, req.targetFormat, decoderMatch?.encryptedExtension, musicId)
                 sink.onFileDone(i, outDocUri)
                 return FileResult(i, uri, outDocUri, null)
             }
@@ -181,6 +183,7 @@ class ConversionEngine(
                 mimeFor(req.targetFormat),
                 outPath,
             )
+            maybeWriteLrc(req.outputFolderUri, displayName, req.targetFormat, decoderMatch?.encryptedExtension, musicId)
             sink.onFileDone(i, outDocUri)
             return FileResult(i, uri, outDocUri, null)
         } catch (ce: CancellationException) {
@@ -196,6 +199,23 @@ class ConversionEngine(
             inPath?.let { fs.cleanup(it) }
             outPath?.let { fs.cleanup(it) }
             coverPath?.let { fs.cleanup(it) }
+        }
+    }
+
+    private fun maybeWriteLrc(
+        folderUri: String,
+        displayName: String,
+        targetFormat: String,
+        encryptedExtension: String?,
+        musicId: String?,
+    ) {
+        val id = musicId ?: return
+        val lookup = lyricLookup ?: return
+        runCatching {
+            val bytes = lookup.findLrcBytes(id) ?: return
+            val audioName = outName(displayName, targetFormat, encryptedExtension)
+            val lrcName = audioName.substringBeforeLast('.', audioName) + ".lrc"
+            fs.writeOutput(folderUri, lrcName, "text/plain", bytes)
         }
     }
 }
