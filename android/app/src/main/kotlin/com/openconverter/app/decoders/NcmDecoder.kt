@@ -35,25 +35,38 @@ object NcmDecoder : StreamingDecoder {
 
     override fun decrypt(input: ByteArray): DecryptResult {
         val output = ByteArrayOutputStream()
-        var meta: String? = null
-        val format = decrypt(ByteArrayInputStream(input), output) { meta = it }
-        return DecryptResult(audio = output.toByteArray(), format = format, meta = meta)
+        val streamed = decryptStreaming(ByteArrayInputStream(input), output)
+        return DecryptResult(audio = output.toByteArray(), format = streamed.format, meta = streamed.rawMeta)
     }
 
     override fun decrypt(input: InputStream, output: OutputStream, bufferSize: Int): String =
-        decrypt(input, output, bufferSize, null)
+        decryptStreaming(input, output, bufferSize).format
 
-    private fun decrypt(
+    override fun decryptStreaming(
         input: InputStream,
         output: OutputStream,
-        bufferSize: Int = DEFAULT_BUFFER_SIZE,
-        onMeta: ((String?) -> Unit)?,
-    ): String {
+        bufferSize: Int,
+    ): StreamDecryptResult {
         require(bufferSize > 0) { "NCM buffer size must be positive" }
         val header = parseHeader(input)
-        onMeta?.invoke(header.meta)
+        val format = decryptAudio(input, output, bufferSize, header.sBox)
+        val parsed = com.openconverter.app.meta.NcmTrackMeta.fromJson(header.meta)
+        return StreamDecryptResult(
+            format = format,
+            tags = parsed.tags,
+            cover = header.cover,
+            musicId = parsed.musicId,
+            rawMeta = header.meta,
+        )
+    }
 
-        val k = rc4Keystream(header.sBox)
+    private fun decryptAudio(
+        input: InputStream,
+        output: OutputStream,
+        bufferSize: Int,
+        sBox: IntArray,
+    ): String {
+        val k = rc4Keystream(sBox)
         val probe = ByteArrayOutputStream(PROBE_SIZE)
         var format: String? = null
         var offset = 0
@@ -78,7 +91,7 @@ object NcmDecoder : StreamingDecoder {
         return format
     }
 
-    private class ParsedHeader(val sBox: IntArray, val meta: String?)
+    private class ParsedHeader(val sBox: IntArray, val meta: String?, val cover: ByteArray?)
 
     private fun parseHeader(input: InputStream): ParsedHeader {
         val magic = readExact(input, MAGIC.size)
@@ -113,11 +126,17 @@ object NcmDecoder : StreamingDecoder {
 
         skipExact(input, 5)
         val imageSpace = readU32LE(input)
-        readU32LE(input) // imageSize; image + padding are skipped via imageSpace
-        require(imageSpace >= 0) { "NCM: image overruns" }
-        skipExact(input, imageSpace)
-
-        return ParsedHeader(buildRc4Sbox(rc4Key), meta)
+        val imageSize = readU32LE(input)
+        require(imageSpace >= 0 && imageSize >= 0 && imageSize <= imageSpace) { "NCM: image overruns" }
+        val cover = if (imageSize > 0) {
+            val bytes = readExact(input, imageSize)
+            require(bytes.size == imageSize) { "NCM: image truncated" }
+            bytes
+        } else {
+            null
+        }
+        skipExact(input, imageSpace - imageSize)
+        return ParsedHeader(buildRc4Sbox(rc4Key), meta, cover)
     }
 
     private fun aesEcbDecrypt(block: ByteArray, key: ByteArray): ByteArray {
