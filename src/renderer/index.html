@@ -215,19 +215,14 @@
               </div>
             </div>
 
-            <h3 class="list-group-title" data-i18n="ncm_lyrics_title">NetEase lyrics cache</h3>
+            <h3 class="list-group-title" data-i18n="ncm_lyrics_title">Fetch lyrics</h3>
             <div class="list-group">
               <div class="list-item stack">
-                <div class="row between">
-                  <span id="ncm-lyrics-dir" class="output-dir-text">Not set — audio tags and cover still work</span>
-                  <div class="row">
-                    <button id="ncm-lyrics-pick-btn" class="btn btn-secondary" data-i18n="ncm_lyrics_pick">Choose lyrics folder</button>
-                    <button id="ncm-lyrics-clear-btn" class="btn btn-secondary" data-i18n="ncm_lyrics_clear">Clear</button>
-                  </div>
-                </div>
-                <p class="settings-hint" data-i18n="ncm_lyrics_hint">
-                  Optional. Pick the NetEase Cloud Music files folder, or a copy of LrcDownload / LrcCache. Lyrics match the song id inside .ncm and are written as a .lrc next to the audio. Conversion still succeeds if lyrics are missing. No network.
-                </p>
+                <label class="row between">
+                  <span data-i18n="ncm_lyrics_title">Fetch lyrics</span>
+                  <input type="checkbox" id="ncm-lyrics-enabled" checked />
+                </label>
+                <p class="settings-hint" data-i18n="ncm_lyrics_hint">When converting NetEase tracks, match lyrics and write them into the output. On by default: requests the song id from NetEase. No audio is uploaded. Can be turned off.</p>
               </div>
             </div>
 

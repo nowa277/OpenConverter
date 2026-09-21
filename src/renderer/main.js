@@ -23,7 +23,6 @@ const state = {
   ffmpeg: null, // { ok, version, error }
   converting: false,
   view: 'convert',
-  ncmLyricsDir: '',
 };
 
 // ---------- translations ----------
@@ -128,12 +127,8 @@ const TRANSLATIONS = {
     time_mins_ago: '{mins}m ago',
     time_hours_ago: '{hours}h ago',
     time_days_ago: '{days}d ago',
-    ncm_lyrics_title: 'NetEase lyrics cache',
-    ncm_lyrics_hint: 'Optional. Pick the NetEase Cloud Music files folder, or a copy of LrcDownload / LrcCache. Lyrics match the song id inside .ncm and are written as a .lrc next to the audio. Conversion still succeeds if lyrics are missing. No network.',
-    ncm_lyrics_pick: 'Choose lyrics folder',
-    ncm_lyrics_clear: 'Clear',
-    ncm_lyrics_unset: 'Not set — audio tags and cover still work',
-    ncm_lyrics_set: 'Folder: %s',
+    ncm_lyrics_title: 'Fetch lyrics',
+    ncm_lyrics_hint: 'When converting NetEase tracks, match lyrics and write them into the output. On by default: requests the song id from NetEase. No audio is uploaded. Can be turned off.',
     kgg_panel_title: 'KuGou Music KGG Settings (required for .kgg / .kgg.flac)',
     kgg_autoscan_label: 'Auto-scan database on startup',
     kgg_scan_now_btn: 'Scan now',
@@ -245,12 +240,8 @@ const TRANSLATIONS = {
     time_mins_ago: '{mins} 分钟前',
     time_hours_ago: '{hours} 小时前',
     time_days_ago: '{days} 天前',
-    ncm_lyrics_title: '网易云歌词缓存',
-    ncm_lyrics_hint: '可选。选择网易云音乐的 files 目录，或一份拷贝出来的 LrcDownload / LrcCache。转换时按 .ncm 内的歌曲 id 匹配，并在音频旁写出 .lrc。找不到歌词不影响转音频。不联网。',
-    ncm_lyrics_pick: '选择歌词文件夹',
-    ncm_lyrics_clear: '清除',
-    ncm_lyrics_unset: '未设置 — 封面和标签仍会写入音频',
-    ncm_lyrics_set: '已选：%s',
+    ncm_lyrics_title: '获取歌词',
+    ncm_lyrics_hint: '转换网易云歌曲时自动匹配歌词并写入音频。默认会向网易请求歌曲 id，可关闭。不上传音频。',
     kgg_panel_title: '酷狗音乐 KGG 设置 (解密 .kgg / .kgg.flac 必需)',
     kgg_autoscan_label: '自动扫描本地播放器数据库',
     kgg_scan_now_btn: '立即扫描',
@@ -291,7 +282,6 @@ function applyLanguage() {
 
   $('page-title').textContent = t(VIEW_TITLES[state.view] || 'title_convert_audio');
   updateOutputDisplay();
-  updateNcmLyricsDisplay();
   renderQueue();
   if (state.view === 'history') loadHistory();
   renderAbout();
@@ -410,7 +400,7 @@ async function init() {
   if (cfg.qmcEkey) $('ekey-input').value = cfg.qmcEkey;
   if (cfg.qqCookie) $('qq-cookie-input').value = cfg.qqCookie;
   $('kgg-autoscan-checkbox').checked = !!cfg.kggAutoScan;
-  state.ncmLyricsDir = cfg.ncmLyricsDir || '';
+  $('ncm-lyrics-enabled').checked = cfg.ncmLyricsEnabled !== false;
   $('reduce-motion-checkbox').checked = state.reduceMotion;
   $('auto-clear-checkbox').checked = state.autoClearDone;
   $('format-select').value = state.format;
@@ -498,19 +488,8 @@ function bindEvents() {
     }
   }));
 
-  // NetEase lyrics cache
-  $('ncm-lyrics-pick-btn').addEventListener('click', async () => {
-    const r = await api.invoke('file:pickNcmLyricsDir');
-    if (r.dir) {
-      state.ncmLyricsDir = r.dir;
-      await api.invoke('config:set', { patch: { ncmLyricsDir: r.dir } });
-      updateNcmLyricsDisplay();
-    }
-  });
-  $('ncm-lyrics-clear-btn').addEventListener('click', async () => {
-    state.ncmLyricsDir = '';
-    await api.invoke('config:set', { patch: { ncmLyricsDir: '' } });
-    updateNcmLyricsDisplay();
+  $('ncm-lyrics-enabled').addEventListener('change', (e) => {
+    api.invoke('config:set', { patch: { ncmLyricsEnabled: e.target.checked } });
   });
 
   // KGG Settings (KuGou)
@@ -734,14 +713,6 @@ function updateOutputDisplay() {
   $('output-dir').textContent = state.outputDir || t('output_not_set');
   $('output-dir').title = state.outputDir || '';
   $('open-output-btn').hidden = !state.outputDir;
-}
-
-function updateNcmLyricsDisplay() {
-  const dir = state.ncmLyricsDir;
-  const node = $('ncm-lyrics-dir');
-  if (!node) return;
-  node.textContent = dir ? t('ncm_lyrics_set').replace('%s', dir) : t('ncm_lyrics_unset');
-  node.title = dir || '';
 }
 
 const STATUS_KEYS = { pending: 'status_ready', queued: 'status_queued', decrypt: 'status_decrypt', encode: 'status_encode', done: 'status_done', error: 'status_error', cancelled: 'status_cancelled' };

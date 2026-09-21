@@ -20,7 +20,8 @@ const DEFAULTS = {
   qqGuid: '', // GUID paired with the QQ Music cookie
   qqUin: '', // UIN paired with the QQ Music cookie
   kggAutoScan: false,
-  ncmLyricsDir: '', // NetEase lyrics cache root; empty = unset
+  ncmLyricsDir: '', // NetEase lyrics cache root; empty = unset (CLI extra root only)
+  ncmLyricsEnabled: true, // default-on NetEase lyric fetch
 };
 
 let store = null;

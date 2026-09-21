@@ -14,3 +14,7 @@ const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'main', 'config.js
 test('DEFAULTS includes empty ncmLyricsDir', () => {
   assert.match(src, /ncmLyricsDir:\s*''/);
 });
+
+test('DEFAULTS includes ncmLyricsEnabled true', () => {
+  assert.match(src, /ncmLyricsEnabled:\s*true/);
+});

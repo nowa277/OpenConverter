@@ -25,6 +25,7 @@ function parseArgs(argv) {
     else if (a.startsWith('--ekey=')) opts.ekey = a.slice(7);
     else if (a.startsWith('--jobs=')) opts.jobs = parseInt(a.slice(7), 10) || 0;
     else if (a.startsWith('--ncm-lyrics-dir=')) opts.ncmLyricsDir = a.slice(17);
+    else if (a === '--no-ncm-lyrics') opts.ncmLyricsEnabled = false;
     else if (a === '--help' || a === '-h') { printHelp(); process.exit(0); }
     else opts.files.push(a);
   }
@@ -46,6 +47,7 @@ Options:
   --ekey=BASE64                  QQ Music ekey for keyless .mflac/.mgg files
   --qq-cookie=COOKIE             QQ Music cookie for fetching ekey (musicex files)
   --ncm-lyrics-dir=PATH          NetEase LrcDownload / LrcCache directory (optional)
+  --no-ncm-lyrics                Disable NetEase lyric fetch (on by default)
   -h, --help                     Show this help
 `);
 }
@@ -73,6 +75,7 @@ async function processOne(inputPath, opts) {
       quality: opts.quality,
       decodeOpts,
       ncmLyricsDir: opts.ncmLyricsDir,
+      ncmLyricsEnabled: opts.ncmLyricsEnabled !== false,
       onProgress: ({ stage, percent }) => {
         if (stage !== lastStage) { lastStage = stage; if (stage === 'decrypt') process.stderr.write(`  ${name}: decrypting…\n`); }
         if (stage === 'encode' && percent != null) process.stderr.write(`  ${name}: ${percent.toFixed(0)}%\r`);

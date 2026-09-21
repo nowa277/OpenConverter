@@ -19,3 +19,16 @@ test('CLI maps --ncm-lyrics-dir to convertOne ncmLyricsDir', () => {
   assert.match(src, /startsWith\('--ncm-lyrics-dir='\)/);
   assert.match(src, /ncmLyricsDir:\s*opts\.ncmLyricsDir/);
 });
+
+test('CLI --help lists --no-ncm-lyrics', () => {
+  const out = execFileSync(process.execPath, [cliPath, '--help'], { encoding: 'utf8' });
+  assert.match(out, /--no-ncm-lyrics/);
+  assert.match(out, /Disable NetEase lyric fetch \(on by default\)/);
+});
+
+test('CLI maps --no-ncm-lyrics to convertOne ncmLyricsEnabled false', () => {
+  const src = fs.readFileSync(cliPath, 'utf8');
+  assert.match(src, /=== '--no-ncm-lyrics'/);
+  assert.match(src, /opts\.ncmLyricsEnabled\s*=\s*false/);
+  assert.match(src, /ncmLyricsEnabled:\s*opts\.ncmLyricsEnabled\s*!==\s*false/);
+});
