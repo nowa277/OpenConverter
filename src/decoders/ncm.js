@@ -136,7 +136,7 @@ function decryptBuffer(ncmBuf) {
   const encryptedAudio = ncmBuf.slice(off);
   const audio = rc4Decrypt(S, encryptedAudio);
 
-  return { audio, meta, imageData };
+  return { audio, meta, imageData, musicId: extractMusicId(meta) };
 }
 
 function inferExtension(meta) {
@@ -161,6 +161,14 @@ function extractTags(meta) {
   }
   if (meta.album) tags.album = String(meta.album);
   return Object.keys(tags).length ? tags : null;
+}
+
+function extractMusicId(meta) {
+  if (!meta || typeof meta !== 'object') return null;
+  const raw = meta.musicId ?? meta.musicid;
+  if (raw === undefined || raw === null || raw === '') return null;
+  const s = String(raw).trim();
+  return s.length ? s : null;
 }
 
 function imageExtension(imageData) {
@@ -267,7 +275,7 @@ function decodeFile(inputPath, outputDir, opts = {}) {
       coverPath = path.join(stagingDir, `${name}.cover.${imageExtension(imageData)}`);
       fs.writeFileSync(coverPath, imageData);
     }
-    return { outputPath: outPath, format: ext, hasImage: !!imageData, coverPath, tags: extractTags(meta) };
+    return { outputPath: outPath, format: ext, hasImage: !!imageData, coverPath, tags: extractTags(meta), musicId: extractMusicId(meta) };
   } catch (err) {
     try { if (outFd != null) fs.closeSync(outFd); } catch {}
     try { fs.unlinkSync(tmpPath); } catch {}

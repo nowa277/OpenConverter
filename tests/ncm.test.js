@@ -107,7 +107,7 @@ test('ncm: synthetic round-trip restores audio bytes, tags and cover', { skip: !
   const audio = makeSineMp3(path.join(OUT_DIR, '_sine.mp3'));
   // 1x1 PNG
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
-  const meta = { musicName: 'Sine Test', artist: [['Synth', 1], ['Wave', 2]], album: 'Unit Tests', format: 'mp3' };
+  const meta = { musicName: 'Sine Test', artist: [['Synth', 1], ['Wave', 2]], album: 'Unit Tests', format: 'mp3', musicId: 1406472218 };
   const { ncm: file } = buildSyntheticNcm(audio, meta, png);
   const inPath = path.join(OUT_DIR, 'synthetic.ncm');
   fs.writeFileSync(inPath, file);
@@ -116,6 +116,7 @@ test('ncm: synthetic round-trip restores audio bytes, tags and cover', { skip: !
   assert.strictEqual(r.format, 'mp3');
   assert.ok(fs.readFileSync(r.outputPath).equals(audio), 'decrypted audio must equal original');
   assert.deepStrictEqual(r.tags, { title: 'Sine Test', artist: 'Synth / Wave', album: 'Unit Tests' });
+  assert.strictEqual(r.musicId, '1406472218');
   assert.ok(r.coverPath && r.coverPath.endsWith('.cover.png'));
   assert.ok(fs.readFileSync(r.coverPath).equals(png));
   assert.ok(ffprobeDuration(r.outputPath) > 0.5);
@@ -128,6 +129,7 @@ test('ncm: no meta / no image yields null tags and cover', () => {
   fs.writeFileSync(inPath, file);
   const r = ncm.decodeFile(inPath, OUT_DIR);
   assert.strictEqual(r.tags, null);
+  assert.strictEqual(r.musicId, null);
   assert.strictEqual(r.coverPath, null);
   assert.ok(fs.readFileSync(r.outputPath).equals(audio));
 });
