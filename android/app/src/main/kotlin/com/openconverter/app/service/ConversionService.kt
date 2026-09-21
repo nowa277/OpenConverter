@@ -14,7 +14,6 @@ import com.openconverter.app.R
 import com.openconverter.app.OpenConverterApp
 import com.openconverter.app.decoders.DefaultDecoders
 import com.openconverter.app.engine.AndroidFileSystemPort
-import com.openconverter.app.engine.AndroidSafLyricLookup
 import com.openconverter.app.engine.ConversionEngine
 import com.openconverter.app.engine.ConversionRequest
 import com.openconverter.app.engine.FileResult
@@ -26,7 +25,12 @@ import com.openconverter.app.engine.ProgressEvent
 import com.openconverter.app.engine.RealClock
 import com.openconverter.app.saf.SafAdapter
 import android.net.Uri
+import android.os.Environment
 import com.openconverter.app.ffmpeg.FfmpegKitRunner
+import com.openconverter.app.engine.NeteaseLyricResolver
+import com.openconverter.app.engine.PublicStorageLyricScanner
+import com.openconverter.app.meta.NeteaseLyricHttp
+import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -100,12 +104,26 @@ class ConversionService : Service() {
         val ffmpeg = FfmpegKitRunner()
         val sink = ServiceProgressSink(this, _progress, inputs.size)
         val kggKeys = (application as OpenConverterApp).kggKeyStore
-        val lyricTreeUri = getSharedPreferences("prefs", MODE_PRIVATE)
-            .getString("netease_lyric_tree_uri", null)
-        val lyricLookup = lyricTreeUri?.takeIf { it.isNotBlank() }?.let { AndroidSafLyricLookup(this, it) }
+        val prefs = getSharedPreferences("prefs", MODE_PRIVATE)
+        val standardDirs = listOf(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
+            File("/sdcard/Download"),
+            File("/sdcard/Music"),
+            File("/sdcard/下载"),
+        )
+        val extraRoots = PublicStorageLyricScanner.scanRoots(standardDirs).toMutableList()
+        val privateFiles = File("/data/data/com.netease.cloudmusic/files")
+        if (privateFiles.canRead()) extraRoots += privateFiles
+        val lyricResolver = NeteaseLyricResolver(
+            enabled = prefs.getBoolean("ncm_lyrics_enabled", true),
+            extraRoots = extraRoots,
+            fetchJson = { NeteaseLyricHttp.fetchJson(it) },
+            open = { root, rel -> File(root, rel).takeIf { it.isFile }?.readBytes() },
+        )
         val engine = ConversionEngine(
             DefaultDecoders.registry(kggKeys), ffmpeg, fs, sink, RealClock(),
-            lyricLookup = lyricLookup,
+            lyricResolver = lyricResolver,
         )
 
         val history: HistoryPort = JsonHistoryStore(applicationContext.filesDir)

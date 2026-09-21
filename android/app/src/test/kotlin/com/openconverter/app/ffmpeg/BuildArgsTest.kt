@@ -126,4 +126,53 @@ class BuildArgsTest {
         assertTrue(a.containsAll(listOf("-map", "0:a:0", "-map", "0:v?", "-c:v", "copy", "-disposition:v:0", "attached_pic")))
         assertTrue(a.containsAll(listOf("-id3v2_version", "3", "-map_metadata", "0")))
     }
+
+    @Test fun metadataFile_without_cover_is_input_1() {
+        val a = FfmpegArgs.build(
+            input = "/in/a.mp3",
+            output = "/out/a.mp3",
+            format = "mp3",
+            bitrate = null,
+            metadata = mapOf("title" to "Hello", "lyrics" to "[00:00.00]Hi"),
+            metadataFile = "/cache/lyrics.ffm",
+            copyAudio = true,
+        )
+        val iFlags = a.mapIndexedNotNull { idx, tok -> if (tok == "-i") idx else null }
+        assertEquals(2, iFlags.size)
+        assertEquals("/cache/lyrics.ffm", a[iFlags[1] + 1])
+        assertEquals("1", a[a.indexOf("-map_metadata") + 1])
+        assertTrue("-metadata" !in a)
+        assertTrue(a.none { it.startsWith("lyrics=") || it.startsWith("title=") })
+    }
+
+    @Test fun metadataFile_after_cover_is_input_2() {
+        val a = FfmpegArgs.build(
+            input = "/in/a.mp3",
+            output = "/out/a.mp3",
+            format = "mp3",
+            bitrate = null,
+            metadata = mapOf("title" to "Hello"),
+            coverPath = "/cache/cover.jpg",
+            copyAudio = true,
+            metadataFile = "/cache/lyrics.ffm",
+        )
+        val iFlags = a.mapIndexedNotNull { idx, tok -> if (tok == "-i") idx else null }
+        assertEquals(3, iFlags.size)
+        assertEquals("/in/a.mp3", a[iFlags[0] + 1])
+        assertEquals("/cache/cover.jpg", a[iFlags[1] + 1])
+        assertEquals("/cache/lyrics.ffm", a[iFlags[2] + 1])
+        assertEquals("2", a[a.indexOf("-map_metadata") + 1])
+        assertTrue("-metadata" !in a)
+        assertEquals(
+            listOf(
+                "-y", "-i", "/in/a.mp3", "-i", "/cache/cover.jpg", "-i", "/cache/lyrics.ffm",
+                "-map", "0:a:0", "-map", "1:v:0", "-c:v", "copy", "-disposition:v:0", "attached_pic",
+                "-c:a", "copy",
+                "-id3v2_version", "3",
+                "-map_metadata", "2",
+                "/out/a.mp3",
+            ),
+            a,
+        )
+    }
 }

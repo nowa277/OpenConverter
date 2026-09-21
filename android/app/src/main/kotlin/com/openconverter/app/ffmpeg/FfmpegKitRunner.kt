@@ -38,10 +38,12 @@ class FfmpegKitRunner : FfmpegRunner {
         metadata: Map<String, String>,
         coverPath: String?,
         copyAudio: Boolean,
+        metadataFile: String?,
     ): Result<Unit> = suspendCancellableCoroutine { cont ->
         val args = FfmpegArgs.build(
             input, output, format, bitrate,
             metadata = metadata, coverPath = coverPath, copyAudio = copyAudio,
+            metadataFile = metadataFile,
         ).joinToString(" ") {
             if (it.contains(' ')) "\"$it\"" else it
         }

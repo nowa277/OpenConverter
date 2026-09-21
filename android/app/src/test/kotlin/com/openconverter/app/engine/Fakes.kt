@@ -12,6 +12,7 @@ class FakeFileSystemPort(
     private val readErrors: Map<String, Throwable> = emptyMap(),
 ) : FileSystemPort {
     val cache: MutableMap<String, ByteArray> = mutableMapOf()
+    val cacheWrites: MutableList<Pair<String, ByteArray>> = mutableListOf()
     val writes: MutableList<Triple<String, String, ByteArray>> = mutableListOf() // (folder, displayName, bytes)
     val cleanups: MutableList<String> = mutableListOf()
     var readCacheCalls: Int = 0
@@ -24,6 +25,7 @@ class FakeFileSystemPort(
     override fun cacheFile(name: String, bytes: ByteArray): String {
         val path = "/cache/$name"
         cache[path] = bytes
+        cacheWrites += path to bytes
         return path
     }
     override fun cachePath(name: String): String = "/cache/$name"
@@ -79,6 +81,7 @@ class FakeFfmpegRunner(
         val metadata: Map<String, String> = emptyMap(),
         val coverPath: String? = null,
         val copyAudio: Boolean = false,
+        val metadataFile: String? = null,
     )
     val calls: MutableList<Call> = mutableListOf()
 
@@ -93,9 +96,10 @@ class FakeFfmpegRunner(
         metadata: Map<String, String>,
         coverPath: String?,
         copyAudio: Boolean,
+        metadataFile: String?,
     ): Result<Unit> {
         lastExecutedTotalDurationMs = totalDurationMs
-        calls += Call(input, output, format, bitrate, metadata, coverPath, copyAudio)
+        calls += Call(input, output, format, bitrate, metadata, coverPath, copyAudio, metadataFile)
         onProgress(50)
         val r = if (executeResult != Result.success(Unit)) executeResult else behavior(input, output, format, bitrate)
         if (r.isSuccess) {

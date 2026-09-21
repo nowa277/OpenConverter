@@ -421,50 +421,113 @@ class ConversionEngineTest {
         assertEquals("song.mp3", fs.writes.single().second)
     }
 
-    @Test fun writes_sibling_lrc_when_lookup_hits() = runTest {
-        val ncm = object : StreamingDecoder {
-            override val supportedExtensions = setOf(".ncm")
-            override fun decrypt(input: ByteArray) = error("unused")
-            override fun decrypt(input: InputStream, output: OutputStream, bufferSize: Int): String {
-                input.readBytes(); output.write(ID3); return "mp3"
-            }
-            override fun decryptStreaming(input: InputStream, output: OutputStream, bufferSize: Int): StreamDecryptResult {
-                decrypt(input, output, bufferSize)
-                return StreamDecryptResult("mp3", mapOf("title" to "Hello"), musicId = "1406472218")
-            }
-        }
+    @Test fun writes_sibling_lrc_when_resolver_hits() = runTest {
+        val ncm = taggedNcm(musicId = "1406472218", tags = mapOf("title" to "Hello"))
         val fs = FakeFileSystemPort(reads = mapOf("uri:ncm" to byteArrayOf(1)))
         val ffmpeg = FakeFfmpegRunner(fs, outputBytes = ID3)
-        val lookup = LyricLookupPort { "[00:00.00]Hello".toByteArray() }
-        val engine = ConversionEngine(DecoderRegistry(listOf(ncm)), ffmpeg, fs, RecordingProgressSink(), lyricLookup = lookup)
+        val resolver = LyricResolverPort { "[00:00.00]Hello" }
+        val engine = ConversionEngine(DecoderRegistry(listOf(ncm)), ffmpeg, fs, RecordingProgressSink(), lyricResolver = resolver)
         engine.convertAll(ConversionRequest(listOf("uri:ncm"), listOf("song.ncm"), "mp3", "tree:out", null, PLAIN_EXTS))
         val names = fs.writes.map { it.second }
         assertTrue(names.contains("song.mp3"))
         assertTrue(names.contains("song.lrc"))
         assertEquals("[00:00.00]Hello", fs.writes.first { it.second == "song.lrc" }.third.toString(Charsets.UTF_8))
+        val call = ffmpeg.calls.single()
+        assertEquals("/cache/lyrics_0.ffm", call.metadataFile)
+        assertTrue(call.metadata.isEmpty())
+        val ffm = fs.cacheWrites.first { it.first == "/cache/lyrics_0.ffm" }.second.toString(Charsets.UTF_8)
+        assertTrue(ffm.startsWith(";FFMETADATA1\n"))
+        assertTrue(ffm.contains("title=Hello"))
+        assertTrue(ffm.contains("lyrics=[00:00.00]Hello"))
+        assertTrue("/cache/lyrics_0.ffm" in fs.cleanups)
     }
 
-    @Test fun missing_lyrics_do_not_fail_conversion() = runTest {
-        val ncm = object : StreamingDecoder {
-            override val supportedExtensions = setOf(".ncm")
-            override fun decrypt(input: ByteArray) = error("unused")
-            override fun decrypt(input: InputStream, output: OutputStream, bufferSize: Int): String {
-                input.readBytes(); output.write(ID3); return "mp3"
-            }
-            override fun decryptStreaming(input: InputStream, output: OutputStream, bufferSize: Int): StreamDecryptResult {
-                decrypt(input, output, bufferSize)
-                return StreamDecryptResult("mp3", mapOf("title" to "Hello"), musicId = "1")
-            }
-        }
+    @Test fun lyrics_disabled_writes_no_lrc() = runTest {
+        val ncm = taggedNcm(musicId = "1406472218", tags = mapOf("title" to "Hello"))
         val fs = FakeFileSystemPort(reads = mapOf("uri:ncm" to byteArrayOf(1)))
         val ffmpeg = FakeFfmpegRunner(fs, outputBytes = ID3)
-        val lookup = LyricLookupPort { error("disk exploded") }
-        val engine = ConversionEngine(DecoderRegistry(listOf(ncm)), ffmpeg, fs, RecordingProgressSink(), lyricLookup = lookup)
+        val resolver = NeteaseLyricResolver(
+            enabled = false,
+            extraRoots = emptyList(),
+            fetchJson = { error("fetch must not run when disabled") },
+            open = { _, _ -> error("open must not run when disabled") },
+        )
+        val engine = ConversionEngine(DecoderRegistry(listOf(ncm)), ffmpeg, fs, RecordingProgressSink(), lyricResolver = resolver)
         val result = engine.convertAll(
             ConversionRequest(listOf("uri:ncm"), listOf("song.ncm"), "mp3", "tree:out", null, PLAIN_EXTS),
         ).single()
         assertNull(result.error)
         assertEquals(listOf("song.mp3"), fs.writes.map { it.second })
+        assertNull(ffmpeg.calls.single().metadataFile)
+        assertEquals("Hello", ffmpeg.calls.single().metadata["title"])
+    }
+
+    @Test fun missing_lyrics_do_not_fail_conversion() = runTest {
+        val ncm = taggedNcm(musicId = "1", tags = mapOf("title" to "Hello"))
+        val fs = FakeFileSystemPort(reads = mapOf("uri:ncm" to byteArrayOf(1)))
+        val ffmpeg = FakeFfmpegRunner(fs, outputBytes = ID3)
+        val resolver = LyricResolverPort { error("disk exploded") }
+        val engine = ConversionEngine(DecoderRegistry(listOf(ncm)), ffmpeg, fs, RecordingProgressSink(), lyricResolver = resolver)
+        val result = engine.convertAll(
+            ConversionRequest(listOf("uri:ncm"), listOf("song.ncm"), "mp3", "tree:out", null, PLAIN_EXTS),
+        ).single()
+        assertNull(result.error)
+        assertEquals(listOf("song.mp3"), fs.writes.map { it.second })
+        assertNull(ffmpeg.calls.single().metadataFile)
+    }
+
+    @Test fun wav_writes_sibling_lrc_without_metadataFile() = runTest {
+        val ncm = taggedNcm(musicId = "9", tags = emptyMap(), format = "wav", audio = WAV)
+        val fs = FakeFileSystemPort(reads = mapOf("uri:ncm" to byteArrayOf(1)))
+        val ffmpeg = FakeFfmpegRunner(fs)
+        val resolver = LyricResolverPort { "[00:00.00]Wav" }
+        val engine = ConversionEngine(DecoderRegistry(listOf(ncm)), ffmpeg, fs, RecordingProgressSink(), lyricResolver = resolver)
+        val result = engine.convertAll(
+            ConversionRequest(listOf("uri:ncm"), listOf("song.ncm"), "wav", "tree:out", null, PLAIN_EXTS),
+        ).single()
+        assertNull(result.error)
+        assertTrue("wav with lyrics and no tags must skip ffmpeg", ffmpeg.calls.isEmpty())
+        assertEquals(listOf("song.wav", "song.lrc"), fs.writes.map { it.second })
+        assertEquals("[00:00.00]Wav", fs.writes.first { it.second == "song.lrc" }.third.toString(Charsets.UTF_8))
+    }
+
+    @Test fun same_format_gains_lyrics_remuxes_with_metadataFile() = runTest {
+        val ncm = taggedNcm(musicId = "2", tags = emptyMap())
+        val fs = FakeFileSystemPort(reads = mapOf("uri:ncm" to byteArrayOf(1)))
+        val ffmpeg = FakeFfmpegRunner(fs, outputBytes = ID3)
+        val resolver = LyricResolverPort { "[00:00.00]OnlyLrc" }
+        val engine = ConversionEngine(DecoderRegistry(listOf(ncm)), ffmpeg, fs, RecordingProgressSink(), lyricResolver = resolver)
+        val result = engine.convertAll(
+            ConversionRequest(listOf("uri:ncm"), listOf("song.ncm"), "mp3", "tree:out", null, PLAIN_EXTS),
+        ).single()
+        assertNull(result.error)
+        val call = ffmpeg.calls.single()
+        assertEquals(true, call.copyAudio)
+        assertEquals("/cache/lyrics_0.ffm", call.metadataFile)
+        assertTrue(call.metadata.isEmpty())
+        assertTrue(fs.writes.map { it.second }.containsAll(listOf("song.mp3", "song.lrc")))
+    }
+
+    @Test fun ffmpeg_embed_failure_retries_without_metadataFile() = runTest {
+        val ncm = taggedNcm(musicId = "3", tags = mapOf("title" to "Hello"))
+        val fs = FakeFileSystemPort(reads = mapOf("uri:ncm" to byteArrayOf(1)))
+        var attempts = 0
+        val ffmpeg = FakeFfmpegRunner(fs, outputBytes = ID3, behavior = { _, _, _, _ ->
+            attempts++
+            if (attempts == 1) Result.failure(RuntimeException("embed boom"))
+            else Result.success(Unit)
+        })
+        val resolver = LyricResolverPort { "[00:00.00]Retry" }
+        val engine = ConversionEngine(DecoderRegistry(listOf(ncm)), ffmpeg, fs, RecordingProgressSink(), lyricResolver = resolver)
+        val result = engine.convertAll(
+            ConversionRequest(listOf("uri:ncm"), listOf("song.ncm"), "mp3", "tree:out", null, PLAIN_EXTS),
+        ).single()
+        assertNull(result.error)
+        assertEquals(2, ffmpeg.calls.size)
+        assertEquals("/cache/lyrics_0.ffm", ffmpeg.calls[0].metadataFile)
+        assertNull(ffmpeg.calls[1].metadataFile)
+        assertEquals("Hello", ffmpeg.calls[1].metadata["title"])
+        assertTrue(fs.writes.map { it.second }.contains("song.lrc"))
     }
 
     private fun fakeStreamingDecoder(audio: ByteArray, format: String): StreamingDecoder =
@@ -477,4 +540,22 @@ class ConversionEngineTest {
                 return format
             }
         }
+
+    private fun taggedNcm(
+        musicId: String?,
+        tags: Map<String, String>,
+        format: String = "mp3",
+        audio: ByteArray = ID3,
+        cover: ByteArray? = null,
+    ): StreamingDecoder = object : StreamingDecoder {
+        override val supportedExtensions = setOf(".ncm")
+        override fun decrypt(input: ByteArray) = error("unused")
+        override fun decrypt(input: InputStream, output: OutputStream, bufferSize: Int): String {
+            input.readBytes(); output.write(audio); return format
+        }
+        override fun decryptStreaming(input: InputStream, output: OutputStream, bufferSize: Int): StreamDecryptResult {
+            decrypt(input, output, bufferSize)
+            return StreamDecryptResult(format, tags, cover, musicId)
+        }
+    }
 }

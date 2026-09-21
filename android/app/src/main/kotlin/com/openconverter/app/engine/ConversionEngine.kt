@@ -1,10 +1,10 @@
 package com.openconverter.app.engine
 
-import com.openconverter.app.decoders.Decoder
 import com.openconverter.app.decoders.DecoderRegistry
 import com.openconverter.app.decoders.StreamDecryptResult
 import com.openconverter.app.decoders.StreamingDecoder
 import com.openconverter.app.decoders.kgg.KugouKeySyncManager
+import com.openconverter.app.ffmpeg.Ffmetadata
 import com.openconverter.app.ffmpeg.FfmpegRunner
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
@@ -31,7 +31,7 @@ class ConversionEngine(
     private val fs: FileSystemPort,
     private val sink: ProgressSink,
     private val clock: Clock = SystemClock,
-    private val lyricLookup: LyricLookupPort? = null,
+    private val lyricResolver: LyricResolverPort? = null,
 ) {
     suspend fun convertAll(req: ConversionRequest): List<FileResult> = coroutineScope {
         val total = req.inputUris.size
@@ -56,6 +56,7 @@ class ConversionEngine(
         var inPath: String? = null
         var outPath: String? = null
         var coverPath: String? = null
+        var metaPath: String? = null
         try {
             sink.onFileStart(i, total, displayName)
             coroutineContext.ensureActive()
@@ -129,8 +130,10 @@ class ConversionEngine(
             }
             coroutineContext.ensureActive()
 
-            // Direct write if format already matches, no bitrate change, and no tags/cover sidecar.
-            val hasSidecar = tags.isNotEmpty() || cover != null
+            val lrc = resolveLrcOrNull(musicId)
+            val canEmbedLyrics = !lrc.isNullOrBlank() && req.targetFormat.lowercase() in EMBED_LYRICS_FORMATS
+            // Direct write if format already matches, no bitrate change, and no tags/cover/lyrics sidecar.
+            val hasSidecar = tags.isNotEmpty() || cover != null || canEmbedLyrics
             if (srcFormatExt == req.targetFormat && req.bitrate == null && !hasSidecar) {
                 val outName = outName(displayName, req.targetFormat, decoderMatch?.encryptedExtension)
                 val outDocUri = if (streamedToCache) {
@@ -142,7 +145,7 @@ class ConversionEngine(
                         req.outputFolderUri, outName, mimeFor(req.targetFormat), requireNotNull(audio),
                     )
                 }
-                maybeWriteLrc(req.outputFolderUri, displayName, req.targetFormat, decoderMatch?.encryptedExtension, musicId)
+                writeSiblingLrc(req.outputFolderUri, displayName, req.targetFormat, decoderMatch?.encryptedExtension, lrc)
                 sink.onFileDone(i, outDocUri)
                 return FileResult(i, uri, outDocUri, null)
             }
@@ -163,15 +166,40 @@ class ConversionEngine(
                 val coverExt = com.openconverter.app.meta.NcmTrackMeta.coverExtension(cover)
                 coverPath = fs.cacheFile("cover_${i}.$coverExt", cover)
             }
+            if (canEmbedLyrics) {
+                try {
+                    val meta = LinkedHashMap<String, String>()
+                    meta.putAll(tags)
+                    meta["lyrics"] = lrc!!
+                    metaPath = fs.cacheFile("lyrics_${i}.ffm", Ffmetadata.bytes(meta))
+                } catch (_: Throwable) {
+                    metaPath = null
+                }
+            }
             val copyAudio = srcFormatExt == req.targetFormat && req.bitrate == null
-            val r = ffmpeg.execute(
-                inPath!!, outPath, req.targetFormat, req.bitrate,
+            val inputPath = requireNotNull(inPath)
+            val outputPath = requireNotNull(outPath)
+            var r = ffmpeg.execute(
+                inputPath, outputPath, req.targetFormat, req.bitrate,
                 totalDurationMs = probedMs,
                 onProgress = { p -> sink.onFileProgress(i, p) },
-                metadata = tags,
+                metadata = if (metaPath != null) emptyMap() else tags,
                 coverPath = coverPath,
                 copyAudio = copyAudio,
+                metadataFile = metaPath,
             )
+            if (r.isFailure && metaPath != null && !isInterrupt(r)) {
+                fs.cleanup(outputPath)
+                r = ffmpeg.execute(
+                    inputPath, outputPath, req.targetFormat, req.bitrate,
+                    totalDurationMs = probedMs,
+                    onProgress = { p -> sink.onFileProgress(i, p) },
+                    metadata = tags,
+                    coverPath = coverPath,
+                    copyAudio = copyAudio,
+                    metadataFile = null,
+                )
+            }
             if (r.isFailure) {
                 val msg = r.exceptionOrNull()?.message ?: "ffmpeg failed"
                 sink.onFileError(i, msg)
@@ -181,15 +209,16 @@ class ConversionEngine(
                 req.outputFolderUri,
                 outName(displayName, req.targetFormat, decoderMatch?.encryptedExtension),
                 mimeFor(req.targetFormat),
-                outPath,
+                outputPath,
             )
-            maybeWriteLrc(req.outputFolderUri, displayName, req.targetFormat, decoderMatch?.encryptedExtension, musicId)
+            writeSiblingLrc(req.outputFolderUri, displayName, req.targetFormat, decoderMatch?.encryptedExtension, lrc)
             sink.onFileDone(i, outDocUri)
             return FileResult(i, uri, outDocUri, null)
         } catch (ce: CancellationException) {
             inPath?.let { fs.cleanup(it) }
             outPath?.let { fs.cleanup(it) }
             coverPath?.let { fs.cleanup(it) }
+            metaPath?.let { fs.cleanup(it) }
             throw ce
         } catch (t: Throwable) {
             val msg = t.message ?: t::class.simpleName ?: "error"
@@ -199,26 +228,46 @@ class ConversionEngine(
             inPath?.let { fs.cleanup(it) }
             outPath?.let { fs.cleanup(it) }
             coverPath?.let { fs.cleanup(it) }
+            metaPath?.let { fs.cleanup(it) }
         }
     }
 
-    private fun maybeWriteLrc(
+    private suspend fun resolveLrcOrNull(musicId: String?): String? {
+        val id = musicId ?: return null
+        val resolver = lyricResolver ?: return null
+        return try {
+            resolver.resolveLrc(id)
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
+    private fun writeSiblingLrc(
         folderUri: String,
         displayName: String,
         targetFormat: String,
         encryptedExtension: String?,
-        musicId: String?,
+        lrc: String?,
     ) {
-        val id = musicId ?: return
-        val lookup = lyricLookup ?: return
+        if (lrc.isNullOrBlank()) return
         runCatching {
-            val bytes = lookup.findLrcBytes(id) ?: return
             val audioName = outName(displayName, targetFormat, encryptedExtension)
             val lrcName = audioName.substringBeforeLast('.', audioName) + ".lrc"
             // octet-stream: DocumentsContract.createDocument("text/plain", "song.lrc")
             // becomes song.lrc.txt on some OEM SAF providers (vivo Android 13).
-            fs.writeOutput(folderUri, lrcName, "application/octet-stream", bytes)
+            fs.writeOutput(folderUri, lrcName, "application/octet-stream", lrc.toByteArray(Charsets.UTF_8))
         }
+    }
+
+    private fun isInterrupt(r: Result<*>): Boolean {
+        val ex = r.exceptionOrNull()
+        return ex is CancellationException || ex is InterruptedException
+    }
+
+    private companion object {
+        val EMBED_LYRICS_FORMATS = setOf("mp3", "flac", "m4a")
     }
 }
 
