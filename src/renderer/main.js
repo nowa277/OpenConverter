@@ -404,7 +404,8 @@ async function init() {
   if (cfg.qqCookie) $('qq-cookie-input').value = cfg.qqCookie;
   $('kgg-autoscan-checkbox').checked = !!cfg.kggAutoScan;
   $('ncm-lyrics-enabled').checked = cfg.ncmLyricsEnabled !== false;
-  $('reduce-motion-checkbox').checked = state.reduceMotion;
+  const reduceBoxInit = $('reduce-motion-checkbox');
+  if (reduceBoxInit) reduceBoxInit.checked = state.reduceMotion;
   $('auto-clear-checkbox').checked = state.autoClearDone;
   $('format-select').value = state.format;
   $('quality-select').value = state.quality;
@@ -463,9 +464,10 @@ function bindEvents() {
   });
   api.on('theme:systemChanged', ({ dark }) => { state.systemDark = dark; if (state.theme === 'system') applyTheme(); });
 
-  $('reduce-motion-checkbox').addEventListener('change', (e) => {
+  const reduceBox = $('reduce-motion-checkbox');
+  if (reduceBox) reduceBox.addEventListener('change', (e) => {
     state.reduceMotion = e.target.checked;
-    api.invoke('config:set', { patch: { reduceMotion: state.reduceMotion } });
+    api.invoke('config:set', { patch: { reduceMotion: e.target.checked } });
     applyMotion();
   });
   $('auto-clear-checkbox').addEventListener('change', (e) => {

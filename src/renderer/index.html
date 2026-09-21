@@ -93,42 +93,28 @@
     <main class="main">
       <header class="topbar">
         <h1 class="page-title" id="page-title" data-i18n="title_convert_audio">Convert audio</h1>
-        <div class="topbar-actions">
-          <label class="select">
-            <span class="select-label" data-i18n="label_format">Format</span>
-            <select id="format-select">
+        <div class="page-tools" id="convert-tools">
+          <div class="tool">
+            <span class="tool-kicker" data-i18n="label_format">Format</span>
+            <div id="format-island"></div>
+            <select id="format-select" class="oc-select-proxy" aria-hidden="true" tabindex="-1">
               <option value="mp3">MP3</option>
               <option value="flac">FLAC</option>
               <option value="wav">WAV</option>
               <option value="m4a">M4A / AAC</option>
               <option value="ogg">OGG / Opus</option>
             </select>
-          </label>
-          <label class="select" id="quality-field">
-            <span class="select-label" data-i18n="label_quality">Quality</span>
-            <select id="quality-select">
+          </div>
+          <div class="tool" id="quality-field">
+            <span class="tool-kicker" data-i18n="label_quality">Quality</span>
+            <div id="quality-island"></div>
+            <select id="quality-select" class="oc-select-proxy" aria-hidden="true" tabindex="-1">
               <option value="320k">320 kbps</option>
               <option value="256k">256 kbps</option>
               <option value="192k">192 kbps</option>
               <option value="128k">128 kbps</option>
             </select>
-          </label>
-          <label class="select">
-            <span class="select-label" data-i18n="label_language">Language</span>
-            <select id="language-select">
-              <option value="auto" data-i18n="lang_auto">Auto</option>
-              <option value="en">English</option>
-              <option value="zh">简体中文</option>
-            </select>
-          </label>
-          <label class="select">
-            <span class="select-label" data-i18n="label_theme">Theme</span>
-            <select id="theme-select">
-              <option value="system" data-i18n="theme_system">System</option>
-              <option value="dark" data-i18n="theme_dark">Dark</option>
-              <option value="light" data-i18n="theme_light">Light</option>
-            </select>
-          </label>
+          </div>
         </div>
       </header>
 
@@ -220,7 +206,10 @@
               <div class="list-item stack">
                 <label class="row between">
                   <span data-i18n="ncm_lyrics_title">Fetch lyrics</span>
-                  <input type="checkbox" id="ncm-lyrics-enabled" checked />
+                  <span class="switch-host">
+                    <div id="lyrics-island"></div>
+                    <input type="checkbox" id="ncm-lyrics-enabled" class="oc-select-proxy" checked />
+                  </span>
                 </label>
                 <p class="settings-hint" data-i18n="ncm_lyrics_hint">When converting NetEase tracks, match lyrics and write them into the output. On by default: requests the song id from NetEase. No audio is uploaded. Can be turned off.</p>
               </div>
@@ -231,8 +220,11 @@
               <div class="list-item stack">
                 <div class="row between">
                   <label class="switch-label" id="kgg-autoscan-label">
-                    <input type="checkbox" id="kgg-autoscan-checkbox" class="switch" />
                     <span data-i18n="kgg_autoscan_label">Auto-scan database</span>
+                    <span class="switch-host">
+                      <div id="kgg-autoscan-island"></div>
+                      <input type="checkbox" id="kgg-autoscan-checkbox" class="switch oc-select-proxy" />
+                    </span>
                   </label>
                   <div class="row">
                     <button id="kgg-scan-btn" class="btn btn-secondary" data-i18n="kgg_scan_now_btn">Scan now</button>
@@ -248,19 +240,29 @@
               </div>
             </div>
 
-            <h3 class="list-group-title" data-i18n="appearance_title">Appearance & behaviour</h3>
+            <h3 class="list-group-title" data-i18n="appearance_title">Appearance</h3>
             <div class="list-group">
               <div class="list-item">
-                <label class="switch-label">
-                  <input type="checkbox" id="reduce-motion-checkbox" class="switch" />
-                  <span data-i18n="reduce_motion_label">Reduce motion</span>
-                </label>
+                <span class="tool-kicker" data-i18n="label_language">Language</span>
+                <div id="language-island"></div>
+                <select id="language-select" class="oc-select-proxy" aria-hidden="true" tabindex="-1">
+                  <option value="auto">Auto</option>
+                  <option value="en">English</option>
+                  <option value="zh">简体中文</option>
+                </select>
               </div>
               <div class="list-item">
-                <label class="switch-label">
-                  <input type="checkbox" id="auto-clear-checkbox" class="switch" />
-                  <span data-i18n="auto_clear_label">Remove finished files from the queue automatically</span>
-                </label>
+                <span class="tool-kicker" data-i18n="label_theme">Theme</span>
+                <div id="theme-island"></div>
+                <select id="theme-select" class="oc-select-proxy" aria-hidden="true" tabindex="-1">
+                  <option value="system">System</option>
+                  <option value="dark">Dark</option>
+                  <option value="light">Light</option>
+                </select>
+              </div>
+              <div class="list-item row between">
+                <span data-i18n="auto_clear_label">Remove finished files from the queue automatically</span>
+                <input type="checkbox" id="auto-clear-checkbox" class="switch" />
               </div>
             </div>
           </div>
