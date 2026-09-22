@@ -17,6 +17,13 @@
 [![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=black)](#android-安装)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-D22128?style=for-the-badge)](LICENSE)
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand-wordmark.png">
+    <img src="assets/brand-wordmark-light.png" alt="OpenConverter" width="440">
+  </picture>
+</p>
+
 </div>
 
 ---
@@ -26,11 +33,13 @@
 * **隐私至上**：解密与转码均在本地设备上运行。歌词默认可能按歌曲 id 向网易请求（可在设置关闭）。不上传任何音频数据。
 * **真实音频转码 (FFmpeg)**：并非简单重命名或提取，内置 FFmpeg / FFmpegKit 转码后端，支持转码为 MP3 / FLAC / WAV / M4A / OGG，并可根据需要自由选择输出码率（如 320k, 256k 等）。
 
-### v1.4.3 最新更新（Android 端）：
-* **标签和封面来自 .ncm 文件本身**：曲名 / 歌手 / 专辑和内嵌封面写入 MP3 / FLAC / M4A（WAV/OGG 不嵌封面）。同格式输出会做一次封装，避免丢掉标签。
+### v1.4.4 最新更新（Android 端）：
+* **界面**：底部四个入口改为静止图标；转换页只保留输出目录、目标格式和一块添加区域；队列向左滑可删除。
+* **关于页可更新**：检查 GitHub 上更新的 Android 安装包，下载完成后打开系统安装界面。
+* **网易云歌词**：转换时默认匹配歌词（本机缓存优先，否则按歌曲 id 请求，可在设置关闭）。写出同名 .lrc 并写入 MP3 / FLAC / M4A。不上传音频。找不到歌词不影响转码。
 
-### Android 网易云歌词（未发版）
-* 转换网易云时默认自动匹配歌词：本机公共目录缓存优先，否则按歌曲 id 向网易请求（可在设置关闭）。写出同名 .lrc 并写入 MP3/FLAC/M4A。不上传音频。找不到歌词不影响转码。
+### v1.4.3 更新（Android 端）：
+* **标签和封面来自 .ncm 文件本身**：曲名 / 歌手 / 专辑和内嵌封面写入 MP3 / FLAC / M4A（WAV/OGG 不嵌封面）。同格式输出会做一次封装，避免丢掉标签。
 
 ### v1.4.2 更新（Android 端）：
 * **其余格式也改为流式解密**：`.ncm` / `.kwm` / `.qmc*` / `.mflac` / `.mgg` 不再整文件进堆，网易云 / 酷我 / QQ 音乐大文件同样避免 OOM。
@@ -48,11 +57,12 @@
 * **设置与权限持久化**：输出文件夹 SAF 写入权限（`takePersistableUriPermission` 校验维护）、目标音频格式与比特率持久化保存，应用重启不重置。
 * **设置界面重构**：优化酷狗密钥状态看板，直观展示就绪状态（Direct Root / Ready）与已同步密钥总量。
 
+### v0.3.9 最新更新（桌面端 / CLI）：
+* **界面**：侧栏换成品牌艺术字；格式和音质放在转换页；队列向左滑可删除。
+* **网易云歌词**：转换时默认匹配歌词（本机缓存优先，否则按歌曲 id 请求，可在设置关闭）。写出同名 .lrc 并写入 MP3 / FLAC / M4A。临时失败会重试。不上传音频。找不到歌词不影响转码。
+
 ### v0.3.8 更新（桌面端 / CLI）：
 * **全格式流式解密**：`.ncm` / `.kwm` / `.qmc*` / `.mflac` / `.mgg` / `.kgg` 与已有的 `.kgm` 一样按 64KiB 分块读写，大文件不再整文件读入内存。
-
-### 桌面端网易云歌词（未发版）
-* 转换网易云时默认自动匹配歌词：本机公共目录缓存优先，否则按歌曲 id 向网易请求（可在设置关闭）。写出同名 .lrc 并写入 MP3/FLAC/M4A。不上传音频。找不到歌词不影响转码。
 
 ### v0.3.7 更新（桌面端 / CLI）：
 * **KGM 流式解密**：桌面与 CLI 按 64KiB 分块读写 `.kgm` / `.kgma` / `.vpr`，大文件不再整文件读入内存。
@@ -68,17 +78,25 @@
 
 ## 界面预览
 
-### 桌面端应用界面
+### 桌面端
 <p align="center">
-  <img src="assets/screenshots/new_linux_app.png" alt="Desktop App UI" width="85%" />
+  <img src="assets/screenshots/desktop-convert.png" alt="桌面端转换" width="92%" />
+</p>
+<p align="center">
+  <img src="assets/screenshots/desktop-settings.png" alt="桌面端设置" width="45%" />
+  &nbsp;
+  <img src="assets/screenshots/desktop-about.png" alt="桌面端关于" width="45%" />
 </p>
 
-### Android 移动端应用界面
+### Android
 <p align="center">
-  <img src="assets/screenshots/android_success_queue.png" alt="Android Queue" width="40%" />
-  &nbsp;&nbsp;
-  <img src="assets/screenshots/android_history_screen.png" alt="Android History" width="40%" />
-  &nbsp;&nbsp;
+  <img src="assets/screenshots/android-convert.png" alt="手机端转换" width="24%" />
+  &nbsp;
+  <img src="assets/screenshots/android-queue.png" alt="手机端队列" width="24%" />
+  &nbsp;
+  <img src="assets/screenshots/android-settings.png" alt="手机端设置" width="24%" />
+  &nbsp;
+  <img src="assets/screenshots/android-about.png" alt="手机端关于" width="24%" />
 </p>
 
 ---
@@ -126,23 +144,12 @@ sudo apt install ./openconverter-v***-linux-amd64.deb
 
 从 [Releases 页面](https://github.com/nowa277/OpenConverter/releases) 下载最新的 APK 文件安装：
 
-* **arm64-v8a**：`openconverter-v1.4.3-android-arm64-v8a.apk` (推荐，适合绝大多数现代智能手机)
-* **x86_64**：`openconverter-v1.4.3-android-x86_64.apk` (适合在 Android 模拟器上运行与调试)
+* **arm64-v8a**：`openconverter-v1.4.4-android-arm64-v8a.apk` (推荐，适合绝大多数现代智能手机)
+* **x86_64**：`openconverter-v1.4.4-android-x86_64.apk` (适合在 Android 模拟器上运行与调试)
 
-Android 端 KGG v5 解密依赖对应歌曲的逐曲密钥。在 **v1.4.3** 中，应用支持多种获取途径：
+Android 端 KGG v5 解密依赖对应歌曲的逐曲密钥。当前版本支持：
 1. **已 Root 手机**：进入设置点击“立即同步”，通过原生 Root（KernelSU/APatch/Magisk）全自动拉取本地酷狗 MMKV/SQLite 密钥；
 2. **未 Root 手机**：支持公共存储自动扫描，将备份或导出的 `kgg.key`、`mggkey*` 或 `KGMusicV3.db` 放入 `/sdcard/Download` 或 `/sdcard/Music`，App 将自动发现并解析；也可在设置页通过 SAF 选择器手动导入。密钥仅在应用私有空间保存，绝不上载。
-
-### 自动化解密设置引导与成功演示
-支持酷狗与QQ音乐格式密钥的一键自动获取。在“Settings”页面中可自动扫描内存获取QQ音乐Cookie并拉取解密所需信息，酷狗音乐同样支持一键开启全盘自动扫描密钥功能：
-<p align="center">
-  <img src="assets/screenshots/example.png" alt="Auto Key Fetch Guide" width="85%" />
-</p>
-
-设置成功后，即可直接拖拽加密文件，实现全自动批量解密并转换为常规格式：
-<p align="center">
-  <img src="assets/screenshots/history_presentation.png" alt="Successful Conversion History" width="85%" />
-</p>
 
 > [!IMPORTANT]
 > **Android 端 KGG 解密策略指南：**

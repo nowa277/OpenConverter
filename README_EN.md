@@ -17,6 +17,13 @@ A lightweight format conversion and decryption tool for audio workflows.<br/>
 [![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=black)](#android-installation)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-D22128?style=for-the-badge)](LICENSE)
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand-wordmark.png">
+    <img src="assets/brand-wordmark-light.png" alt="OpenConverter" width="440">
+  </picture>
+</p>
+
 </div>
 
 ---
@@ -26,11 +33,13 @@ A lightweight format conversion and decryption tool for audio workflows.<br/>
 * **Privacy First**: Decryption and transcoding run on the local device. Lyrics may GET the song id unless the switch is off. No audio data is uploaded.
 * **True Audio Transcoding (FFmpeg)**: Not a simple rename or extraction. Built-in FFmpeg / FFmpegKit transcoding backend supports converting to MP3, FLAC, WAV, M4A, and OGG, with customizable output bitrates (e.g., 320 kbps, 256 kbps, etc.).
 
+### What's new in v1.4.4 (Android)
+* **UI**: four static icons along the bottom; the convert page keeps the output folder, target format, and an add area; swipe a queue row left to remove it.
+* **Updates from About**: check GitHub for a newer Android package and open the system installer when the download finishes.
+* **NetEase lyrics**: on by default (local cache first, otherwise a request by song id; Settings can turn it off). Writes a sibling .lrc and embeds it into MP3 / FLAC / M4A. No audio is uploaded. A missing lyric does not fail the conversion.
+
 ### What's new in v1.4.3 (Android)
 * **Tags and cover from the .ncm file**: title / artist / album and the embedded picture are written into MP3 / FLAC / M4A (WAV/OGG skip cover). Same-format output is remuxed so tags are not dropped.
-
-### Android NetEase lyrics (unreleased)
-* NetEase conversions fetch lyrics by default (local public cache first, else song id to NetEase; Settings can disable). Writes a sibling .lrc and embeds into MP3/FLAC/M4A. No audio is uploaded. Missing lyrics do not fail conversion.
 
 ### What's new in v1.4.2 (Android)
 * **Streaming decrypt for the remaining formats**: `.ncm` / `.kwm` / `.qmc*` / `.mflac` / `.mgg` no longer load the whole file into the heap, so large NetEase / Kuwo / QQ Music tracks also avoid OOM.
@@ -48,11 +57,12 @@ A lightweight format conversion and decryption tool for audio workflows.<br/>
 * **Persistent Settings & SAF Permissions**: Preserves output folder SAF write access (via `takePersistableUriPermission`), format preferences, and bitrates across app restarts.
 * **Redesigned Settings Screen**: KuGou key status card now clearly displays readiness (Direct Root / Ready) and total indexed keys.
 
+### What's new in v0.3.9 (desktop / CLI)
+* **UI**: the sidebar uses the brand wordmark; format and quality sit on the convert page; swipe a queue row left to remove it.
+* **NetEase lyrics**: on by default (local cache first, otherwise a request by song id; Settings can turn it off). Writes a sibling .lrc and embeds it into MP3 / FLAC / M4A. A transient miss is retried. No audio is uploaded. A missing lyric does not fail the conversion.
+
 ### What's new in v0.3.8 (desktop / CLI)
 * **Streaming decrypt for every cipher**: `.ncm` / `.kwm` / `.qmc*` / `.mflac` / `.mgg` / `.kgg` now follow the same 64KiB chunked path as `.kgm`, so large files are not read entirely into memory.
-
-### Desktop NetEase lyrics (unreleased)
-* NetEase conversions fetch lyrics by default (local public cache first, else song id to NetEase; Settings can disable). Writes a sibling .lrc and embeds into MP3/FLAC/M4A. No audio is uploaded. Missing lyrics do not fail conversion.
 
 ### What's new in v0.3.7 (desktop / CLI)
 * **Streaming KGM decrypt**: desktop and CLI read/write `.kgm` / `.kgma` / `.vpr` in 64KiB chunks instead of loading the whole file.
@@ -68,17 +78,25 @@ A lightweight format conversion and decryption tool for audio workflows.<br/>
 
 ## UI Preview
 
-### Desktop Application UI
+### Desktop
 <p align="center">
-  <img src="assets/screenshots/new_linux_app.png" alt="Desktop App UI" width="85%" />
+  <img src="assets/screenshots/desktop-convert-en.png" alt="Desktop convert" width="92%" />
+</p>
+<p align="center">
+  <img src="assets/screenshots/desktop-settings-en.png" alt="Desktop settings" width="45%" />
+  &nbsp;
+  <img src="assets/screenshots/desktop-about-en.png" alt="Desktop about" width="45%" />
 </p>
 
-### Android Mobile UI
+### Android
 <p align="center">
-  <img src="assets/screenshots/android_success_queue.png" alt="Android Queue" width="40%" />
-  &nbsp;&nbsp;
-  <img src="assets/screenshots/android_history_screen.png" alt="Android History" width="40%" />
-  &nbsp;&nbsp;
+  <img src="assets/screenshots/android-convert.png" alt="Android convert" width="24%" />
+  &nbsp;
+  <img src="assets/screenshots/android-queue.png" alt="Android queue" width="24%" />
+  &nbsp;
+  <img src="assets/screenshots/android-settings.png" alt="Android settings" width="24%" />
+  &nbsp;
+  <img src="assets/screenshots/android-about.png" alt="Android about" width="24%" />
 </p>
 
 ---
@@ -128,23 +146,12 @@ openconverter
 
 Download the latest APK files from the [Releases page](https://github.com/nowa277/OpenConverter/releases) to install:
 
-* **arm64-v8a**: `openconverter-v1.4.3-android-arm64-v8a.apk` (Recommended, suitable for the vast majority of modern smartphones)
-* **x86_64**: `openconverter-v1.4.3-android-x86_64.apk` (Suitable for running and debugging on Android Emulators)
+* **arm64-v8a**: `openconverter-v1.4.4-android-arm64-v8a.apk` (Recommended, suitable for the vast majority of modern smartphones)
+* **x86_64**: `openconverter-v1.4.4-android-x86_64.apk` (Suitable for running and debugging on Android Emulators)
 
-KGG v5 requires per-track keys. In **v1.4.3**, several automatic mechanisms are available:
+KGG v5 requires per-track keys. The current version supports:
 1. **Rooted Devices**: One-click Direct Root sync via Settings (supports KernelSU / APatch / Magisk) directly extracts MMKV and SQLite keys;
 2. **Non-Rooted Devices**: Automatic public storage scanner scans `/sdcard/Download` or `/sdcard/Music` for `kgg.key` or `KGMusicV3.db`. You can also manually import keys via the system document picker. All keys remain safely on-device.
-
-### Auto Key Fetch Guide and Success Demo
-Supports one-click automatic key acquisition for KuGou and QQ Music formats. In the "Settings" page, you can automatically scan memory to get the QQ Music Cookie and fetch decryption info. KuGou Music also supports one-click full-disk automatic key scanning:
-<p align="center">
-  <img src="assets/screenshots/example.png" alt="Auto Key Fetch Guide" width="85%" />
-</p>
-
-Once successfully configured, you can simply drag and drop encrypted files for fully automated batch decryption and conversion:
-<p align="center">
-  <img src="assets/screenshots/history_presentation.png" alt="Successful Conversion History" width="85%" />
-</p>
 
 > [!IMPORTANT]
 > **Android KGG Decryption Guide:**
