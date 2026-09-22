@@ -49,14 +49,11 @@
 ## 界面预览
 
 <p align="center">
-  <img src="assets/screenshots/desktop-convert.png" alt="桌面端转换" width="49%" />
-  <img src="assets/screenshots/desktop-history.png" alt="桌面端历史" width="49%" /><br>
-  <img src="assets/screenshots/desktop-settings.png" alt="桌面端设置" width="49%" />
-  <img src="assets/screenshots/desktop-about.png" alt="桌面端关于" width="49%" /><br>
-  <img src="assets/screenshots/android-convert.png" alt="手机端转换" width="22%" />
-  <img src="assets/screenshots/android-queue.png" alt="手机端队列" width="22%" />
-  <img src="assets/screenshots/android-settings.png" alt="手机端设置" width="22%" />
-  <img src="assets/screenshots/android-about.png" alt="手机端关于" width="22%" />
+  <img src="assets/screenshots/desktop-convert.png" alt="桌面端转换" width="100%" />
+</p>
+
+<p align="center">
+  <img src="assets/screenshots/android-convert.png" alt="手机端转换" width="280" />
 </p>
 
 ---

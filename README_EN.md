@@ -49,14 +49,11 @@ A lightweight format conversion and decryption tool for audio workflows.<br/>
 ## UI Preview
 
 <p align="center">
-  <img src="assets/screenshots/desktop-convert-en.png" alt="Desktop convert" width="49%" />
-  <img src="assets/screenshots/desktop-history-en.png" alt="Desktop history" width="49%" /><br>
-  <img src="assets/screenshots/desktop-settings-en.png" alt="Desktop settings" width="49%" />
-  <img src="assets/screenshots/desktop-about-en.png" alt="Desktop about" width="49%" /><br>
-  <img src="assets/screenshots/android-convert.png" alt="Android convert" width="22%" />
-  <img src="assets/screenshots/android-queue.png" alt="Android queue" width="22%" />
-  <img src="assets/screenshots/android-settings.png" alt="Android settings" width="22%" />
-  <img src="assets/screenshots/android-about.png" alt="Android about" width="22%" />
+  <img src="assets/screenshots/desktop-convert-en.png" alt="Desktop convert" width="100%" />
+</p>
+
+<p align="center">
+  <img src="assets/screenshots/android-convert.png" alt="Android convert" width="280" />
 </p>
 
 ---
