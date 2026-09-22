@@ -30,49 +30,19 @@
 
 ## 项目介绍
 
-* **隐私至上**：解密与转码均在本地设备上运行。歌词默认可能按歌曲 id 向网易请求（可在设置关闭）。不上传任何音频数据。
-* **真实音频转码 (FFmpeg)**：并非简单重命名或提取，内置 FFmpeg / FFmpegKit 转码后端，支持转码为 MP3 / FLAC / WAV / M4A / OGG，并可根据需要自由选择输出码率（如 320k, 256k 等）。
+* **隐私至上**：解密与转码在本机完成。网易云歌词默认按歌曲 id 请求（设置里可关）。不上传音频。
+* **真实转码**：内置 FFmpeg / FFmpegKit。桌面端输出 MP3 / FLAC / WAV / M4A / OGG；手机端输出 MP3 / FLAC / WAV / M4A。
 
-### v1.4.4 最新更新（Android 端）：
-* **界面**：底部四个入口改为静止图标；转换页只保留输出目录、目标格式和一块添加区域；队列向左滑可删除。
-* **关于页可更新**：检查 GitHub 上更新的 Android 安装包，下载完成后打开系统安装界面。
-* **网易云歌词**：转换时默认匹配歌词（本机缓存优先，否则按歌曲 id 请求，可在设置关闭）。写出同名 .lrc 并写入 MP3 / FLAC / M4A。不上传音频。找不到歌词不影响转码。
+### 桌面端 0.3.9
+* 侧栏是品牌艺术字。格式和音质在转换页，队列左滑删除。
+* 网易云歌曲写入曲名、歌手、专辑和封面，并默认写入歌词。临时失败会重试。找不到歌词不影响转码。
+* 加密文件按块解密。酷狗 `.kgg` 可扫描或导入密钥；QQ 音乐 `.mgg` / `.mflac` 在设置里填写 ekey。
 
-### v1.4.3 更新（Android 端）：
-* **标签和封面来自 .ncm 文件本身**：曲名 / 歌手 / 专辑和内嵌封面写入 MP3 / FLAC / M4A（WAV/OGG 不嵌封面）。同格式输出会做一次封装，避免丢掉标签。
-
-### v1.4.2 更新（Android 端）：
-* **其余格式也改为流式解密**：`.ncm` / `.kwm` / `.qmc*` / `.mflac` / `.mgg` 不再整文件进堆，网易云 / 酷我 / QQ 音乐大文件同样避免 OOM。
-* **KGM / KGG 延续 1.4.1 的流式路径**：`.kgm` / `.kgma` / `.vpr` / `.kgg` 仍按块解密。
-
-### v1.4.1 更新（Android 端）：
-* **大文件不再内存溢出**：`.kgm` / `.kgma` / `.vpr` 改为分块流式解密，35MB+ 歌曲不再整文件进堆。
-* **新版酷狗密钥扫描**：除 `kugou_music_v2.db` 外，同时检索 `mggkey*`、`KGMusicV3.db`，覆盖官方包 / 极速版 / HiFi，并限制单文件读取上限以免二次 OOM。
-
-### v1.4.0 更新（Android 端）：
-* **原生 Root 免 Shizuku 一键同步**：新增直接 Root 提取链，自适应 `su 0`、`su -c`、KernelSU、APatch 及 toybox，已 Root 手机无需配置 Shizuku 即可一键拉取酷狗 MMKV/SQLite 解密密钥。
-* **公共存储密钥自动扫描**：新增 `PublicStorageKeyScanner`，自动检索 `/sdcard/Download`、`/sdcard/Music`、`/sdcard/kgmusic` 等公共目录下的 `kgg.key`、`mggkey*` 及数据库文件并自动提取合并。
-* **转换引擎缺失密钥即时自愈 (Auto-Healing)**：若遇到未提前索引密钥的音频，转换引擎即时触发全源深度扫描并重试解密，大幅提升批量转换成功率。
-* **SAF 选歌路径记忆**：适配 Android DocumentsContract `EXTRA_INITIAL_URI`，选择音频时自动优先定位到上次选歌目录或输出目录，无需重复逐层寻找。
-* **设置与权限持久化**：输出文件夹 SAF 写入权限（`takePersistableUriPermission` 校验维护）、目标音频格式与比特率持久化保存，应用重启不重置。
-* **设置界面重构**：优化酷狗密钥状态看板，直观展示就绪状态（Direct Root / Ready）与已同步密钥总量。
-
-### v0.3.9 最新更新（桌面端 / CLI）：
-* **界面**：侧栏换成品牌艺术字；格式和音质放在转换页；队列向左滑可删除。
-* **网易云歌词**：转换时默认匹配歌词（本机缓存优先，否则按歌曲 id 请求，可在设置关闭）。写出同名 .lrc 并写入 MP3 / FLAC / M4A。临时失败会重试。不上传音频。找不到歌词不影响转码。
-
-### v0.3.8 更新（桌面端 / CLI）：
-* **全格式流式解密**：`.ncm` / `.kwm` / `.qmc*` / `.mflac` / `.mgg` / `.kgg` 与已有的 `.kgm` 一样按 64KiB 分块读写，大文件不再整文件读入内存。
-
-### v0.3.7 更新（桌面端 / CLI）：
-* **KGM 流式解密**：桌面与 CLI 按 64KiB 分块读写 `.kgm` / `.kgma` / `.vpr`，大文件不再整文件读入内存。
-
-### v0.3.6 更新（桌面端）：
-* **更流畅的界面**：队列改为增量渲染（进度条真正平滑过渡），新增页面切换动画、解密阶段闪烁进度、整体进度条、可堆叠的提示气泡、全窗口拖放遮罩；支持 **跟随系统主题**、"减弱动画" 与 "完成后自动清理队列"。
-* **更可控的转换**：转换过程中可 **一键取消**、单文件移除、完成后 **在文件夹中显示**；不再对同格式文件做无意义的有损重编码（mp3→mp3 直接拷贝）；OGG/Opus 320k 会自动限制在 libopus 上限 256k（修复此前必然失败的问题）。
-* **元数据与封面保留**：NCM 内嵌的歌名 / 歌手 / 专辑 / 封面会写入输出文件（含 FLAC / MP3 / M4A），明文音频转码时也会保留原有封面。
-* **性能**：解密在独立 worker 线程中运行，主进程与界面在处理大文件时不再卡顿；ffmpeg 进度改用机器可读的 `-progress` 输出。
-* **修复 QMCv2 解析**：STag 头部文件此前被错误切片导致解密失败；QTag 长度字节序、ekey 字段索引、Base64 校验均已修正，并补齐 100+ 单元 / 集成测试与 GitHub Actions CI。
+### 手机端 1.4.4
+* 底部是四个静止图标。转换页是输出目录、目标格式和添加区域，队列左滑删除。
+* 关于页可以检查并安装更新。
+* 网易云歌曲写入曲名、歌手、专辑、封面和歌词。找不到歌词不影响转码。
+* 加密文件按块解密。酷狗 `.kgg` 可在设置里同步、自动查找或导入密钥。
 
 ---
 
@@ -99,7 +69,7 @@
 | `.kwm` | 酷我音乐 |
 | `.kgm` / `.kgma` / `.vpr` 等 | 酷狗音乐 |
 | `.kgg` / `.kgg.flac` | 酷狗音乐（v5：桌面端支持全盘自动扫描/导入；Android 端支持原生 Root 同步、公共目录扫描及在设置中导入 `kgg.key` / `KGMusicV3.db`） |
-| `.mgg` / `.mgg1` / `.bkc` 等 | QQ音乐 |
+| `.mgg` / `.mgg1` / `.bkc` 等 | QQ 音乐（在设置里填写一次 ekey） |
 | `.mp3` / `.flac` / `.wav` 等明文音频 | 任何平台 |
 
 ---
@@ -113,18 +83,18 @@
 #### Debian / Ubuntu
 ```bash
 # AppImage 安装与运行（推荐）
-chmod +x openconverter-v***-linux-x64.AppImage
-./openconverter-v***-linux-x64.AppImage
+chmod +x openconverter-v0.3.9-linux-x64.AppImage
+./openconverter-v0.3.9-linux-x64.AppImage
 
-# Deb包安装 (注意：OpenConverter 在 Linux 下需要系统 PATH 存在 ffmpeg)
+# Deb 包安装（Linux 需要系统里已有 ffmpeg）
 sudo apt install ffmpeg
-sudo apt install ./openconverter-v***-linux-amd64.deb
+sudo apt install ./openconverter-v0.3.9-linux-amd64.deb
 ```
 
 #### Windows
-* **便携版（推荐）**：`openconverter-v***-windows-x64-portable.exe`
+* **便携版（推荐）**：`openconverter-v0.3.9-windows-x64-portable.exe`
   双击直接运行，可随身携带。
-* **NSIS 安装包**：`openconverter-v***-windows-x64-setup.exe`
+* **NSIS 安装包**：`openconverter-v0.3.9-windows-x64-setup.exe`
   双击根据向导安装。
 * *提示：Windows 端已内置 `ffmpeg.exe` 与 `ffprobe.exe`，无需手动安装 FFmpeg。首次启动若弹出 Windows Defender 未签名提示，点击“更多信息” -> “仍要运行”即可。*
 
@@ -137,14 +107,14 @@ sudo apt install ./openconverter-v***-linux-amd64.deb
 * **arm64-v8a**：`openconverter-v1.4.4-android-arm64-v8a.apk` (推荐，适合绝大多数现代智能手机)
 * **x86_64**：`openconverter-v1.4.4-android-x86_64.apk` (适合在 Android 模拟器上运行与调试)
 
-Android 端 KGG v5 解密依赖对应歌曲的逐曲密钥。当前版本支持：
-1. **已 Root 手机**：进入设置点击“立即同步”，通过原生 Root（KernelSU/APatch/Magisk）全自动拉取本地酷狗 MMKV/SQLite 密钥；
-2. **未 Root 手机**：支持公共存储自动扫描，将备份或导出的 `kgg.key`、`mggkey*` 或 `KGMusicV3.db` 放入 `/sdcard/Download` 或 `/sdcard/Music`，App 将自动发现并解析；也可在设置页通过 SAF 选择器手动导入。密钥仅在应用私有空间保存，绝不上载。
+酷狗 `.kgg` 需要对应歌曲的密钥，只保存在本机：
+1. **已 Root**：设置里打开「自动同步」，或点「同步密钥」。
+2. **未 Root**：把 `kgg.key` 或 `KGMusicV3.db` 放到「下载」或「音乐」，或在设置里点「导入」。
 
 > [!IMPORTANT]
 > **Android 端 KGG 解密策略指南：**
-> 1. **已 Root 设备**：设置页一键原生 Root 同步，即刻解密所有本地 KGG 歌曲。
-> 2. **未 Root 设备**：可将 PC 端酷狗数据库 `KGMusicV3.db`（Windows 路径通常位于 `C:\Users\Public\KuGou\KGMusic\KGMusicV3.db`）或包含 `id,key` 的 `kgg.key` 文本放至手机“下载”或“音乐”目录，打开 App 即可自动扫描收录，亦可在设置页点击“导入数据库/密钥文件”手动选中。
+> 1. **已 Root**：设置里点「同步密钥」，或打开「自动同步」。
+> 2. **未 Root 设备**：把电脑上的 `KGMusicV3.db`（Windows 上通常在 `C:\Users\Public\KuGou\KGMusic\KGMusicV3.db`）或 `kgg.key` 放到手机「下载」或「音乐」，或在设置里点「导入」。
 > 3. **降级方案（可选）**：将手机酷狗音乐降级至早期版本，下载的文件格式为 `.kgm` / `.kgma`，此类格式完全免 Root、免导入，可在 OpenConverter 中直接批量转换。
 
 | 格式后缀 | 对应版本及音质 | 手机端解密是否需要密钥数据库？ | 结论与使用建议 |

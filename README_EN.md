@@ -30,49 +30,19 @@ A lightweight format conversion and decryption tool for audio workflows.<br/>
 
 ## Project Highlights
 
-* **Privacy First**: Decryption and transcoding run on the local device. Lyrics may GET the song id unless the switch is off. No audio data is uploaded.
-* **True Audio Transcoding (FFmpeg)**: Not a simple rename or extraction. Built-in FFmpeg / FFmpegKit transcoding backend supports converting to MP3, FLAC, WAV, M4A, and OGG, with customizable output bitrates (e.g., 320 kbps, 256 kbps, etc.).
+* **Private by default**: decryption and transcoding stay on the device. NetEase lyrics request a song id unless that switch is off. No audio is uploaded.
+* **Real transcoding**: FFmpeg on desktop, FFmpegKit on Android. Desktop writes MP3 / FLAC / WAV / M4A / OGG. Android writes MP3 / FLAC / WAV / M4A.
 
-### What's new in v1.4.4 (Android)
-* **UI**: four static icons along the bottom; the convert page keeps the output folder, target format, and an add area; swipe a queue row left to remove it.
-* **Updates from About**: check GitHub for a newer Android package and open the system installer when the download finishes.
-* **NetEase lyrics**: on by default (local cache first, otherwise a request by song id; Settings can turn it off). Writes a sibling .lrc and embeds it into MP3 / FLAC / M4A. No audio is uploaded. A missing lyric does not fail the conversion.
+### Desktop 0.3.9
+* The sidebar is the brand wordmark. Format and quality sit on the convert page. Swipe a queue row left to remove it.
+* NetEase tracks keep title, artist, album, and cover, and lyrics are written by default. A transient miss is retried. A missing lyric does not fail the conversion.
+* Cipher files are decrypted in chunks. KuGou `.kgg` can be scanned or imported. QQ Music `.mgg` / `.mflac` uses an ekey entered in Settings.
 
-### What's new in v1.4.3 (Android)
-* **Tags and cover from the .ncm file**: title / artist / album and the embedded picture are written into MP3 / FLAC / M4A (WAV/OGG skip cover). Same-format output is remuxed so tags are not dropped.
-
-### What's new in v1.4.2 (Android)
-* **Streaming decrypt for the remaining formats**: `.ncm` / `.kwm` / `.qmc*` / `.mflac` / `.mgg` no longer load the whole file into the heap, so large NetEase / Kuwo / QQ Music tracks also avoid OOM.
-* **KGM / KGG stay streamed**: `.kgm` / `.kgma` / `.vpr` / `.kgg` keep the 1.4.1 chunked path.
-
-### What's new in v1.4.1 (Android)
-* **Large-file OOM fix**: `.kgm` / `.kgma` / `.vpr` now decrypt in a stream, so 35MB+ tracks no longer load the whole file into the heap.
-* **Newer KuGou key locations**: scans `mggkey*`, `KGMusicV3.db`, and `kugou_music_v2.db` across official / lite / HiFi packages, with a 20MB per-file cap.
-
-### What's new in v1.4.0 (Android)
-* **Direct Root Sync (No Shizuku needed)**: Native Root extraction pipeline adapting across `su 0`, `su -c`, KernelSU, APatch, and toybox to extract KuGou MMKV and SQLite decryption keys in one click.
-* **Public Storage Key Auto-Scanner**: Automatically scans `/sdcard/Download`, `/sdcard/Music`, and `/sdcard/kgmusic` for `kgg.key`, `mggkey*`, and database files, parsing and merging keys without manual intervention.
-* **Conversion Engine Missing Key Auto-Healing**: When encountering unindexed audio files during batch conversion, the engine immediately initiates on-demand key scanning and retries decryption.
-* **SAF Document Picker Path Memory**: Implements `EXTRA_INITIAL_URI` support to automatically open the picker in the last selected or output folder.
-* **Persistent Settings & SAF Permissions**: Preserves output folder SAF write access (via `takePersistableUriPermission`), format preferences, and bitrates across app restarts.
-* **Redesigned Settings Screen**: KuGou key status card now clearly displays readiness (Direct Root / Ready) and total indexed keys.
-
-### What's new in v0.3.9 (desktop / CLI)
-* **UI**: the sidebar uses the brand wordmark; format and quality sit on the convert page; swipe a queue row left to remove it.
-* **NetEase lyrics**: on by default (local cache first, otherwise a request by song id; Settings can turn it off). Writes a sibling .lrc and embeds it into MP3 / FLAC / M4A. A transient miss is retried. No audio is uploaded. A missing lyric does not fail the conversion.
-
-### What's new in v0.3.8 (desktop / CLI)
-* **Streaming decrypt for every cipher**: `.ncm` / `.kwm` / `.qmc*` / `.mflac` / `.mgg` / `.kgg` now follow the same 64KiB chunked path as `.kgm`, so large files are not read entirely into memory.
-
-### What's new in v0.3.7 (desktop / CLI)
-* **Streaming KGM decrypt**: desktop and CLI read/write `.kgm` / `.kgma` / `.vpr` in 64KiB chunks instead of loading the whole file.
-
-### What's new in v0.3.6 (desktop)
-* **Smoother UI**: the queue is now rendered incrementally (progress bars really animate), with view transitions, a decrypt-stage shimmer, an overall progress bar, stacked toasts and a full-window drop overlay. Adds **System theme**, *Reduce motion* and *auto-clear finished items*.
-* **More control**: cancel a running batch, remove single files, *Show in folder* for finished items. Same-container inputs are copied instead of being lossy re-encoded (mp3→mp3); OGG/Opus at 320k is clamped to libopus' 256k limit (previously always failed).
-* **Tags & cover art preserved**: NCM title / artist / album / cover are embedded into the output (FLAC / MP3 / M4A); existing cover art survives plain-audio transcodes.
-* **Performance**: decryption runs in a worker thread so the main process and UI stay responsive on large files; ffmpeg progress is parsed from machine-readable `-progress` output.
-* **QMCv2 fixes**: STag-headed files were sliced incorrectly and failed to decrypt; QTag length endianness, ekey field index and base64 validation are fixed, with 100+ unit/integration tests and GitHub Actions CI.
+### Android 1.4.4
+* Four static icons sit on the bottom bar. The convert page is the output folder, the target format, and an add area. Swipe a queue row left to remove it.
+* About can check for an update and open the installer.
+* NetEase tracks keep title, artist, album, cover, and lyrics. A missing lyric does not fail the conversion.
+* Cipher files are decrypted in chunks. KuGou `.kgg` keys can be synced, found automatically, or imported from Settings.
 
 ---
 
@@ -99,7 +69,7 @@ A lightweight format conversion and decryption tool for audio workflows.<br/>
 | `.kwm` | KuWo Music | Direct decryption via local algorithm |
 | `.kgm` / `.kgma` / `.vpr` | KuGou Music / Viper | Direct decryption via local algorithm |
 | `.kgg` / `.kgg.flac` | KuGou Music | Desktop auto-scans disks; Android supports Native Root sync, public storage scanning, and manual import of `kgg.key` / `KGMusicV3.db` |
-| `.mgg` / `.mgg1` / `.bkc` | QQ Music | Requires configuring the **ekey** once in **Settings/More** (a base64 string extracted from the local QQ Music client database), which the app persists via secure storage |
+| `.mgg` / `.mgg1` / `.bkc` | QQ Music | Needs an ekey pasted once in Settings |
 | `.mp3` / `.flac` / `.wav` | Any Platform | Import directly for general format or bitrate transcoding |
 
 ---
@@ -113,20 +83,20 @@ Download the latest installer package for your operating system from the [Releas
 #### Debian / Ubuntu
 ```bash
 # AppImage installation and execution (Recommended)
-chmod +x release/openconverter-v***-linux-x64.AppImage
-./release/openconverter-v***-linux-x64.AppImage
+chmod +x openconverter-v0.3.9-linux-x64.AppImage
+./openconverter-v0.3.9-linux-x64.AppImage
 
-# Deb package installation (Note: OpenConverter on Linux requires ffmpeg in the system PATH)
+# Deb package (Linux needs ffmpeg on PATH)
 sudo apt install ffmpeg
-sudo dpkg -i release/openconverter-v***-linux-amd64.deb
+sudo apt install ./openconverter-v0.3.9-linux-amd64.deb
 sudo apt install -f  # Fix potentially missing dependencies
 openconverter
 ```
 
 #### Windows
-* **Portable Version (Recommended)**: `openconverter-v***-windows-x64-portable.exe`
-  Double-click to run directly, portable.
-* **NSIS Installer**: `openconverter-v***-windows-x64-setup.exe`
+* **Portable (recommended)**: `openconverter-v0.3.9-windows-x64-portable.exe`
+  Double-click to run. Nothing to install.
+* **NSIS installer**: `openconverter-v0.3.9-windows-x64-setup.exe`
   Double-click to install via wizard.
 * *Note: The Windows client has built-in `ffmpeg.exe` and `ffprobe.exe`, so no manual FFmpeg installation is required. If the Windows Defender unsigned prompt pops up on first launch, click "More info" -> "Run anyway".*
 
@@ -139,14 +109,14 @@ Download the latest APK files from the [Releases page](https://github.com/nowa27
 * **arm64-v8a**: `openconverter-v1.4.4-android-arm64-v8a.apk` (Recommended, suitable for the vast majority of modern smartphones)
 * **x86_64**: `openconverter-v1.4.4-android-x86_64.apk` (Suitable for running and debugging on Android Emulators)
 
-KGG v5 requires per-track keys. The current version supports:
-1. **Rooted Devices**: One-click Direct Root sync via Settings (supports KernelSU / APatch / Magisk) directly extracts MMKV and SQLite keys;
-2. **Non-Rooted Devices**: Automatic public storage scanner scans `/sdcard/Download` or `/sdcard/Music` for `kgg.key` or `KGMusicV3.db`. You can also manually import keys via the system document picker. All keys remain safely on-device.
+KuGou `.kgg` needs a per-track key. Keys stay on the phone:
+1. **Rooted**: turn on Auto sync, or tap Sync keys.
+2. **Not rooted**: put `kgg.key` or `KGMusicV3.db` in Download or Music, or tap Import in Settings.
 
 > [!IMPORTANT]
 > **Android KGG Decryption Guide:**
 > 1. **Rooted Phones**: One-tap Native Root sync in Settings unlocks all downloaded KGG tracks immediately.
-> 2. **Non-Rooted Phones**: Copy PC KuGou's `KGMusicV3.db` (usually at `C:\Users\Public\KuGou\KGMusic\KGMusicV3.db`) or exported `kgg.key` text file into your phone's `Download` or `Music` directory. OpenConverter auto-discovers and imports keys upon launch. Manual import via Settings is also supported.
+> 2. **Not rooted**: copy `KGMusicV3.db` (on Windows, often `C:\Users\Public\KuGou\KGMusic\KGMusicV3.db`) or `kgg.key` into Download or Music, or tap Import in Settings.
 > 3. **Downgrade Alternative**: Older KuGou versions download tracks as `.kgm` / `.kgma` without database requirements, allowing instant decryption without root or imports.
 
 ---
