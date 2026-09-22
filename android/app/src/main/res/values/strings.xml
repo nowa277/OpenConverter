@@ -13,7 +13,7 @@
     <string name="home_bitrate_lossless">Lossless</string>
     <string name="home_start">Start conversion</string>
     <string name="home_no_files">No files yet — tap "Add files".</string>
-    <string name="home_no_folder">No output folder — tap "Output folder".</string>
+    <string name="home_no_folder">None</string>
 
     <!-- File card states -->
     <string name="state_pending">Pending</string>
@@ -28,9 +28,13 @@
     <string name="settings_supported">Supported input formats</string>
     <string name="settings_license">Apache License 2.0 — github.com/nowa277/OpenConverter</string>
     <string name="settings_project">Project</string>
-    <string name="settings_source_code">Source code</string>
-    <string name="settings_report_issue">Report an issue</string>
+    <string name="settings_source_code">Source</string>
+    <string name="settings_report_issue">Feedback</string>
     <string name="settings_about_title">About</string>
+    <string name="nav_convert">Convert</string>
+    <string name="nav_history">History</string>
+    <string name="nav_settings">Settings</string>
+    <string name="nav_about">About</string>
     <string name="more_title">More</string>
     <string name="history_menu">History</string>
     <string name="settings_menu">Settings</string>
@@ -52,17 +56,17 @@
     <string name="settings_appearance">Appearance</string>
     <string name="settings_theme">Theme</string>
     <string name="settings_language">Language</string>
-    <string name="settings_kgg_keys_title">KGG keys</string>
-    <string name="settings_kgg_keys_description">Import KGMusicV3.db or kgg.key from a Kugou environment that contains keys for your files. Keys stay in this app on this device.</string>
-    <string name="settings_kgg_keys_total">Stored keys: %1$d</string>
-    <string name="settings_kgg_keys_result">Added %1$d, updated %2$d, total %3$d</string>
-    <string name="settings_kgg_keys_error">Import failed: %1$s</string>
+    <string name="settings_kgg_keys_title">Kugou keys</string>
+    <string name="settings_kgg_keys_description">Import kgg.key or a database</string>
+    <string name="settings_kgg_keys_total">%1$d</string>
+    <string name="settings_kgg_keys_result">+%1$d · %3$d</string>
+    <string name="settings_kgg_keys_error">%1$s</string>
     <string name="settings_kgg_keys_import">Import KGMusicV3.db / kgg.key</string>
     <string name="settings_kgg_keys_importing">Importing…</string>
-    <string name="theme_system">System Default</string>
-    <string name="theme_dark">Dark Mode</string>
-    <string name="theme_light">Light Mode</string>
-    <string name="lang_system">System Default</string>
+    <string name="theme_system">System</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_light">Light</string>
+    <string name="lang_system">System</string>
     <string name="lang_zh">简体中文</string>
     <string name="lang_en">English</string>
     <string name="settings_kgg_keys_sync_btn">Sync KuGou Keys (Root / Auto-Scan)</string>
@@ -72,14 +76,28 @@
 1. Rooted Devices: OpenConverter automatically discovers and synchronizes keys via root access directly — no auxiliary apps needed.
 2. Non-Root Devices: NetEase (NCM) and QQ Music (QMC) convert seamlessly without any configuration. For KuGou (KGG), place an exported kgg.key / mggkey file in your Download or Music folder, and OpenConverter will automatically detect and merge it.</string>
     <string name="settings_kgg_root_guide_ok">OK</string>
-    <string name="settings_kgg_keys_sync_manual">Sync KuGou Keys (Auto-Detect)</string>
-    <string name="settings_kgg_keys_auto_sync_title">Auto Discovery &amp; Silent Sync</string>
-    <string name="settings_kgg_keys_auto_sync_subtitle">Silently check and sync new keys on launch and during conversion</string>
-    <string name="settings_kgg_keys_import_file">Select File (kgg.key / db)</string>
-    <string name="settings_kgg_keys_guide_link">Acquisition Guide</string>
+    <string name="settings_kgg_keys_sync_manual">Sync keys</string>
+    <string name="settings_kgg_keys_auto_sync_title">Auto sync</string>
+    <string name="settings_kgg_keys_auto_sync_subtitle">Look on launch</string>
+    <string name="settings_kgg_keys_import_file">Import</string>
+    <string name="settings_kgg_keys_guide_link">Guide</string>
     <string name="settings_kgg_keys_status_ready">Ready</string>
-    <string name="settings_kgg_keys_status_empty">Not loaded</string>
-    <string name="settings_kgg_sync_failed_no_permission">No Root access detected and no key files found in public storage</string>
-    <string name="settings_ncm_lyrics_title">Fetch lyrics</string>
-    <string name="settings_ncm_lyrics_description">When converting NetEase tracks, match lyrics and write them into the output. On by default: requests the song id from NetEase. No audio is uploaded. Can be turned off.</string>
+    <string name="settings_kgg_keys_status_empty">None</string>
+    <string name="settings_kgg_sync_failed_no_permission">No keys found</string>
+    <string name="settings_ncm_lyrics_title">Lyrics</string>
+    <string name="settings_ncm_lyrics_description">Write into NetEase songs</string>
+    <string name="queue_remove">Remove</string>
+    <string name="queue_pending">Waiting</string>
+    <string name="queue_done">Done</string>
+    <string name="queue_failed">Failed</string>
+    <string name="home_add">Add</string>
+    <string name="about_check">Check</string>
+    <string name="about_update">Update</string>
+    <string name="about_checking">Checking</string>
+    <string name="about_up_to_date">Up to date</string>
+    <string name="about_available">Found %1$s</string>
+    <string name="about_downloading">Downloading</string>
+    <string name="about_update_failed">Update failed</string>
+    <string name="about_no_package">No package</string>
+    <string name="about_need_permission">Allow installs</string>
 </resources>

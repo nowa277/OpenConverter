@@ -11,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /** Tonal premium button — for secondary actions like "Add files". */
@@ -20,6 +21,7 @@ fun PillButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    height: Dp = 48.dp,
 ) {
     Button(
         onClick = onClick,
@@ -29,7 +31,7 @@ fun PillButton(
             containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
             contentColor   = MaterialTheme.colorScheme.primary,
         ),
-        modifier = modifier.height(48.dp),
+        modifier = modifier.height(height),
     ) {
         Text(text, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
     }
@@ -42,6 +44,7 @@ fun GreenCta(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    height: Dp = 56.dp,
 ) {
     Button(
         onClick = onClick,
@@ -51,8 +54,8 @@ fun GreenCta(
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor   = MaterialTheme.colorScheme.onPrimary,
         ),
-        modifier = modifier.height(56.dp),
+        modifier = modifier.height(height),
     ) {
-        Text(text, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+        Text(text, style = MaterialTheme.typography.labelLarge)
     }
 }

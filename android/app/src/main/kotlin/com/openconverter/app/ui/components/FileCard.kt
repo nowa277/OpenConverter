@@ -1,6 +1,5 @@
 package com.openconverter.app.ui.components
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,16 +7,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.ui.res.stringResource
+import com.openconverter.app.R
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
@@ -32,13 +29,11 @@ fun FileCard(
     error: String?,
     modifier: Modifier = Modifier,
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth().padding(vertical = 4.dp),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 14.dp),
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = name,
@@ -59,7 +54,7 @@ fun FileCard(
                 }
                 Text(
                     text = labelFor(state, percent),
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.labelMedium,
                     color = colorFor(state),
                 )
             }
@@ -82,16 +77,15 @@ fun FileCard(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-        }
     }
 }
 
 @Composable
 private fun labelFor(state: FileState, percent: Int) = when (state) {
-    FileState.Pending -> "Pending"
+    FileState.Pending -> stringResource(R.string.queue_pending)
     FileState.Running -> "$percent%"
-    FileState.Done    -> "Done"
-    FileState.Failed  -> "Failed"
+    FileState.Done    -> stringResource(R.string.queue_done)
+    FileState.Failed  -> stringResource(R.string.queue_failed)
 }
 
 @Composable

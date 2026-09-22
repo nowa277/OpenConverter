@@ -7,15 +7,19 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.openconverter.app.ui.about.AboutScreen
+import com.openconverter.app.ui.dock.GlyphDock
 import com.openconverter.app.ui.history.HistoryScreen
 import com.openconverter.app.ui.home.HomeScreen
 import com.openconverter.app.ui.home.HomeViewModel
@@ -65,31 +69,31 @@ class MainActivity : ComponentActivity() {
             }
 
             OpenConverterTheme(darkTheme = darkTheme) {
-                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    var screen by rememberSaveable { mutableStateOf("home") }
-                    when (screen) {
-                        "home" -> HomeScreen(
-                            viewModel = homeVm,
-                            onOpenSettings = { screen = "settings" },
-                            onOpenHistory = { screen = "history" },
-                        )
-                        "settings" -> SettingsScreen(
-                            viewModel = settingsVm,
-                            onBack = { screen = "home" },
-                            themeMode = themeMode,
-                            languageMode = languageMode,
-                            onThemeChanged = { newTheme ->
-                                themeMode = newTheme
-                                appPrefs.edit().putString("theme", newTheme).apply()
-                            },
-                            onLanguageChanged = { newLang ->
-                                languageMode = newLang
-                                appPrefs.edit().putString("language", newLang).apply()
-                                recreate()
-                            }
-                        )
-                        "history" -> HistoryScreen(onBack = { screen = "home" })
+                val settingsState by settingsVm.state.collectAsState()
+                var tab by rememberSaveable { mutableStateOf("convert") }
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                        when (tab) {
+                            "history" -> HistoryScreen()
+                            "settings" -> SettingsScreen(
+                                viewModel = settingsVm,
+                                themeMode = themeMode,
+                                languageMode = languageMode,
+                                onThemeChanged = { newTheme ->
+                                    themeMode = newTheme
+                                    appPrefs.edit().putString("theme", newTheme).apply()
+                                },
+                                onLanguageChanged = { newLang ->
+                                    languageMode = newLang
+                                    appPrefs.edit().putString("language", newLang).apply()
+                                    recreate()
+                                },
+                            )
+                            "about" -> AboutScreen(versionName = settingsState.versionName)
+                            else -> HomeScreen(viewModel = homeVm)
+                        }
                     }
+                    GlyphDock(selected = tab, onSelect = { tab = it })
                 }
             }
         }

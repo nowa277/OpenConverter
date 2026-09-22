@@ -13,7 +13,7 @@
     <string name="home_bitrate_lossless">无损</string>
     <string name="home_start">开始转换</string>
     <string name="home_no_files">暂无文件 — 请点击“添加文件”。</string>
-    <string name="home_no_folder">未设置输出目录 — 请点击“输出目录”。</string>
+    <string name="home_no_folder">未选择</string>
 
     <!-- File card states -->
     <string name="state_pending">等待中</string>
@@ -28,9 +28,13 @@
     <string name="settings_supported">支持的导入格式</string>
     <string name="settings_license">Apache License 2.0 — github.com/nowa277/OpenConverter</string>
     <string name="settings_project">项目</string>
-    <string name="settings_source_code">源码仓库</string>
-    <string name="settings_report_issue">报告问题</string>
+    <string name="settings_source_code">源码</string>
+    <string name="settings_report_issue">反馈</string>
     <string name="settings_about_title">关于</string>
+    <string name="nav_convert">转换</string>
+    <string name="nav_history">历史记录</string>
+    <string name="nav_settings">设置</string>
+    <string name="nav_about">关于</string>
     <string name="more_title">更多</string>
     <string name="history_menu">历史记录</string>
     <string name="settings_menu">设置</string>
@@ -49,20 +53,20 @@
     <string name="history_status_failed">失败</string>
     <string name="cancel_action">取消</string>
     <!-- Settings Appearance -->
-    <string name="settings_appearance">界面外观</string>
-    <string name="settings_theme">主题模式</string>
-    <string name="settings_language">界面语言</string>
-    <string name="settings_kgg_keys_title">KGG 密钥</string>
-    <string name="settings_kgg_keys_description">导入包含对应歌曲密钥的酷狗 KGMusicV3.db 或 kgg.key。密钥仅保存在本设备的应用沙箱内。</string>
-    <string name="settings_kgg_keys_total">已保存密钥：%1$d</string>
-    <string name="settings_kgg_keys_result">新增 %1$d，更新 %2$d，当前共 %3$d</string>
-    <string name="settings_kgg_keys_error">导入失败：%1$s</string>
+    <string name="settings_appearance">外观</string>
+    <string name="settings_theme">主题</string>
+    <string name="settings_language">语言</string>
+    <string name="settings_kgg_keys_title">酷狗密钥</string>
+    <string name="settings_kgg_keys_description">导入 kgg.key 或数据库</string>
+    <string name="settings_kgg_keys_total">%1$d 个</string>
+    <string name="settings_kgg_keys_result">+%1$d · %3$d</string>
+    <string name="settings_kgg_keys_error">%1$s</string>
     <string name="settings_kgg_keys_import">导入 KGMusicV3.db / kgg.key</string>
     <string name="settings_kgg_keys_importing">正在导入…</string>
-    <string name="theme_system">跟随系统</string>
-    <string name="theme_dark">深色模式</string>
-    <string name="theme_light">浅色模式</string>
-    <string name="lang_system">跟随系统</string>
+    <string name="theme_system">系统</string>
+    <string name="theme_dark">深色</string>
+    <string name="theme_light">浅色</string>
+    <string name="lang_system">系统</string>
     <string name="lang_zh">简体中文</string>
     <string name="lang_en">English</string>
     <string name="settings_kgg_keys_sync_btn">同步酷狗密钥 (Root / 自动扫描)</string>
@@ -72,14 +76,28 @@
 1. 已 Root 设备：应用将自动直接提权读取酷狗密钥，完全无需安装任何辅助工具。
 2. 免 Root 设备：网易云与 QQ 音乐无需任何配置即可直接转换；酷狗音乐若需转换，可将电脑端或备份中的 kgg.key / mggkey 文件放入 Download 或 Music 目录，应用将自动识别合并，或点击下方导入。</string>
     <string name="settings_kgg_root_guide_ok">我知道了</string>
-    <string name="settings_kgg_keys_sync_manual">立即同步酷狗密钥 (自动探测)</string>
-    <string name="settings_kgg_keys_auto_sync_title">自动发现与静默同步</string>
-    <string name="settings_kgg_keys_auto_sync_subtitle">启动与转换时自动探测 Root 与公共目录中的新密钥</string>
-    <string name="settings_kgg_keys_import_file">手动选择文件 (kgg.key / db)</string>
-    <string name="settings_kgg_keys_guide_link">获取与指引</string>
-    <string name="settings_kgg_keys_status_ready">已就绪</string>
-    <string name="settings_kgg_keys_status_empty">未加载</string>
-    <string name="settings_kgg_sync_failed_no_permission">未检测到 Root 权限或公共目录下暂无可用的密钥文件</string>
-    <string name="settings_ncm_lyrics_title">获取歌词</string>
-    <string name="settings_ncm_lyrics_description">转换网易云歌曲时自动匹配歌词并写入音频。默认会向网易请求歌曲 id，可关闭。不上传音频。</string>
+    <string name="settings_kgg_keys_sync_manual">同步密钥</string>
+    <string name="settings_kgg_keys_auto_sync_title">自动同步</string>
+    <string name="settings_kgg_keys_auto_sync_subtitle">启动时查找</string>
+    <string name="settings_kgg_keys_import_file">导入</string>
+    <string name="settings_kgg_keys_guide_link">说明</string>
+    <string name="settings_kgg_keys_status_ready">就绪</string>
+    <string name="settings_kgg_keys_status_empty">无</string>
+    <string name="settings_kgg_sync_failed_no_permission">未找到密钥</string>
+    <string name="settings_ncm_lyrics_title">歌词</string>
+    <string name="settings_ncm_lyrics_description">写入网易云歌曲</string>
+    <string name="queue_remove">删除</string>
+    <string name="queue_pending">等待</string>
+    <string name="queue_done">完成</string>
+    <string name="queue_failed">失败</string>
+    <string name="home_add">添加</string>
+    <string name="about_check">检查更新</string>
+    <string name="about_update">一键更新</string>
+    <string name="about_checking">检查中</string>
+    <string name="about_up_to_date">已是最新</string>
+    <string name="about_available">发现 %1$s</string>
+    <string name="about_downloading">下载中</string>
+    <string name="about_update_failed">更新失败</string>
+    <string name="about_no_package">暂无安装包</string>
+    <string name="about_need_permission">请允许安装</string>
 </resources>

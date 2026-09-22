@@ -13,7 +13,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -58,9 +62,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.openconverter.app.R
 import com.openconverter.app.ui.theme.OcBackground
 import com.openconverter.app.ui.theme.OcOnPrimary
@@ -72,7 +74,6 @@ import com.openconverter.app.ui.theme.OcSurfaceVariant
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
-    onBack: () -> Unit,
     themeMode: String,
     languageMode: String,
     onThemeChanged: (String) -> Unit,
@@ -98,12 +99,7 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.titleMedium) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
+                title = { Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineSmall) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                     titleContentColor = MaterialTheme.colorScheme.onBackground,
@@ -112,33 +108,18 @@ fun SettingsScreen(
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxWidth().padding(padding).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            item {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    Icon(
-                        painterResource(R.drawable.ic_logo),
-                        contentDescription = null,
-                        tint = Color.Unspecified,
-                        modifier = Modifier.size(96.dp),
-                    )
-                    Text("OpenConverter", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Text(
-                        "Version ${s.versionName}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
             item {
                 Text(
                     stringResource(R.string.settings_ncm_lyrics_title),
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp),
+                    style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
+                    modifier = Modifier.padding(start = 4.dp, bottom = 10.dp)
                 )
                 Card(
                     shape = RoundedCornerShape(14.dp),
@@ -153,19 +134,12 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                            Text(
-                                stringResource(R.string.settings_ncm_lyrics_title),
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                stringResource(R.string.settings_ncm_lyrics_description),
-                                style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                        Text(
+                            stringResource(R.string.settings_ncm_lyrics_description),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f).padding(end = 12.dp),
+                        )
                         Switch(
                             checked = ncmLyricsEnabled,
                             onCheckedChange = {
@@ -186,9 +160,9 @@ fun SettingsScreen(
             item {
                 Text(
                     stringResource(R.string.settings_kgg_keys_title),
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp),
+                    style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
+                    modifier = Modifier.padding(start = 4.dp, bottom = 10.dp)
                 )
                 Card(
                     shape = RoundedCornerShape(14.dp),
@@ -200,11 +174,6 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth().padding(18.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
-                        Text(
-                            stringResource(R.string.settings_kgg_keys_description),
-                            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -280,19 +249,12 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                                Text(
-                                    stringResource(R.string.settings_kgg_keys_auto_sync_title),
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    stringResource(R.string.settings_kgg_keys_auto_sync_subtitle),
-                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                            Text(
+                                stringResource(R.string.settings_kgg_keys_auto_sync_title),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.weight(1f).padding(end = 12.dp),
+                            )
                             Switch(
                                 checked = autoSyncEnabled,
                                 onCheckedChange = {
@@ -350,7 +312,12 @@ fun SettingsScreen(
                 }
             }
             item {
-                Text(stringResource(R.string.settings_appearance), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    stringResource(R.string.settings_appearance),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 10.dp),
+                )
                 Card(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -372,7 +339,7 @@ fun SettingsScreen(
                                     else -> stringResource(R.string.theme_system)
                                 }
                                 Text(
-                                    text = "$themeText  ▼",
+                                    text = themeText,
                                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                                     color = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.clickable { showThemeMenu = true }
@@ -425,7 +392,7 @@ fun SettingsScreen(
                                     else -> stringResource(R.string.lang_system)
                                 }
                                 Text(
-                                    text = "$langText  ▼",
+                                    text = langText,
                                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                                     color = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.clickable { showLangMenu = true }
@@ -462,7 +429,12 @@ fun SettingsScreen(
                 }
             }
             item {
-                Text(stringResource(R.string.settings_project), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    stringResource(R.string.settings_project),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 10.dp),
+                )
                 Card(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -474,10 +446,11 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth().clickable { openUrl(s.githubUrl) }.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(stringResource(R.string.settings_source_code), style = MaterialTheme.typography.bodyLarge)
-                                Text(s.githubUrl, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
+                            Text(
+                                stringResource(R.string.settings_source_code),
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.weight(1f),
+                            )
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                                 contentDescription = null,
@@ -488,10 +461,11 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth().clickable { openUrl(s.issuesUrl) }.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(stringResource(R.string.settings_report_issue), style = MaterialTheme.typography.bodyLarge)
-                                Text(s.issuesUrl, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
+                            Text(
+                                stringResource(R.string.settings_report_issue),
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.weight(1f),
+                            )
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                                 contentDescription = null,
@@ -501,29 +475,14 @@ fun SettingsScreen(
                     }
                 }
             }
-            item {
-                Text(stringResource(R.string.settings_about_title), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Card(
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        stringResource(R.string.settings_about),
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(16.dp),
-                    )
-                }
-            }
         }
     }
 
     if (showRootGuide) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showRootGuide = false },
-            title = { Text(stringResource(R.string.settings_kgg_root_guide_title)) },
-            text = { Text(stringResource(R.string.settings_kgg_root_guide_content)) },
+            title = { Text(stringResource(R.string.settings_kgg_root_guide_title), style = MaterialTheme.typography.titleMedium) },
+            text = { Text(stringResource(R.string.settings_kgg_root_guide_content), style = MaterialTheme.typography.bodySmall) },
             confirmButton = {
                 androidx.compose.material3.TextButton(onClick = { showRootGuide = false }) {
                     Text(stringResource(R.string.settings_kgg_root_guide_ok))

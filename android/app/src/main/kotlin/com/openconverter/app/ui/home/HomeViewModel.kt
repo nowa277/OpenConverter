@@ -224,6 +224,15 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         ContextCompat.startForegroundService(context, cancel)
     }
 
+    fun removeFile(uri: String): Boolean {
+        val current = _state.value
+        if (current.running) return false
+        val target = current.files.find { it.uri == uri } ?: return false
+        if (target.state == FileState.Running) return false
+        _state.update { it.copy(files = it.files.filterNot { file -> file.uri == uri }) }
+        return true
+    }
+
     fun clearFiles() {
         _state.update {
             it.copy(

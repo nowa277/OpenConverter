@@ -7,7 +7,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -50,7 +54,6 @@ import com.openconverter.app.ui.theme.OcPrimary
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
-    onBack: () -> Unit,
     vm: HistoryViewModel = viewModel(),
 ) {
     val state by vm.state.collectAsState()
@@ -59,12 +62,7 @@ fun HistoryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.history_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
+                title = { Text(stringResource(R.string.history_title), style = MaterialTheme.typography.headlineSmall) },
                 actions = {
                     TextButton(onClick = { confirmClear = true }) {
                         Text(stringResource(R.string.history_clear))
@@ -73,6 +71,7 @@ fun HistoryScreen(
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
     ) { inner ->
         Box(modifier = Modifier.fillMaxSize().padding(inner)) {
             if (state.records.isEmpty()) {
@@ -82,6 +81,7 @@ fun HistoryScreen(
                 ) {
                     Text(
                         stringResource(R.string.history_empty),
+                        style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -119,27 +119,27 @@ fun HistoryScreen(
                             ) {
                                 Text(
                                     text = r.targetFormat.uppercase(),
-                                    style = MaterialTheme.typography.bodySmall,
+                                    style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
                                     text = "·",
-                                    style = MaterialTheme.typography.bodySmall,
+                                    style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
                                     text = statusText,
-                                    style = MaterialTheme.typography.bodySmall,
+                                    style = MaterialTheme.typography.labelMedium,
                                     color = statusColor
                                 )
                                 Text(
                                     text = "·",
-                                    style = MaterialTheme.typography.bodySmall,
+                                    style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
                                     text = dateStr,
-                                    style = MaterialTheme.typography.bodySmall,
+                                    style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -159,8 +159,8 @@ fun HistoryScreen(
     if (confirmClear) {
         AlertDialog(
             onDismissRequest = { confirmClear = false },
-            title = { Text(stringResource(R.string.history_clear_confirm_title)) },
-            text  = { Text(stringResource(R.string.history_clear_confirm_msg)) },
+            title = { Text(stringResource(R.string.history_clear_confirm_title), style = MaterialTheme.typography.titleMedium) },
+            text  = { Text(stringResource(R.string.history_clear_confirm_msg), style = MaterialTheme.typography.bodySmall) },
             confirmButton = {
                 TextButton(onClick = {
                     confirmClear = false

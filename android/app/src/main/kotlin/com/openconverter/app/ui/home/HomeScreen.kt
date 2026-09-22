@@ -2,32 +2,25 @@ package com.openconverter.app.ui.home
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
@@ -45,7 +38,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -58,7 +55,7 @@ import com.openconverter.app.ui.components.FileCard
 import com.openconverter.app.ui.components.FileState
 import com.openconverter.app.ui.components.FormatChip
 import com.openconverter.app.ui.components.GreenCta
-import com.openconverter.app.ui.components.PillButton
+import com.openconverter.app.ui.components.SwipeRow
 
 private val FORMATS = listOf("mp3", "flac", "wav", "m4a")
 private val BITRATES = listOf("128k", "192k", "320k")
@@ -67,8 +64,6 @@ private val BITRATES = listOf("128k", "192k", "320k")
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
-    onOpenSettings: () -> Unit,
-    onOpenHistory: () -> Unit,
 ) {
     val state by viewModel.state.collectAsState()
     val ctx = LocalContext.current
@@ -87,52 +82,17 @@ fun HomeScreen(
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    var menuOpen by remember { mutableStateOf(false) }
-
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            painterResource(R.drawable.ic_logo),
-                            contentDescription = null,
-                            tint = Color.Unspecified,
-                            modifier = Modifier.height(22.dp),
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium)
-                    }
-                },
-                actions = {
-                    Box {
-                        IconButton(onClick = { menuOpen = true }) {
-                            Icon(
-                                imageVector = Icons.Default.MoreVert,
-                                contentDescription = stringResource(R.string.more_title),
-                                tint = MaterialTheme.colorScheme.onBackground
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = menuOpen,
-                            onDismissRequest = { menuOpen = false },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.settings_menu)) },
-                                onClick = {
-                                    menuOpen = false
-                                    onOpenSettings()
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.history_menu)) },
-                                onClick = {
-                                    menuOpen = false
-                                    onOpenHistory()
-                                },
-                            )
-                        }
-                    }
+                    val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+                    androidx.compose.foundation.Image(
+                        painter = painterResource(if (dark) R.drawable.brand_wordmark else R.drawable.brand_wordmark_light),
+                        contentDescription = stringResource(R.string.app_name),
+                        modifier = Modifier.height(28.dp),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                    )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
@@ -147,7 +107,7 @@ fun HomeScreen(
                 // Single-button tri-state CTA: Start → Cancel → Clear
                 // Hide entirely when no files queued (the empty-state message handles that).
                 Box(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
                 ) {
                     when {
                         s.running -> {
@@ -185,95 +145,93 @@ fun HomeScreen(
             }
         },
         containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp),
         ) {
             Spacer(Modifier.height(8.dp))
-            if (state.files.isNotEmpty()) {
-                PillButton(
-                    text = stringResource(R.string.home_pick_files),
-                    onClick = { pickFiles.launch(viewModel.getLastFolderUri()) },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(8.dp))
-            }
-            
-            // Configuration Card Group
-            androidx.compose.material3.Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = androidx.compose.material3.CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column {
-                    // Output folder row
-                    val folderValue = state.folderError
-                        ?: state.outputFolderName
-                        ?: stringResource(R.string.home_no_folder)
-                    SummaryRow(
-                        icon = Icons.Default.Folder,
-                        label = stringResource(R.string.home_pick_folder),
-                        value = folderValue,
-                        muted = state.outputFolderUri == null,
-                        onClick = { pickFolder.launch(state.outputFolderUri?.let { Uri.parse(it) }) },
-                    )
-                    
-                    androidx.compose.material3.HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                    )
-                    
-                    // Format / bitrate row
-                    val fmtLabel = state.targetFormat.uppercase()
-                    val brLabel = state.bitrate ?: stringResource(R.string.home_bitrate_lossless)
-                    SummaryRow(
-                        icon = Icons.Default.Settings,
-                        label = stringResource(R.string.home_target_format),
-                        value = "$fmtLabel · $brLabel",
-                        muted = false,
-                        onClick = { viewModel.openControlsSheet() },
-                    )
-                }
-            }
-            
+            val folderValue = state.folderError
+                ?: state.outputFolderName
+                ?: stringResource(R.string.home_no_folder)
+            QuietRow(
+                label = stringResource(R.string.home_pick_folder),
+                value = folderValue,
+                muted = state.outputFolderUri == null && state.folderError == null,
+                onClick = { pickFolder.launch(state.outputFolderUri?.let { Uri.parse(it) }) },
+            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f))
+            val fmtLabel = state.targetFormat.uppercase()
+            val brLabel = state.bitrate ?: stringResource(R.string.home_bitrate_lossless)
+            QuietRow(
+                label = stringResource(R.string.home_target_format),
+                value = "$fmtLabel · $brLabel",
+                muted = false,
+                onClick = { viewModel.openControlsSheet() },
+            )
             state.folderError?.let { err ->
                 Text(
                     text = err,
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                    modifier = Modifier.padding(bottom = 8.dp),
                 )
             }
-            Spacer(Modifier.height(8.dp))
 
             if (state.files.isEmpty()) {
+                val dash = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
                 Box(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(vertical = 28.dp)
+                        .clickable { pickFiles.launch(viewModel.getLastFolderUri()) }
+                        .drawBehind {
+                            drawRoundRect(
+                                color = dash,
+                                style = Stroke(
+                                    width = 1.dp.toPx(),
+                                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f)),
+                                ),
+                                cornerRadius = CornerRadius(16.dp.toPx()),
+                            )
+                        },
                     contentAlignment = Alignment.Center,
                 ) {
-                    PillButton(
-                        text = stringResource(R.string.home_pick_files),
-                        onClick = { pickFiles.launch(viewModel.getLastFolderUri()) },
-                        modifier = Modifier.fillMaxWidth(0.6f)
+                    Text(
+                        stringResource(R.string.home_pick_files),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    items(state.files, key = { it.uri }) { f ->
-                        FileCard(
-                            name = f.displayName,
-                            sizeBytes = f.sizeBytes,
-                            state = f.state,
-                            percent = f.percent,
-                            error = f.error,
+                    TextButton(onClick = { pickFiles.launch(viewModel.getLastFolderUri()) }) {
+                        Text(
+                            stringResource(R.string.home_add),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
                         )
+                    }
+                }
+                LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                    itemsIndexed(state.files, key = { _, f -> f.uri }) { index, f ->
+                        if (index > 0) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f))
+                        }
+                        SwipeRow(onRemove = { viewModel.removeFile(f.uri) }) {
+                            FileCard(
+                                name = f.displayName,
+                                sizeBytes = f.sizeBytes,
+                                state = f.state,
+                                percent = f.percent,
+                                error = f.error,
+                            )
+                        }
                     }
                 }
             }
@@ -343,42 +301,32 @@ fun HomeScreen(
 }
 
 @Composable
-private fun SummaryRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+private fun QuietRow(
     label: String,
     value: String,
     muted: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
-    val valueColor = if (muted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onBackground
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(24.dp)
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(88.dp),
         )
-        Column(modifier = Modifier.weight(1f)) {
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(
-                value,
-                style = MaterialTheme.typography.bodyLarge,
-                color = valueColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (muted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onBackground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
         )
     }
 }
