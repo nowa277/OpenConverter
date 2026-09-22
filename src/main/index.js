@@ -21,7 +21,7 @@
  *
  * Push events to the renderer: convert:progress, win:maximizedChanged.
  */
-const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme, Menu } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -59,6 +59,8 @@ function send(channel, payload) {
 
 function createWindow() {
   if (mainWindow) return mainWindow;
+  // The packaged window has no File / Edit / View / Window / Help menu.
+  Menu.setApplicationMenu(null);
   mainWindow = new BrowserWindow({
     width: 1100,
     height: 720,

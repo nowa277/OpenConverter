@@ -147,24 +147,11 @@ html[data-os="mac"] .window-bar-controls { order: 0; }
   display: flex; flex-direction: column;
   padding: 20px 12px;
 }
-.brand { display: flex; align-items: center; gap: 12px; padding: 8px 12px 24px; }
-.brand-mark { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.brand-mark svg { display: block; }
-.brand-bars rect { transform-box: fill-box; transform-origin: center bottom; }
-.brand-mark:hover .brand-bars rect { animation: eq 900ms var(--ease-out) infinite alternate; }
-.brand-bars rect:nth-child(2) { animation-delay: 100ms; }
-.brand-bars rect:nth-child(3) { animation-delay: 200ms; }
-.brand-bars rect:nth-child(4) { animation-delay: 300ms; }
-.brand-bars rect:nth-child(5) { animation-delay: 400ms; }
-@keyframes eq { from { transform: scaleY(0.55); } to { transform: scaleY(1); } }
-.brand-word {
-  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
-  font-weight: 600;
-  font-size: 16px;
-  letter-spacing: -0.04em;
-  text-transform: lowercase;
-  color: var(--text);
-}
+.brand { padding: 4px 0 20px; }
+.brand-logo { display: block; width: 100%; height: auto; }
+.brand-logo-light { display: none; }
+body.light .brand-logo-dark { display: none; }
+body.light .brand-logo-light { display: block; }
 
 .nav { position: relative; display: flex; flex-direction: column; gap: 2px; }
 .nav-indicator {
@@ -197,9 +184,11 @@ html[data-os="mac"] .window-bar-controls { order: 0; }
   background: var(--accent); pointer-events: none; z-index: 0;
 }
 .pill-label-hover {
-  position: absolute; inset: 0; display: flex; align-items: center; gap: 8px;
-  padding-left: 14px; color: #121212; font-weight: 700; pointer-events: none; z-index: 2;
+  position: absolute; top: 0; bottom: 0; left: 38px; right: 12px;
+  display: flex; align-items: center;
+  color: #121212; font-weight: 700; pointer-events: none; z-index: 2;
 }
+.nav-item.active .pill-label-hover { visibility: hidden; }
 .nav-item > svg, .nav-item > span[data-i18n] { position: relative; z-index: 1; }
 .nav-badge {
   margin-left: auto; min-width: 18px; height: 18px; padding: 0 6px;

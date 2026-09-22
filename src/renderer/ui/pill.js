@@ -44,6 +44,14 @@ export function mountPills() {
   layout();
   window.addEventListener('resize', layout);
 
+  const rest = (pill, index) => {
+    const label = pill.querySelector('span[data-i18n]');
+    const hover = pill.querySelector('.pill-label-hover');
+    timelines[index]?.pause(0);
+    if (label) gsap.set(label, { y: 0 });
+    if (hover) gsap.set(hover, { y: 100, opacity: 0 });
+  };
+
   buttons.forEach((pill, index) => {
     pill.addEventListener('mouseenter', () => {
       if (pill.classList.contains('active')) return;
@@ -52,6 +60,7 @@ export function mountPills() {
     pill.addEventListener('mouseleave', () => {
       timelines[index]?.tweenTo(0, { duration: 0.2, ease: 'power3.easeOut' });
     });
+    pill.addEventListener('click', () => rest(pill, index));
   });
 }
 

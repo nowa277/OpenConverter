@@ -36,6 +36,35 @@ test('cache hit does not call http', async () => {
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+test('transient fetch failure is retried', async () => {
+  let calls = 0;
+  const lrc = await resolveLrc({
+    musicId: '1', enabled: true, attempts: 3, delayMs: 0,
+    fetchJson: async () => {
+      calls += 1;
+      if (calls < 2) return null;
+      return '{"lrc":{"lyric":"[00:00.00]Hi"}}';
+    },
+    listRoots: () => [],
+  });
+  assert.strictEqual(calls, 2);
+  assert.strictEqual(lrc, '[00:00.00]Hi');
+});
+
+test('empty lyric JSON is not retried', async () => {
+  let calls = 0;
+  const lrc = await resolveLrc({
+    musicId: '1', enabled: true, attempts: 3, delayMs: 0,
+    fetchJson: async () => {
+      calls += 1;
+      return '{"code":200,"lrc":{"lyric":""}}';
+    },
+    listRoots: () => [],
+  });
+  assert.strictEqual(calls, 1);
+  assert.strictEqual(lrc, null);
+});
+
 test('cache miss uses API lyric field', async () => {
   const lrc = await resolveLrc({
     musicId: '1', enabled: true,
