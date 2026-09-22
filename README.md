@@ -1,6 +1,11 @@
 <div align="center">
 
-# OpenConverter
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand-wordmark.png">
+    <img src="assets/brand-wordmark-light.png" alt="OpenConverter" width="440">
+  </picture>
+</p>
 
 ### 跨平台轻量级音频格式转换与本地解码工具链
 
@@ -16,13 +21,6 @@
 [![Windows](https://img.shields.io/badge/Windows-0078D4?style=for-the-badge&logo=windows11&logoColor=white)](#desktop-安装)
 [![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=black)](#android-安装)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-D22128?style=for-the-badge)](LICENSE)
-
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/brand-wordmark.png">
-    <img src="assets/brand-wordmark-light.png" alt="OpenConverter" width="440">
-  </picture>
-</p>
 
 </div>
 
