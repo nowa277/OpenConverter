@@ -90,7 +90,19 @@ async function convertOne(job) {
   try {
     const result = await convertStaged({ ...job, outputDir: stagingDir });
     if (job.signal?.aborted) throw new Error('aborted');
-    const outputPath = path.join(job.outputDir, path.basename(result.outputPath));
+    const encryptedExtension = decoders.listSupported()
+      .sort((a, b) => b.length - a.length)
+      .find((extension) => job.inputPath.toLowerCase().endsWith(extension));
+    const sourceName = path.basename(job.inputPath);
+    const stem = encryptedExtension ? sourceName.slice(0, -encryptedExtension.length) : path.parse(sourceName).name;
+    const outputPath = path.join(job.outputDir, `${stem}.${result.format}`);
+    if (path.resolve(outputPath) === path.resolve(job.inputPath)) {
+      if (!encryptedExtension && result.reencoded === false) {
+        job.onProgress?.({ stage: 'done', percent: 100 });
+        return { ...result, outputPath: job.inputPath };
+      }
+      throw new Error('Output would replace the input file; choose a different output directory');
+    }
     fs.renameSync(result.outputPath, outputPath);
     const lyricPath = result.outputPath.replace(/\.[^.]+$/, '') + '.lrc';
     if (fs.existsSync(lyricPath)) {
