@@ -4,12 +4,11 @@
  * NCM is AES-128-ECB (key/meta blocks) + modified-RC4 (audio). AES and RC4
  * are both symmetric here (the "RC4" keystream is precomputed from the s-box
  * and XOR'd, so encrypt == decrypt). We build a minimal valid NCM from a
- * 1-second sine MP3, then verify by round-tripping through the real desktop
- * decoder (src/decoders/ncm.js) and recording its SHA-256 as the oracle.
+ * 1-second sine MP3, then compare the restored bytes through the desktop
+ * decoder (src/decoders/ncm.js).
  *
- * Output:
- *   - sample.ncm            (synthetic, ~10 KB)
- *   - expected-sha256.json  (sha256 of the decrypted audio)
+ * Output: sample.ncm (generated tone, no metadata or cover).
+ * Metadata/cover tests use SyntheticNcm.kt instead.
  *
  * Layout (mirrors src/decoders/ncm.js):
  *   "CTENFDAM" | 2 gap | u32 keyLen | keyEnc | u32 metaLen | metaEnc |
@@ -91,10 +90,7 @@ const outPath = path.join(OUT_DIR, 'sample.ncm');
 fs.writeFileSync(outPath, ncm);
 fs.unlinkSync(mp3Path);
 
-// Verify via the real decoder, record oracle.
 const { decryptBuffer } = require('../src/decoders/ncm');
 const { audio: decAudio } = decryptBuffer(ncm);
-const sha = crypto.createHash('sha256').update(decAudio).digest('hex');
-fs.writeFileSync(path.join(OUT_DIR, 'expected-sha256.json'),
-  JSON.stringify({ 'sample.ncm': sha, format: 'mp3' }, null, 2) + '\n');
-console.log(`synthetic ncm: ${ncm.length} bytes — plaintext sha256=${sha}`);
+require('node:assert/strict').deepEqual(decAudio, audio);
+console.log(`synthetic ncm: ${ncm.length} bytes; restored audio: ${decAudio.length} bytes`);
