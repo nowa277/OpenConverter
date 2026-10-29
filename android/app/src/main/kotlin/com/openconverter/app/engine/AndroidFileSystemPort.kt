@@ -4,104 +4,83 @@ import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
 import android.provider.OpenableColumns
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 
-/**
- * Real [FileSystemPort] for Android. Bridges:
- *   - SAF Uri ↔ ContentResolver streams for reads/writes,
- *   - app `cacheDir` for the temp files ffmpeg-kit operates on.
- *
- * `clearStaleCache()` is called by [ConversionService] on each FGS start so a
- * crash mid-job doesn't leave gigabytes of `in_*`/`out_*` behind.
- */
+/** SAF streams and app-local temporary files used by the conversion engine. */
 class AndroidFileSystemPort(private val context: Context) : FileSystemPort {
-
-    override fun readBytes(uri: String): ByteArray =
-        context.contentResolver.openInputStream(Uri.parse(uri))!!.use { it.readBytes() }
+    override fun readBytes(uri: String): ByteArray = openInput(uri).use { it.readBytes() }
 
     override fun openInput(uri: String): InputStream =
         context.contentResolver.openInputStream(Uri.parse(uri))?.let { java.io.BufferedInputStream(it, 64 * 1024) }
             ?: throw IllegalArgumentException("Cannot open input URI: $uri")
 
-    override fun cacheFile(name: String, bytes: ByteArray): String {
-        val safe = name.replace('/', '_').replace('\\', '_')
-        val f = File(context.cacheDir, safe)
-        f.writeBytes(bytes)
-        return f.absolutePath
-    }
+    override fun cacheFile(name: String, bytes: ByteArray): String = cachePath(name).also { File(it).writeBytes(bytes) }
 
-    /** Path inside cacheDir for ffmpeg to write its output to. Does not create the file. */
-    override fun cachePath(name: String): String {
-        val safe = name.replace('/', '_').replace('\\', '_')
-        return File(context.cacheDir, safe).absolutePath
-    }
+    override fun cachePath(name: String): String =
+        File(context.cacheDir, name.replace('/', '_').replace('\\', '_')).absolutePath
 
     override fun openCacheOutput(path: String): OutputStream =
         java.io.BufferedOutputStream(File(path).outputStream(), 64 * 1024)
 
     override fun readCache(path: String): ByteArray = File(path).readBytes()
 
-    override fun writeOutput(folderUri: String, displayName: String, mime: String, bytes: ByteArray): String {
-        val docUri = createOutputDocument(folderUri, displayName, mime)
-        (context.contentResolver.openOutputStream(docUri)?.let { java.io.BufferedOutputStream(it, 64 * 1024) }
-            ?: throw IllegalArgumentException("Cannot open output stream for: $displayName")).use { it.write(bytes) }
-        return docUri.toString()
-    }
+    override suspend fun writeOutput(folderUri: String, displayName: String, mime: String, bytes: ByteArray): String =
+        ByteArrayInputStream(bytes).use { writeDocument(folderUri, displayName, mime, it) }
 
-    override fun writeOutputFromCache(
-        folderUri: String,
-        displayName: String,
-        mime: String,
-        cachePath: String,
-    ): String {
-        val docUri = createOutputDocument(folderUri, displayName, mime)
-        java.io.BufferedInputStream(File(cachePath).inputStream(), 64 * 1024).use { input ->
-            val outStream = context.contentResolver.openOutputStream(docUri)?.let { java.io.BufferedOutputStream(it, 64 * 1024) }
-                ?: throw IllegalArgumentException("Cannot open output stream for: $displayName")
-            outStream.use { output ->
-                input.copyTo(output, bufferSize = 64 * 1024)
+    override suspend fun writeOutputFromCache(folderUri: String, displayName: String, mime: String, cachePath: String): String =
+        File(cachePath).inputStream().buffered(64 * 1024).use { writeDocument(folderUri, displayName, mime, it) }
+
+    private suspend fun writeDocument(folderUri: String, displayName: String, mime: String, input: InputStream): String {
+        val context = currentCoroutineContext()
+        context.ensureActive()
+        val document = createOutputDocument(folderUri, displayName, mime)
+        try {
+            val stream = this.context.contentResolver.openOutputStream(document)
+                ?: throw java.io.IOException("Cannot open output stream for: $displayName")
+            stream.buffered(64 * 1024).use { output ->
+                val buffer = ByteArray(64 * 1024)
+                while (true) {
+                    context.ensureActive()
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    output.write(buffer, 0, count)
+                }
+                context.ensureActive()
             }
+            return document.toString()
+        } catch (error: Exception) {
+            try {
+                DocumentsContract.deleteDocument(this.context.contentResolver, document)
+            } catch (cleanupError: Exception) {
+                error.addSuppressed(cleanupError)
+            }
+            throw error
         }
-        return docUri.toString()
     }
 
     private fun createOutputDocument(folderUri: String, displayName: String, mime: String): Uri {
         val tree = Uri.parse(folderUri)
-        // createDocument requires a *document* URI, not the raw tree URI returned by
-        // ACTION_OPEN_DOCUMENT_TREE. A tree URI's path is /tree/<docId>; createDocument
-        // parses /document/<docId> and throws "Invalid URI" on the tree form. Rebuild
-        // the tree-root document URI before creating the child document.
-        val treeDocUri = DocumentsContract.buildDocumentUriUsingTree(
-            tree, DocumentsContract.getTreeDocumentId(tree),
-        )
-        val docUri = DocumentsContract.createDocument(context.contentResolver, treeDocUri, mime, displayName)
-            ?: throw RuntimeException("createDocument returned null for $displayName in $folderUri")
-        return docUri
+        val treeDocument = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
+        return DocumentsContract.createDocument(context.contentResolver, treeDocument, mime, displayName)
+            ?: throw java.io.IOException("createDocument returned null for $displayName in $folderUri")
     }
 
-    override fun cleanup(path: String) {
-        runCatching { File(path).delete() }
-    }
+    override fun cleanup(path: String) { File(path).delete() }
 
-    /** Sweep `cacheDir` of stale `in_*`/`out_*` from a previous (possibly killed) run. */
     fun clearStaleCache() {
-        context.cacheDir.listFiles { f ->
-            f.name.startsWith("in_") || f.name.startsWith("out_")
-        }?.forEach { runCatching { it.delete() } }
+        context.cacheDir.listFiles { file ->
+            listOf("in_", "out_", "cover_", "lyrics_").any(file.name::startsWith)
+        }?.forEach { it.delete() }
     }
 
-    /** Resolve a SAF input Uri to its OpenableColumns DISPLAY_NAME (e.g. `song.ncm`). */
     fun queryDisplayName(uri: String): String {
-        val cursor = context.contentResolver.query(
-            Uri.parse(uri), arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null,
-        ) ?: return uri.substringAfterLast('/')
-        cursor.use { c ->
-            if (c.moveToFirst()) {
-                val idx = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (idx >= 0) return c.getString(idx) ?: uri.substringAfterLast('/')
-            }
+        context.contentResolver.query(Uri.parse(uri), arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) return cursor.getString(0) ?: uri.substringAfterLast('/')
         }
         return uri.substringAfterLast('/')
     }

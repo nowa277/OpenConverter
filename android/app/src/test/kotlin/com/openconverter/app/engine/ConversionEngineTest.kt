@@ -551,6 +551,91 @@ class ConversionEngineTest {
         assertTrue("ffmpeg must not run after cancel", ffmpeg.calls.isEmpty())
     }
 
+    @Test fun cancelling_one_file_keeps_the_other_file_and_next_batch_working() = runTest {
+        val fs = FakeFileSystemPort(reads = mapOf("uri:a" to FLAC, "uri:b" to FLAC))
+        val entered = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val ffmpeg = FakeFfmpegRunner(fs, behavior = { input, _, _, _ ->
+            if (input.contains("in_0")) {
+                entered.complete(Unit)
+                kotlinx.coroutines.awaitCancellation()
+            }
+            Result.success(Unit)
+        })
+        val engine = ConversionEngine(DecoderRegistry(emptyList()), ffmpeg, fs, RecordingProgressSink())
+        var tasks = emptyList<kotlinx.coroutines.Deferred<FileResult>>()
+        val cancelled = mutableListOf<Int>()
+        val batch = async {
+            engine.convertAll(
+                ConversionRequest(listOf("uri:a", "uri:b"), listOf("a.flac", "b.flac"), "mp3", "tree:out", "320k", PLAIN_EXTS),
+                onTasksReady = { tasks = it },
+                onFileCancelled = { cancelled += it },
+            )
+        }
+        entered.await()
+        tasks[0].cancel(FileCancellationException())
+        val results = batch.await()
+        assertTrue(results[0].cancelled)
+        assertNull(results[1].error)
+        assertEquals(listOf(0), cancelled)
+        assertEquals(listOf("b.mp3"), fs.writes.map { it.second })
+        assertTrue(fs.cache.isEmpty())
+
+        val next = ConversionEngine(DecoderRegistry(emptyList()), FakeFfmpegRunner(fs), fs, RecordingProgressSink())
+        val result = next.convertAll(ConversionRequest(listOf("uri:a"), listOf("retry.flac"), "mp3", "tree:out", "320k", PLAIN_EXTS)).single()
+        assertNull(result.error)
+        assertEquals("retry.mp3", fs.writes.last().second)
+    }
+
+    @Test fun cancelling_a_queued_file_does_not_start_it() = runTest {
+        val fs = FakeFileSystemPort(reads = mapOf("uri:a" to FLAC, "uri:b" to FLAC, "uri:c" to FLAC))
+        val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val started = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val ffmpeg = FakeFfmpegRunner(fs, behavior = { _, _, _, _ ->
+            started.complete(Unit)
+            release.await()
+            Result.success(Unit)
+        })
+        val engine = ConversionEngine(DecoderRegistry(emptyList()), ffmpeg, fs, RecordingProgressSink())
+        var tasks = emptyList<kotlinx.coroutines.Deferred<FileResult>>()
+        val batch = async {
+            engine.convertAll(
+                ConversionRequest(listOf("uri:a", "uri:b", "uri:c"), listOf("a.flac", "b.flac", "c.flac"), "mp3", "tree:out", "320k", PLAIN_EXTS),
+                onTasksReady = { tasks = it },
+            )
+        }
+        started.await()
+        tasks[2].cancel(FileCancellationException())
+        release.complete(Unit)
+        val results = batch.await()
+        assertTrue(results[2].cancelled)
+        assertEquals(2, ffmpeg.calls.size)
+        assertEquals(listOf("a.mp3", "b.mp3"), fs.writes.map { it.second })
+    }
+
+    @Test fun missing_kgg_key_sync_updates_provider_before_retry() = runTest {
+        var keyAvailable = false
+        var attempts = 0
+        val decoder = object : StreamingDecoder {
+            override val supportedExtensions = setOf(".kgg")
+            override fun decrypt(input: ByteArray): DecryptResult = error("streaming required")
+            override fun decrypt(input: InputStream, output: OutputStream, bufferSize: Int): String {
+                attempts++
+                require(keyAvailable) { "No KGG keys imported" }
+                output.write(FLAC)
+                return "flac"
+            }
+        }
+        val fs = FakeFileSystemPort(reads = mapOf("uri:kgg" to byteArrayOf(1)))
+        val engine = ConversionEngine(
+            DecoderRegistry(listOf(decoder)), FakeFfmpegRunner(fs), fs, RecordingProgressSink(),
+            syncMissingKggKeys = { keyAvailable = true; true },
+        )
+        val result = engine.convertAll(ConversionRequest(listOf("uri:kgg"), listOf("song.kgg"), "flac", "tree:out", null, PLAIN_EXTS)).single()
+        assertNull(result.error)
+        assertEquals(2, attempts)
+        assertEquals("song.flac", fs.writes.single().second)
+    }
+
     private fun fakeStreamingDecoder(audio: ByteArray, format: String): StreamingDecoder =
         object : StreamingDecoder {
             override val supportedExtensions = setOf(".kgg")

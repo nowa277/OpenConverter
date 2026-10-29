@@ -24,6 +24,8 @@ data class ConversionRequest(
     }
 }
 
+class FileCancellationException : kotlinx.coroutines.CancellationException("File cancelled")
+
 /** Per-file outcome. Exactly one of outputPath/error is non-null (skipped ⇒ outputPath set, skipped=true, error=null). */
 data class FileResult(
     val index: Int,
@@ -31,4 +33,5 @@ data class FileResult(
     val outputPath: String?,
     val error: String?,
     val skipped: Boolean = false,
+    val cancelled: Boolean = false,
 )
