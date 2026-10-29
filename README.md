@@ -31,14 +31,19 @@
 * **隐私至上**：解密与转码在本机完成。网易云歌词默认按歌曲 id 请求（设置里可关）。不上传音频。
 * **真实转码**：内置 FFmpeg / FFmpegKit。桌面端输出 MP3 / FLAC / WAV / M4A / OGG；手机端输出 MP3 / FLAC / WAV / M4A。
 
-### 桌面端 0.3.9
+### 桌面端 0.3.10
 * 侧栏是品牌艺术字。格式和音质在转换页，队列左滑删除。
+* 转换任务即时响应取消，安全终止后台工作线程与 FFmpeg/FFprobe 子进程；转码过程采用专属临时目录隔离，防止中断产生残破文件或覆盖源文件。
+* 窗口顶栏控制按钮在初始化时同步绑定，保证启动时关闭/最大化/最小化响应灵敏。
 * 网易云歌曲写入曲名、歌手、专辑和封面，并默认写入歌词。临时失败会重试。找不到歌词不影响转码。
 * 加密文件按块解密。酷狗 `.kgg` 可扫描或导入密钥；桌面端可在设置中填写 QQ 音乐 ekey。Android 支持 QMC v1 和部分带内嵌密钥的 QMC v2 文件，QQ 数据库密钥导入待版本化样本验证。
 
-### 手机端 1.4.4
+### 手机端 1.4.5
 * 底部是四个静止图标。转换页是输出目录、目标格式和添加区域，队列左滑删除。
-* 关于页可以检查并安装更新。
+* 彻底修复取消转换后队列卡死与状态不一致，支持连续取消、单项重试和再次添加任务，无需重启应用。
+* 音频解密与转换采用受控分块流式处理，防止大文件内存溢出；中途取消自动回滚清理 SAF 不完整文档。
+* 关于页检查更新：下载安装包后在系统“允许安装未知应用”权限返回时自动保留，无缝恢复安装流程。
+* 明确 QQ 音乐明文容器（AAC/WMA/DFF）与外部缺钥分类，避免损坏字节误判。
 * 网易云歌曲写入曲名、歌手、专辑、封面和歌词。找不到歌词不影响转码。
 * 加密文件按块解密。酷狗 `.kgg` 可在设置里同步、自动查找或导入密钥。
 
@@ -78,18 +83,18 @@
 #### Debian / Ubuntu
 ```bash
 # AppImage 安装与运行（推荐）
-chmod +x openconverter-v0.3.9-linux-x64.AppImage
-./openconverter-v0.3.9-linux-x64.AppImage
+chmod +x openconverter-v0.3.10-linux-x64.AppImage
+./openconverter-v0.3.10-linux-x64.AppImage
 
 # Deb 包安装（Linux 需要系统里已有 ffmpeg）
 sudo apt install ffmpeg
-sudo apt install ./openconverter-v0.3.9-linux-amd64.deb
+sudo apt install ./openconverter-v0.3.10-linux-amd64.deb
 ```
 
 #### Windows
-* **便携版（推荐）**：`openconverter-v0.3.9-windows-x64-portable.exe`
+* **便携版（推荐）**：`openconverter-v0.3.10-windows-x64-portable.exe`
   双击直接运行，可随身携带。
-* **NSIS 安装包**：`openconverter-v0.3.9-windows-x64-setup.exe`
+* **NSIS 安装包**：`openconverter-v0.3.10-windows-x64-setup.exe`
   双击根据向导安装。
 * *提示：Windows 端已内置 `ffmpeg.exe` 与 `ffprobe.exe`，无需手动安装 FFmpeg。首次启动若弹出 Windows Defender 未签名提示，点击“更多信息” -> “仍要运行”即可。*
 
@@ -99,8 +104,8 @@ sudo apt install ./openconverter-v0.3.9-linux-amd64.deb
 
 从 [Releases 页面](https://github.com/nowa277/OpenConverter/releases) 下载最新的 APK 文件安装：
 
-* **arm64-v8a**：`openconverter-v1.4.4-android-arm64-v8a.apk` (推荐，适合绝大多数现代智能手机)
-* **x86_64**：`openconverter-v1.4.4-android-x86_64.apk` (适合在 Android 模拟器上运行与调试)
+* **arm64-v8a**：`openconverter-v1.4.5-android-arm64-v8a.apk` (推荐，适合绝大多数现代智能手机)
+* **x86_64**：`openconverter-v1.4.5-android-x86_64.apk` (适合在 Android 模拟器上运行与调试)
 
 酷狗 `.kgg` 需要对应歌曲的密钥，只保存在本机：
 1. **Root 授权设备**：设置里打开「自动同步」，或点「同步密钥」；读取结果取决于客户端文件布局和访问权限。
