@@ -388,7 +388,19 @@ function toast(msg, kind = '', ms = 3500) {
 }
 
 // ---------- init ----------
+function bindWindowControls() {
+  const winMaxBtn = $('win-max');
+  $('win-min').addEventListener('click', () => api.invoke('win:minimize'));
+  winMaxBtn.addEventListener('click', () => api.invoke('win:toggleMaximize'));
+  $('win-close').addEventListener('click', () => api.invoke('win:close'));
+  $('window-bar').addEventListener('dblclick', (event) => {
+    if (!event.target.closest('.window-bar-controls')) api.invoke('win:toggleMaximize');
+  });
+  api.on('win:maximizedChanged', ({ maximized }) => { winMaxBtn.title = maximized ? 'Restore' : 'Maximize'; });
+}
+
 async function init() {
+  bindWindowControls();
   const os = await api.invoke('os:info');
   if (os.platform === 'win32') document.body.classList.add('platform-win32');
   if (os.platform === 'linux') {
@@ -539,24 +551,15 @@ function bindEvents() {
     else toast(t('toast_kgg_import_none'));
   }));
 
-  // Window controls
-  const winMaxBtn = $('win-max');
-  $('win-min').addEventListener('click', () => api.invoke('win:minimize'));
-  winMaxBtn.addEventListener('click', () => api.invoke('win:toggleMaximize'));
-  $('win-close').addEventListener('click', () => api.invoke('win:close'));
-  $('window-bar').addEventListener('dblclick', (e) => {
-    if (e.target.closest('.window-bar-drag') || (e.target.closest('#window-bar') && !e.target.closest('.window-bar-controls'))) {
-      api.invoke('win:toggleMaximize');
-    }
-  });
-  api.on('win:maximizedChanged', ({ maximized }) => { winMaxBtn.title = maximized ? 'Restore' : 'Maximize'; });
-
-  api.on('convert:progress', ({ filePath, stage, percent }) => {
+  api.on('convert:progress', ({ jobId, filePath, stage, percent, error, outputPath, durationMs }) => {
     const f = state.files.find((x) => x.path === filePath);
-    if (!f || f.status === 'done' || f.status === 'error' || f.status === 'cancelled') return;
-    if (stage === 'done') return; // final state comes from the convert:start result
-    f.status = stage; // queued | decrypt | encode
+    if (!f) return;
+    if (stage === 'queued' && f.status === 'queued' && !f.jobId) f.jobId = jobId;
+    if (f.jobId !== jobId || f.status === 'done' || f.status === 'error' || f.status === 'cancelled') return;
+    f.status = stage;
     if (typeof percent === 'number') f.progress = percent;
+    if (stage === 'done') { f.outputPath = outputPath; f.durationMs = durationMs; }
+    if (stage === 'error') f.error = error;
     renderQueueItem(f);
     renderQueueSummary();
   });
@@ -929,7 +932,7 @@ async function convert() {
   const targets = state.files.filter((f) => f.status === 'pending' || f.status === 'error' || f.status === 'cancelled');
   if (targets.length === 0) return;
   state.converting = true;
-  targets.forEach((f) => { f.status = 'queued'; f.progress = 0; f.error = null; f.outputPath = null; f.durationMs = null; });
+  targets.forEach((f) => { f.jobId = null; f.status = 'queued'; f.progress = 0; f.error = null; f.outputPath = null; f.durationMs = null; });
   renderQueue();
   $('convert-btn').classList.add('busy');
 

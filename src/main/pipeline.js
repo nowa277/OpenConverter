@@ -27,20 +27,17 @@ const PLAIN_AUDIO_EXTS = new Set(['.mp3', '.flac', '.wav', '.m4a', '.aac', '.ogg
 const WORKER_PATH = path.join(__dirname, 'decode-worker.js');
 
 /**
- * Run a decoder in a worker thread; falls back to running it inline if the
- * worker cannot be started (e.g. an exotic packaging setup).
+ * Run a decoder off the main thread; cancellation waits for the worker to exit.
  */
 function decodeInWorker(inputPath, outputDir, opts, signal) {
   return new Promise((resolve, reject) => {
-    let worker;
-    try {
-      worker = new Worker(WORKER_PATH, { workerData: { inputPath, outputDir, opts } });
-    } catch (e) {
-      return decodeInline(inputPath, outputDir, opts).then(resolve, reject);
-    }
+    if (signal?.aborted) { reject(new Error('aborted')); return; }
+    const worker = new Worker(WORKER_PATH, { workerData: { inputPath, outputDir, opts } });
     let settled = false;
     const finish = (fn, v) => { if (!settled) { settled = true; cleanup(); fn(v); } };
-    const onAbort = () => { worker.terminate().catch(() => {}); finish(reject, new Error('aborted')); };
+    const onAbort = () => {
+      worker.terminate().then(() => finish(reject, new Error('aborted')), (error) => finish(reject, error));
+    };
     const cleanup = () => { if (signal) signal.removeEventListener('abort', onAbort); };
     if (signal) {
       if (signal.aborted) return onAbort();
@@ -50,20 +47,13 @@ function decodeInWorker(inputPath, outputDir, opts, signal) {
       if (msg.ok) finish(resolve, msg.result);
       else finish(reject, new Error(msg.error));
     });
-    worker.once('error', (e) => {
-      // Worker failed to boot or crashed: run inline as a last resort.
-      decodeInline(inputPath, outputDir, opts).then((r) => finish(resolve, r), (err) => finish(reject, err || e));
+    worker.once('error', (error) => {
+      finish(reject, signal?.aborted ? new Error('aborted') : error);
     });
     worker.once('exit', (code) => {
-      if (!settled && code !== 0) finish(reject, new Error(`decoder worker exited with code ${code}`));
+      if (!settled) finish(reject, new Error(signal?.aborted ? 'aborted' : `decoder worker exited without a result (code ${code})`));
     });
   });
-}
-
-async function decodeInline(inputPath, outputDir, opts) {
-  const decoder = decoders.pickDecoder(inputPath);
-  if (!decoder) throw new Error(`No decoder for file: ${path.basename(inputPath)}`);
-  return decoder.decodeFile(inputPath, outputDir, opts);
 }
 
 function safeUnlink(p) { if (p) { try { fs.unlinkSync(p); } catch {} } }
@@ -94,6 +84,27 @@ function maybeWriteLrc(audioPath, lrc) {
  * @returns {Promise<{ outputPath: string, format: string, durationMs: number, reencoded: boolean }>}
  */
 async function convertOne(job) {
+  if (job.signal?.aborted) throw new Error('aborted');
+  fs.mkdirSync(job.outputDir, { recursive: true });
+  const stagingDir = fs.mkdtempSync(path.join(job.outputDir, '.oc-job-'));
+  try {
+    const result = await convertStaged({ ...job, outputDir: stagingDir });
+    if (job.signal?.aborted) throw new Error('aborted');
+    const outputPath = path.join(job.outputDir, path.basename(result.outputPath));
+    fs.renameSync(result.outputPath, outputPath);
+    const lyricPath = result.outputPath.replace(/\.[^.]+$/, '') + '.lrc';
+    if (fs.existsSync(lyricPath)) {
+      try { fs.renameSync(lyricPath, outputPath.replace(/\.[^.]+$/, '') + '.lrc'); }
+      catch { /* Audio is committed; a lyric sidecar failure leaves it usable. */ }
+    }
+    job.onProgress?.({ stage: 'done', percent: 100 });
+    return { ...result, outputPath };
+  } finally {
+    fs.rmSync(stagingDir, { recursive: true, force: true });
+  }
+}
+
+async function convertStaged(job) {
   const { inputPath, outputDir, format = 'mp3', quality = '320k', decodeOpts = {}, signal, ffmpegBin, ffprobeBin, ncmLyricsDir, ncmLyricsEnabled, fetchJson, listRoots } = job;
   const onProgress = job.onProgress || (() => {});
   const started = Date.now();
@@ -103,14 +114,11 @@ async function convertOne(job) {
   const baseName = path.basename(inputPath, path.extname(inputPath));
   const targetPath = path.join(outputDir, `${baseName}.${format}`);
   const ffmpegOpts = { format, quality, signal, ffmpegBin, ffprobeBin, onProgress: ({ percent }) => onProgress({ stage: 'encode', percent }) };
-  const finish = (outputPath, reencoded) => {
-    onProgress({ stage: 'done', percent: 100 });
-    return { outputPath, format, durationMs: Date.now() - started, reencoded };
-  };
+  const finish = (outputPath, reencoded) => ({ outputPath, format, durationMs: Date.now() - started, reencoded });
 
   // Path 1: plain audio. Same container → straight copy (never lossy
   // re-encode an mp3 into an mp3); otherwise re-encode.
-  if (PLAIN_AUDIO_EXTS.has(ext)) {
+  if (!decoders.pickDecoder(inputPath) && PLAIN_AUDIO_EXTS.has(ext)) {
     if (ext.slice(1) === format) {
       if (path.resolve(inputPath) !== path.resolve(targetPath)) fs.copyFileSync(inputPath, targetPath);
       return finish(targetPath, false);
@@ -142,12 +150,17 @@ async function convertOne(job) {
       lrc = await resolveLrc({
         musicId: decoded.musicId,
         enabled: ncmLyricsEnabled !== false,
+        signal,
         extraRootDir: ncmLyricsDir,
         fetchJson,
         listRoots,
       });
-    } catch { lrc = null; }
+    } catch (error) {
+      if (signal?.aborted) throw new Error('aborted');
+      lrc = null;
+    }
   }
+  if (signal?.aborted) throw new Error('aborted');
 
   let metadataFile = null;
   if (lrc && EMBED_LYRICS_FORMATS.has(format)) {

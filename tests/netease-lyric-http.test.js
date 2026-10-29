@@ -29,7 +29,7 @@ test('2xx returns body; 404 and throw return null', async () => {
 
 test('real timeout aborts', async () => {
   const server = http.createServer((req, res) => { /* never respond */ });
-  await new Promise((r) => server.listen(0, r));
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
   const { port } = server.address();
   const fetchImpl = require('../src/main/netease-lyric-http').makeHttpFetch(`http://127.0.0.1:${port}/lyric`);
   const t0 = Date.now();

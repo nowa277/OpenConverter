@@ -9,11 +9,11 @@ function lyricUrl(musicId) {
   return `https://music.163.com/api/song/lyric?id=${encodeURIComponent(String(musicId).trim())}&lv=-1&kv=-1&tv=-1`;
 }
 
-function defaultFetchImpl(url, { headers, timeoutMs }) {
+function defaultFetchImpl(url, { headers, timeoutMs, signal }) {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
     const lib = u.protocol === 'http:' ? http : https;
-    const req = lib.request(u, { method: 'GET', headers }, (res) => {
+    const req = lib.request(u, { method: 'GET', headers, signal }, (res) => {
       const chunks = [];
       res.on('data', (c) => chunks.push(c));
       res.on('end', () => resolve({ status: res.statusCode || 0, body: Buffer.concat(chunks).toString('utf8') }));
@@ -35,11 +35,12 @@ async function getNeteaseLyricJson(musicId, opts = {}) {
   try {
     const r = await fetchImpl(lyricUrl(musicId), {
       headers: { 'User-Agent': 'Mozilla/5.0', Referer: 'https://music.163.com/' },
-      timeoutMs,
+      timeoutMs, signal: opts.signal,
     });
     if (!r || r.status < 200 || r.status > 299) return null;
     return r.body == null ? null : String(r.body);
-  } catch {
+  } catch (error) {
+    if (opts.signal?.aborted) throw new Error('aborted');
     return null;
   }
 }

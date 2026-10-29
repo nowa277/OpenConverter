@@ -35,19 +35,17 @@ function runFfmpeg(args, opts = {}) {
   const { onProgress, signal, totalDurationSec } = opts;
   const ffmpegBin = opts.ffmpegBin || 'ffmpeg';
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) { reject(new Error('aborted')); return; }
     const proc = spawn(ffmpegBin, ['-hide_banner', '-nostdin', '-loglevel', 'error', '-progress', 'pipe:1', '-nostats', ...args], {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let stderr = '';
     let stdoutBuf = '';
     let lastPct = -1;
-    const onAbort = () => { try { proc.kill('SIGTERM'); } catch {} };
-    if (signal) {
-      if (signal.aborted) { onAbort(); reject(new Error('aborted')); return; }
-      signal.addEventListener('abort', onAbort, { once: true });
-    }
+    const onAbort = () => { proc.kill('SIGTERM'); };
+    if (signal) signal.addEventListener('abort', onAbort, { once: true });
     const emit = (pct) => {
-      if (!onProgress) return;
+      if (!onProgress || signal?.aborted) return;
       const clamped = Math.max(0, Math.min(100, pct));
       if (Math.abs(clamped - lastPct) >= 0.5 || clamped === 100) { lastPct = clamped; onProgress({ percent: clamped }); }
     };
@@ -70,6 +68,7 @@ function runFfmpeg(args, opts = {}) {
     proc.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
     proc.on('error', (e) => {
       if (signal) signal.removeEventListener('abort', onAbort);
+      if (signal?.aborted) { reject(new Error('aborted')); return; }
       if (e.code === 'ENOENT') reject(new Error(`ffmpeg not found (${ffmpegBin}). Install ffmpeg and make sure it is on your PATH.`));
       else reject(e);
     });
@@ -84,12 +83,24 @@ function runFfmpeg(args, opts = {}) {
 
 function runFfprobeDuration(filePath, opts = {}) {
   const ffprobeBin = opts.ffprobeBin || 'ffprobe';
-  return new Promise((resolve) => {
+  const { signal } = opts;
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) { reject(new Error('aborted')); return; }
     const proc = spawn(ffprobeBin, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', filePath], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const onAbort = () => { proc.kill('SIGTERM'); };
+    if (signal) signal.addEventListener('abort', onAbort, { once: true });
     let out = '';
     proc.stdout.on('data', (c) => out += c.toString());
-    proc.on('close', () => { resolve(parseFloat(out) || 0); });
-    proc.on('error', () => resolve(0));
+    proc.on('close', () => {
+      if (signal) signal.removeEventListener('abort', onAbort);
+      if (signal?.aborted) reject(new Error('aborted'));
+      else resolve(parseFloat(out) || 0);
+    });
+    proc.on('error', () => {
+      if (signal) signal.removeEventListener('abort', onAbort);
+      if (signal?.aborted) reject(new Error('aborted'));
+      else resolve(0);
+    });
   });
 }
 
@@ -177,7 +188,7 @@ async function run(inputPath, outputPath, options = {}) {
   const { format = 'mp3', quality = '320k', onProgress, signal, ffmpegBin, ffprobeBin, copyAudio, coverPath, metadata, metadataFile } = options;
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   const args = buildArgs({ inputPath, outputPath, format, quality, copyAudio, coverPath, metadata, metadataFile });
-  const totalDuration = await runFfprobeDuration(inputPath, { ffprobeBin });
+  const totalDuration = await runFfprobeDuration(inputPath, { ffprobeBin, signal });
   await runFfmpeg(args, { onProgress, signal, totalDurationSec: totalDuration, ffmpegBin });
   return { outputPath };
 }
