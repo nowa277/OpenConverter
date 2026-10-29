@@ -62,6 +62,45 @@ test('cancel a real encoder, remove partials, then convert another file', { time
   assert.deepEqual(fs.readdirSync(outputDir), ['tone.mp3']);
 });
 
+test('compound KGG output uses the decrypted stem and preserves a same-folder input', async (t) => {
+  const root = workspace(t);
+  const inputPath = path.join(root, 'song.kgg.flac');
+  const original = Buffer.from('synthetic encrypted source');
+  fs.writeFileSync(inputPath, original);
+  const Module = require('node:module');
+  const { EventEmitter } = require('node:events');
+  const originalLoad = Module._load;
+  const modulePath = require.resolve('../src/main/pipeline');
+  const savedModule = require.cache[modulePath];
+  Module._load = function (name, parent, isMain) {
+    if (name === 'node:worker_threads' && parent?.filename === modulePath) {
+      return { Worker: class extends EventEmitter {
+        constructor(_script, { workerData }) {
+          super();
+          queueMicrotask(() => {
+            const outputPath = path.join(workerData.outputDir, 'song.kgg.flac');
+            fs.writeFileSync(outputPath, 'fLaC synthetic output');
+            this.emit('message', { ok: true, result: { outputPath, format: 'flac' } });
+          });
+        }
+      } };
+    }
+    return originalLoad.call(this, name, parent, isMain);
+  };
+  let isolatedPipeline;
+  try {
+    delete require.cache[modulePath];
+    isolatedPipeline = require(modulePath);
+  } finally {
+    Module._load = originalLoad;
+    require.cache[modulePath] = savedModule;
+  }
+  const result = await isolatedPipeline.convertOne({ inputPath, outputDir: root, format: 'flac' });
+  assert.deepEqual(fs.readFileSync(inputPath), original);
+  assert.equal(result.outputPath, path.join(root, 'song.flac'));
+  assert.equal(fs.readFileSync(result.outputPath, 'utf8'), 'fLaC synthetic output');
+});
+
 test('compound encrypted extension reaches the decoder before plain FLAC routing', async (t) => {
   const root = workspace(t);
   const inputPath = path.join(root, 'invalid.kgg.flac');
