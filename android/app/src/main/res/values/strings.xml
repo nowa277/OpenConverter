@@ -73,8 +73,8 @@
     <string name="settings_kgg_root_guide_btn">Import &amp; Sync Guide</string>
     <string name="settings_kgg_root_guide_title">KuGou Key Acquisition Guide</string>
     <string name="settings_kgg_root_guide_content">KuGou keys are stored inside KuGou or in exported key files:
-1. Rooted Devices: OpenConverter automatically discovers and synchronizes keys via root access directly — no auxiliary apps needed.
-2. Non-Root Devices: NetEase (NCM) and QQ Music (QMC) convert seamlessly without any configuration. For KuGou (KGG), place an exported kgg.key / mggkey file in your Download or Music folder, and OpenConverter will automatically detect and merge it.</string>
+1. With authorized Root access, OpenConverter can attempt to read KuGou key files. Availability depends on file layout and access permission.
+2. Without Root, import an exported kgg.key / mggkey file through the file picker. NCM and QMC v1 carry the decoding information they need; some QQ Music formats require an embedded key. QQ database key discovery is pending versioned sample validation.</string>
     <string name="settings_kgg_root_guide_ok">OK</string>
     <string name="settings_kgg_keys_sync_manual">Sync keys</string>
     <string name="settings_kgg_keys_auto_sync_title">Auto sync</string>
@@ -90,6 +90,7 @@
     <string name="queue_pending">Waiting</string>
     <string name="queue_done">Done</string>
     <string name="queue_failed">Failed</string>
+    <string name="queue_cancelled">Cancelled</string>
     <string name="home_add">Add</string>
     <string name="about_check">Check</string>
     <string name="about_update">Update</string>

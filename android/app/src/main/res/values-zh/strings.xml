@@ -73,8 +73,8 @@
     <string name="settings_kgg_root_guide_btn">密钥获取与导入指引</string>
     <string name="settings_kgg_root_guide_title">酷狗歌曲密钥获取指引</string>
     <string name="settings_kgg_root_guide_content">酷狗音乐的解密密钥存储于酷狗内部或导出的密钥文件中：
-1. 已 Root 设备：应用将自动直接提权读取酷狗密钥，完全无需安装任何辅助工具。
-2. 免 Root 设备：网易云与 QQ 音乐无需任何配置即可直接转换；酷狗音乐若需转换，可将电脑端或备份中的 kgg.key / mggkey 文件放入 Download 或 Music 目录，应用将自动识别合并，或点击下方导入。</string>
+1. 获得 Root 授权后，应用会尝试读取酷狗密钥文件；读取结果受文件结构和访问权限影响。
+2. 免 Root 设备可通过文件选择器导入有权使用的 kgg.key / mggkey。NCM 与 QMC v1 自带解码所需信息，部分 QQ 音乐格式需要文件内嵌密钥；QQ 数据库密钥发现待版本化样本验证。</string>
     <string name="settings_kgg_root_guide_ok">我知道了</string>
     <string name="settings_kgg_keys_sync_manual">同步密钥</string>
     <string name="settings_kgg_keys_auto_sync_title">自动同步</string>
@@ -90,6 +90,7 @@
     <string name="queue_pending">等待</string>
     <string name="queue_done">完成</string>
     <string name="queue_failed">失败</string>
+    <string name="queue_cancelled">已取消</string>
     <string name="home_add">添加</string>
     <string name="about_check">检查更新</string>
     <string name="about_update">一键更新</string>

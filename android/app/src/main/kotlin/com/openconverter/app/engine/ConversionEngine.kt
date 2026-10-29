@@ -3,13 +3,10 @@ package com.openconverter.app.engine
 import com.openconverter.app.decoders.DecoderRegistry
 import com.openconverter.app.decoders.StreamDecryptResult
 import com.openconverter.app.decoders.StreamingDecoder
-import com.openconverter.app.decoders.kgg.KugouKeySyncManager
 import com.openconverter.app.ffmpeg.Ffmetadata
 import com.openconverter.app.ffmpeg.FfmpegRunner
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -32,20 +29,37 @@ class ConversionEngine(
     private val sink: ProgressSink,
     private val clock: Clock = SystemClock,
     private val lyricResolver: LyricResolverPort? = null,
+    private val syncMissingKggKeys: (suspend () -> Boolean)? = null,
 ) {
-    suspend fun convertAll(req: ConversionRequest): List<FileResult> = coroutineScope {
+    suspend fun convertAll(
+        req: ConversionRequest,
+        onTasksReady: (List<kotlinx.coroutines.Deferred<FileResult>>) -> Unit = {},
+        onFileCancelled: (Int) -> Unit = {},
+    ): List<FileResult> = kotlinx.coroutines.supervisorScope {
         val total = req.inputUris.size
         val semaphore = Semaphore(2)
         val deferreds = (0 until total).map { i ->
-            async {
+            async(start = kotlinx.coroutines.CoroutineStart.LAZY) {
                 semaphore.withPermit {
                     val uri = req.inputUris[i]
                     val displayName = req.inputDisplayNames[i]
                     runOne(i, total, uri, displayName, req)
                 }
+            }.also { task ->
+                task.invokeOnCompletion { if (it is FileCancellationException) onFileCancelled(i) }
             }
         }
-        deferreds.awaitAll()
+        onTasksReady(deferreds)
+        deferreds.forEach { it.start() }
+        deferreds.mapIndexed { i, deferred ->
+            try {
+                deferred.await()
+            } catch (cancelled: CancellationException) {
+                coroutineContext.ensureActive()
+                if (cancelled !is FileCancellationException) throw cancelled
+                FileResult(i, req.inputUris[i], null, "Cancelled", cancelled = true)
+            }
+        }
     }
 
     private suspend fun runOne(
@@ -76,20 +90,26 @@ class ConversionEngine(
                 inPath = fs.cachePath("in_${i}_dec")
                 var streamResult: StreamDecryptResult? = null
                 try {
-                    streamResult = fs.openInput(uri).use { input ->
-                        fs.openCacheOutput(inPath!!).use { output ->
+                    streamResult = CancellableInputStream(fs.openInput(uri), coroutineContext[kotlinx.coroutines.Job]!!).use { input ->
+                        CancellableOutputStream(fs.openCacheOutput(inPath!!), coroutineContext[kotlinx.coroutines.Job]!!).use { output ->
                             streamingDecoder.decryptStreaming(input, output)
                         }
                     }
-                } catch (t: Throwable) {
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (t: IllegalArgumentException) {
                     val msg = t.message.orEmpty()
                     if (msg.contains("Missing KGG key for", ignoreCase = true) || msg.contains("No KGG keys imported", ignoreCase = true)) {
-                        val healed = runCatching {
-                            KugouKeySyncManager.syncKeys().isNotEmpty()
-                        }.getOrDefault(false)
+                        val healed = try {
+                            syncMissingKggKeys?.invoke() == true
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Exception) {
+                            false
+                        }
                         if (healed) {
-                            streamResult = fs.openInput(uri).use { input ->
-                                fs.openCacheOutput(inPath!!).use { output ->
+                            streamResult = CancellableInputStream(fs.openInput(uri), coroutineContext[kotlinx.coroutines.Job]!!).use { input ->
+                                CancellableOutputStream(fs.openCacheOutput(inPath!!), coroutineContext[kotlinx.coroutines.Job]!!).use { output ->
                                     streamingDecoder.decryptStreaming(input, output)
                                 }
                             }
@@ -108,9 +128,9 @@ class ConversionEngine(
                 streamedToCache = true
                 isPlain = false
             } else {
-                val bytes = fs.readBytes(uri)
                 val decoder = decoderMatch?.decoder
                 if (decoder != null) {
+                    val bytes = fs.readBytes(uri)
                     val result = decoder.decrypt(bytes)
                     val parsed = com.openconverter.app.meta.NcmTrackMeta.fromJson(result.meta)
                     tags = parsed.tags
@@ -119,8 +139,12 @@ class ConversionEngine(
                     srcFormatExt = result.format
                     isPlain = false
                 } else if (ext in req.plainInputExts) {
-                    audio = bytes
                     srcFormatExt = ext.removePrefix(".")
+                    inPath = fs.cachePath("in_${i}_plain.$srcFormatExt")
+                    CancellableInputStream(fs.openInput(uri), coroutineContext[kotlinx.coroutines.Job]!!).use { input ->
+                        CancellableOutputStream(fs.openCacheOutput(inPath!!), coroutineContext[kotlinx.coroutines.Job]!!).use { output -> input.copyTo(output, 64 * 1024) }
+                    }
+                    streamedToCache = true
                     isPlain = true
                 } else {
                     val message = "no decoder for $ext"
@@ -201,8 +225,12 @@ class ConversionEngine(
                     metadataFile = null,
                 )
             }
+            coroutineContext.ensureActive()
             if (r.isFailure) {
-                val msg = r.exceptionOrNull()?.message ?: "ffmpeg failed"
+                val error = r.exceptionOrNull()
+                if (error is CancellationException) throw error
+                if (error is InterruptedException) throw FileCancellationException()
+                val msg = error?.message ?: "ffmpeg failed"
                 sink.onFileError(i, msg)
                 return FileResult(i, uri, null, msg)
             }
@@ -216,12 +244,8 @@ class ConversionEngine(
             sink.onFileDone(i, outDocUri)
             return FileResult(i, uri, outDocUri, null)
         } catch (ce: CancellationException) {
-            inPath?.let { fs.cleanup(it) }
-            outPath?.let { fs.cleanup(it) }
-            coverPath?.let { fs.cleanup(it) }
-            metaPath?.let { fs.cleanup(it) }
             throw ce
-        } catch (t: Throwable) {
+        } catch (t: Exception) {
             val msg = t.message ?: t::class.simpleName ?: "error"
             sink.onFileError(i, msg)
             return FileResult(i, uri, null, msg)
@@ -245,7 +269,7 @@ class ConversionEngine(
         }
     }
 
-    private fun writeSiblingLrc(
+    private suspend fun writeSiblingLrc(
         folderUri: String,
         displayName: String,
         targetFormat: String,
@@ -253,12 +277,16 @@ class ConversionEngine(
         lrc: String?,
     ) {
         if (lrc.isNullOrBlank()) return
-        runCatching {
+        try {
             val audioName = outName(displayName, targetFormat, encryptedExtension)
             val lrcName = audioName.substringBeforeLast('.', audioName) + ".lrc"
             // octet-stream: DocumentsContract.createDocument("text/plain", "song.lrc")
             // becomes song.lrc.txt on some OEM SAF providers (vivo Android 13).
             fs.writeOutput(folderUri, lrcName, "application/octet-stream", lrc.toByteArray(Charsets.UTF_8))
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: java.io.IOException) {
+            // The audio output remains usable when its optional sidecar cannot be written.
         }
     }
 

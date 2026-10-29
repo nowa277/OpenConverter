@@ -41,11 +41,11 @@ class FakeFileSystemPort(
         readCacheCalls++
         return cache[path] ?: throw NoSuchElementException("FakeFileSystemPort: cache miss $path")
     }
-    override fun writeOutput(folderUri: String, displayName: String, mime: String, bytes: ByteArray): String {
+    override suspend fun writeOutput(folderUri: String, displayName: String, mime: String, bytes: ByteArray): String {
         writes += Triple(folderUri, displayName, bytes)
         return "$folderUri/$displayName"
     }
-    override fun writeOutputFromCache(
+    override suspend fun writeOutputFromCache(
         folderUri: String,
         displayName: String,
         mime: String,

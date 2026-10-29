@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -58,6 +59,10 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
+            DisposableEffect(homeVm) {
+                homeVm.bind(this@MainActivity)
+                onDispose { homeVm.unbind(this@MainActivity) }
+            }
             val appPrefs = remember { getSharedPreferences("prefs", Context.MODE_PRIVATE) }
             var themeMode by remember { mutableStateOf(appPrefs.getString("theme", "system") ?: "system") }
             var languageMode by remember { mutableStateOf(appPrefs.getString("language", "system") ?: "system") }

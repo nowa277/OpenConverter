@@ -18,7 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
-enum class FileState { Pending, Running, Done, Failed }
+enum class FileState { Pending, Running, Done, Failed, Cancelled }
 
 @Composable
 fun FileCard(
@@ -86,6 +86,7 @@ private fun labelFor(state: FileState, percent: Int) = when (state) {
     FileState.Running -> "$percent%"
     FileState.Done    -> stringResource(R.string.queue_done)
     FileState.Failed  -> stringResource(R.string.queue_failed)
+    FileState.Cancelled -> stringResource(R.string.queue_cancelled)
 }
 
 @Composable
@@ -93,5 +94,5 @@ private fun colorFor(state: FileState) = when (state) {
     FileState.Done    -> MaterialTheme.colorScheme.primary
     FileState.Failed  -> MaterialTheme.colorScheme.error
     FileState.Running -> MaterialTheme.colorScheme.primary
-    FileState.Pending -> MaterialTheme.colorScheme.onSurfaceVariant
+    FileState.Pending, FileState.Cancelled -> MaterialTheme.colorScheme.onSurfaceVariant
 }

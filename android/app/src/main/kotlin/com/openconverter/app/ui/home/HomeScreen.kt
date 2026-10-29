@@ -30,7 +30,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,11 +66,6 @@ fun HomeScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val ctx = LocalContext.current
-
-    DisposableEffect(Unit) {
-        viewModel.bind(ctx)
-        onDispose { viewModel.unbind(ctx) }
-    }
 
     val pickFiles = rememberLauncherForActivityResult(SafAdapter.openMultipleAudioFilesContract()) { uris ->
         if (uris.isNotEmpty()) viewModel.setFiles(uris)
@@ -113,7 +107,7 @@ fun HomeScreen(
                         s.running -> {
                             GreenCta(
                                 text = stringResource(R.string.cancel_conversion),
-                                onClick = { viewModel.cancel(ctx) },
+                                onClick = { viewModel.cancel() },
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
@@ -124,7 +118,7 @@ fun HomeScreen(
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
-                        s.files.any { it.state == FileState.Failed } -> {
+                        s.files.any { it.state == FileState.Failed || it.state == FileState.Cancelled } -> {
                             GreenCta(
                                 text = stringResource(R.string.retry_failed),
                                 onClick = { viewModel.retryFailed(ctx) },
@@ -210,7 +204,7 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    TextButton(onClick = { pickFiles.launch(viewModel.getLastFolderUri()) }) {
+                    TextButton(onClick = { pickFiles.launch(viewModel.getLastFolderUri()) }, enabled = !state.running) {
                         Text(
                             stringResource(R.string.home_add),
                             style = MaterialTheme.typography.labelLarge,

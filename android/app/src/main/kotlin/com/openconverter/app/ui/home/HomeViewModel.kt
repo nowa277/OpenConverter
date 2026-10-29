@@ -11,10 +11,12 @@ import android.provider.DocumentsContract
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.openconverter.app.engine.BatchProgress
 import com.openconverter.app.engine.ProgressEvent
 import com.openconverter.app.saf.SafAdapter
 import com.openconverter.app.service.ConversionService
 import com.openconverter.app.ui.components.FileState
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,6 +39,7 @@ data class HomeUiState(
     val targetFormat: String = "mp3",
     val bitrate: String? = "320k",
     val running: Boolean = false,
+    val batchId: String? = null,
     val showControlsSheet: Boolean = false,
     /** Set when the user picks a folder that Android 14 SAF rejects as
      *  "can't use this folder" (e.g. emulator's /sdcard/Music/ or any
@@ -79,15 +82,23 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
 
     private var binder: ConversionService.LocalBinder? = null
+    private var progressCollector: Job? = null
     private val conn = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val b = service as? ConversionService.LocalBinder ?: return
             binder = b
-            viewModelScope.launch {
-                b.service.progress.collect(::onEvent)
+            progressCollector?.cancel()
+            progressCollector = viewModelScope.launch {
+                b.service.progress.collect { snapshot ->
+                    if (snapshot != null) _state.update { applySnapshot(it, snapshot) }
+                }
             }
         }
-        override fun onServiceDisconnected(name: ComponentName?) { binder = null }
+        override fun onServiceDisconnected(name: ComponentName?) {
+            progressCollector?.cancel()
+            progressCollector = null
+            binder = null
+        }
     }
 
     fun bind(context: Context) {
@@ -97,6 +108,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
     fun unbind(context: Context) {
+        progressCollector?.cancel()
+        progressCollector = null
         runCatching { context.unbindService(conn) }
         binder = null
     }
@@ -115,6 +128,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         uris.firstOrNull()?.let { firstUri ->
             prefs.edit().putString("last_input_folder_uri", firstUri.toString()).apply()
         }
+        if (_state.value.running) return
         val entries = uris.map { uri ->
             FileEntry(
                 uri = uri.toString(),
@@ -122,7 +136,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 sizeBytes = mapSize(SafAdapter.querySize(ctx, uri)),
             )
         }
-        _state.update { it.copy(files = entries) }
+        _state.update { it.copy(files = entries, batchId = null) }
     }
     fun setOutputFolder(uri: Uri) {
         val ctx = getApplication<Application>()
@@ -200,7 +214,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         val s = _state.value
         if (s.files.isEmpty() || s.outputFolderUri == null || s.running) return
         if (s.folderError != null) return
-        _state.update { it.copy(running = true, files = it.files.map { f -> f.copy(state = FileState.Pending, percent = 0, error = null) }) }
+        val batchId = java.util.UUID.randomUUID().toString()
+        _state.update { it.copy(running = true, batchId = batchId, files = it.files.map { f -> f.copy(state = FileState.Pending, percent = 0, error = null) }) }
         val intent = ConversionService.makeIntent(
             context,
             inputs = s.files.map { it.uri },
@@ -208,60 +223,86 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             folder = s.outputFolderUri,
             target = s.targetFormat,
             bitrate = s.bitrate,
+            batchId = batchId,
         )
-        ContextCompat.startForegroundService(context, intent)
+        try {
+            ContextCompat.startForegroundService(context, intent)
+        } catch (error: IllegalStateException) {
+            _state.update { current -> current.copy(running = false, files = current.files.map { it.copy(state = FileState.Failed, error = error.message) }) }
+        } catch (error: SecurityException) {
+            _state.update { current -> current.copy(running = false, files = current.files.map { it.copy(state = FileState.Failed, error = error.message) }) }
+        }
     }
 
     fun retryFailed(context: Context) {
+        if (_state.value.running) return
         val retries = retryEntries(_state.value.files)
         if (retries.isEmpty()) return
         _state.update { it.copy(files = retries) }
         start(context)
     }
 
-    fun cancel(context: Context) {
-        val cancel = Intent(context, ConversionService::class.java).setAction(ConversionService.ACTION_CANCEL)
-        ContextCompat.startForegroundService(context, cancel)
+    fun cancel() {
+        val service = binder?.service
+        if (service != null) service.cancelBatch()
+        else getApplication<Application>().startService(Intent(getApplication(), ConversionService::class.java).setAction(ConversionService.ACTION_CANCEL))
     }
 
     fun removeFile(uri: String): Boolean {
         val current = _state.value
-        if (current.running) return false
         val target = current.files.find { it.uri == uri } ?: return false
+        if (current.running) return false
         if (target.state == FileState.Running) return false
         _state.update { it.copy(files = it.files.filterNot { file -> file.uri == uri }) }
         return true
     }
 
     fun clearFiles() {
+        if (_state.value.running) return
         _state.update {
             it.copy(
                 files = emptyList(),
                 running = false,
+                batchId = null,
                 showControlsSheet = false,
             )
         }
     }
 
-    private fun onEvent(ev: ProgressEvent) {
-        _state.update { s ->
-            val files = s.files.toMutableList()
-            when (ev) {
-                is ProgressEvent.Start    -> if (ev.index in files.indices) files[ev.index] = files[ev.index].copy(state = FileState.Running, percent = 0)
-                is ProgressEvent.Progress -> if (ev.index in files.indices) files[ev.index] = files[ev.index].copy(state = FileState.Running, percent = ev.percent)
-                is ProgressEvent.Done     -> if (ev.index in files.indices) files[ev.index] = files[ev.index].copy(state = FileState.Done, percent = 100)
-                is ProgressEvent.Failed   -> if (ev.index in files.indices) files[ev.index] = files[ev.index].copy(state = FileState.Failed, error = ev.message)
-                ProgressEvent.BatchDone   -> return@update s.copy(running = false, files = files)
-            }
-            s.copy(files = files)
-        }
-    }
-
     companion object {
+        fun applySnapshot(state: HomeUiState, snapshot: BatchProgress): HomeUiState {
+            if (state.batchId != snapshot.batchId) return state
+            val updated = snapshot.files.values.fold(state, ::applyProgress)
+            return snapshot.terminal?.let { applyProgress(updated, it) } ?: updated
+        }
+
+        fun applyProgress(state: HomeUiState, event: ProgressEvent): HomeUiState {
+            if (state.batchId != event.batchId || !state.running) return state
+            val files = state.files.toMutableList()
+            fun update(index: Int, change: (FileEntry) -> FileEntry) {
+                if (index in files.indices && files[index].state in setOf(FileState.Pending, FileState.Running)) {
+                    files[index] = change(files[index])
+                }
+            }
+            when (event) {
+                is ProgressEvent.Start -> update(event.index) { it.copy(state = FileState.Running, percent = 0) }
+                is ProgressEvent.Progress -> update(event.index) { it.copy(state = FileState.Running, percent = event.percent) }
+                is ProgressEvent.Done -> update(event.index) { it.copy(state = FileState.Done, percent = 100) }
+                is ProgressEvent.Failed -> update(event.index) { it.copy(state = FileState.Failed, error = event.message) }
+                is ProgressEvent.FileCancelled -> update(event.index) { it.copy(state = FileState.Cancelled) }
+                is ProgressEvent.BatchDone -> return state.copy(running = false, files = files)
+                is ProgressEvent.BatchCancelled -> return state.copy(
+                    running = false,
+                    files = files.map { if (it.state in setOf(FileState.Pending, FileState.Running)) it.copy(state = FileState.Cancelled) else it },
+                )
+            }
+            return state.copy(files = files)
+        }
+
         fun mapSize(raw: Long): Long = if (raw > 0) raw else -1L
 
         fun retryEntries(files: List<FileEntry>): List<FileEntry> = files
-            .filter { it.state == FileState.Failed }
+            .filter { it.state == FileState.Failed || it.state == FileState.Cancelled }
             .map { it.copy(state = FileState.Pending, percent = 0, error = null) }
     }
 }

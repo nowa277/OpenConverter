@@ -23,8 +23,8 @@ interface FileSystemPort {
     /** Read a cached file produced by ffmpeg back into memory. */
     fun readCache(path: String): ByteArray
     /** Write final output into the user-selected SAF folder; return its uri. */
-    fun writeOutput(folderUri: String, displayName: String, mime: String, bytes: ByteArray): String
-    fun writeOutputFromCache(
+    suspend fun writeOutput(folderUri: String, displayName: String, mime: String, bytes: ByteArray): String
+    suspend fun writeOutputFromCache(
         folderUri: String,
         displayName: String,
         mime: String,
