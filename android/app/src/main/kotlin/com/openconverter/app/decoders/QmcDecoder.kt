@@ -408,7 +408,12 @@ object QmcDecoder : StreamingDecoder {
         if (audio[0] == 0x66.toByte() && audio[1] == 0x4c.toByte() && audio[2] == 0x61.toByte() && audio[3] == 0x43.toByte()) return "flac"
         if (audio[0] == 0x4f.toByte() && audio[1] == 0x67.toByte() && audio[2] == 0x67.toByte() && audio[3] == 0x53.toByte()) return "ogg"
         if (audio[0] == 0x52.toByte() && audio[1] == 0x49.toByte() && audio[2] == 0x46.toByte() && audio[3] == 0x46.toByte()) return "wav"
+        if ((audio[0].toInt() and 0xff) == 0xff && (audio[1].toInt() and 0xff) == 0xf1) return "aac"
         if ((audio[0].toInt() and 0xff) == 0xff && (audio[1].toInt() and 0xe0) == 0xe0) return "mp3"
+        if (audio.copyOfRange(0, 4).contentEquals("FRM8".toByteArray())) return "dff"
+        val wma = byteArrayOf(0x30, 0x26, 0xb2.toByte(), 0x75, 0x8e.toByte(), 0x66, 0xcf.toByte(), 0x11,
+            0xa6.toByte(), 0xd9.toByte(), 0, 0xaa.toByte(), 0, 0x62, 0xce.toByte(), 0x6c)
+        if (audio.size >= wma.size && audio.copyOfRange(0, wma.size).contentEquals(wma)) return "wma"
         if (audio.size >= 8 && audio[4] == 0x66.toByte() && audio[5] == 0x74.toByte() && audio[6] == 0x79.toByte() && audio[7] == 0x70.toByte()) return "m4a"
         return null
     }

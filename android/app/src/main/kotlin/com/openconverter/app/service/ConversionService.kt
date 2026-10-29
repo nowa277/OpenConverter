@@ -73,9 +73,14 @@ class ConversionService : Service() {
     private var activeFiles: List<Deferred<FileResult>> = emptyList()
     private var latestStartId: Int = 0
     private val taskLock = Any()
+    private var currentBatchId: String? = null
+    private val cancelledBeforeStart = mutableSetOf<String>()
 
-    fun cancelBatch() {
-        synchronized(taskLock) { currentJob?.cancel() }
+    fun cancelBatch(batchId: String? = null) {
+        synchronized(taskLock) {
+            if (batchId == null || batchId == currentBatchId) currentJob?.cancel()
+            else cancelledBeforeStart += batchId
+        }
     }
 
     fun cancelFile(index: Int): Boolean = synchronized(taskLock) {
@@ -104,7 +109,7 @@ class ConversionService : Service() {
         if (intent?.action == ACTION_CANCEL) {
             startForegroundCompat(buildNotification(0, 0, "Cancelling…", null))
             val running = synchronized(taskLock) { currentJob?.isCompleted == false }
-            cancelBatch()
+            cancelBatch(intent.getStringExtra(EXTRA_BATCH_ID))
             if (!running) {
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf(startId)
@@ -131,6 +136,14 @@ class ConversionService : Service() {
 
         // Promote to foreground BEFORE starting work (5-s rule).
         startForegroundCompat(buildNotification(0, inputs.size, "Starting…", null))
+        if (synchronized(taskLock) { cancelledBeforeStart.remove(batchId) }) {
+            _progress.value = BatchProgress(batchId, terminal = com.openconverter.app.engine.ProgressEvent.BatchCancelled(batchId))
+            if (synchronized(taskLock) { currentJob?.isCompleted != false }) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf(startId)
+            }
+            return START_NOT_STICKY
+        }
 
         val previous = synchronized(taskLock) { currentJob }
         val job = scope.launch(start = CoroutineStart.LAZY) {
@@ -195,6 +208,7 @@ class ConversionService : Service() {
                 val ownsService = synchronized(taskLock) {
                     if (currentJob === owner) {
                         currentJob = null
+                        currentBatchId = null
                         activeFiles = emptyList()
                         true
                     } else false
@@ -209,6 +223,7 @@ class ConversionService : Service() {
         }
         synchronized(taskLock) {
             currentJob = job
+            currentBatchId = batchId
             activeFiles = emptyList()
         }
         job.start()

@@ -243,9 +243,13 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun cancel() {
+        val batchId = _state.value.batchId ?: return
         val service = binder?.service
-        if (service != null) service.cancelBatch()
-        else getApplication<Application>().startService(Intent(getApplication(), ConversionService::class.java).setAction(ConversionService.ACTION_CANCEL))
+        if (service != null) service.cancelBatch(batchId)
+        else getApplication<Application>().startService(
+            Intent(getApplication(), ConversionService::class.java).setAction(ConversionService.ACTION_CANCEL)
+                .putExtra(ConversionService.EXTRA_BATCH_ID, batchId),
+        )
     }
 
     fun removeFile(uri: String): Boolean {

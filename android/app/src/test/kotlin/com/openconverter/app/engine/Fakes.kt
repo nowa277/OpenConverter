@@ -56,6 +56,9 @@ class FakeFileSystemPort(
         mime,
         cache[cachePath] ?: throw NoSuchElementException("FakeFileSystemPort: cache miss $cachePath"),
     )
+    override fun deleteOutput(uri: String) {
+        writes.removeAll { (folder, name, _) -> "$folder/$name" == uri }
+    }
     override fun cleanup(path: String) {
         cleanups += path
         cache.remove(path)

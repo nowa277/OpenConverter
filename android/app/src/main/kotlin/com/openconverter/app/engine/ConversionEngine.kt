@@ -71,6 +71,7 @@ class ConversionEngine(
         var outPath: String? = null
         var coverPath: String? = null
         var metaPath: String? = null
+        var publishedAudio: String? = null
         try {
             sink.onFileStart(i, total, displayName)
             coroutineContext.ensureActive()
@@ -169,6 +170,7 @@ class ConversionEngine(
                         req.outputFolderUri, outName, mimeFor(req.targetFormat), requireNotNull(audio),
                     )
                 }
+                publishedAudio = outDocUri
                 writeSiblingLrc(req.outputFolderUri, displayName, req.targetFormat, decoderMatch?.encryptedExtension, lrc)
                 sink.onFileDone(i, outDocUri)
                 return FileResult(i, uri, outDocUri, null)
@@ -240,12 +242,15 @@ class ConversionEngine(
                 mimeFor(req.targetFormat),
                 outputPath,
             )
+            publishedAudio = outDocUri
             writeSiblingLrc(req.outputFolderUri, displayName, req.targetFormat, decoderMatch?.encryptedExtension, lrc)
             sink.onFileDone(i, outDocUri)
             return FileResult(i, uri, outDocUri, null)
         } catch (ce: CancellationException) {
+            publishedAudio?.let { fs.deleteOutput(it) }
             throw ce
         } catch (t: Exception) {
+            publishedAudio?.let { fs.deleteOutput(it) }
             val msg = t.message ?: t::class.simpleName ?: "error"
             sink.onFileError(i, msg)
             return FileResult(i, uri, null, msg)

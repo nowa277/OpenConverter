@@ -77,6 +77,20 @@ class ConversionRecoveryTest {
         withTimeout(60_000) { vm.state.first { !it.running } }
     }
 
+    @Test fun cancel_before_start_intent_dispatch_prevents_the_batch_from_running() {
+        scenario.onActivity { activity ->
+            vm.setFiles(listOf(uri("long.wav")))
+            vm.setTargetFormat("mp3")
+            vm.start(activity)
+            vm.cancel()
+        }
+        val stopped = awaitStopped()
+        assertEquals(FileState.Cancelled, stopped.files.single().state)
+        assertFalse(outputNames().contains("long.mp3"))
+        start("small.wav")
+        assertEquals(FileState.Done, awaitStopped().files.single().state)
+    }
+
     @Test fun cancel_then_convert_again_and_recreate_activity() {
         repeat(3) {
             start("long.wav")
