@@ -126,28 +126,23 @@ class DecoderParityTest {
         org.junit.Assert.assertArrayEquals(buffered.audio, streamed.toByteArray())
     }
 
-    // ----- NCM (real fixture, AES + RC4) -----
-    // Real NCM sample is copyrighted and not tracked in the public repo.
-    // When a maintainer drops one into test-ncm/sample.ncm + adds its sha256
-    // to expected-sha256.json, this test runs; otherwise it is skipped.
-    @Test fun ncm_real_sample_matches_js_oracle() {
-        assumeTrue(
-            "test-ncm/sample.ncm not present (copyrighted fixture, not tracked)",
-            resourceExists("test-ncm/sample.ncm")
-        )
-        val oracle = loadOracle("test-ncm")
-        val expectedSha = oracle.getString("sample.ncm")
-        val cipher = loadResource("test-ncm/sample.ncm")
-        val r = NcmDecoder.decrypt(cipher)
-        assertEquals(expectedSha, sha256(r.audio))
+    // ----- NCM (generated PCM, AES + RC4) -----
+    @Test fun ncm_synthetic_restores_generated_pcm() {
+        val r = NcmDecoder.decrypt(SyntheticNcm.build())
+        assertEquals("wav", r.format)
+        org.junit.Assert.assertArrayEquals(SyntheticNcm.audio, r.audio)
+    }
+
+    @Test fun ncm_optional_real_sample_matches_reference_audio() {
+        val input = System.getenv("OPENCONVERTER_NCM_SAMPLE")
+        val reference = System.getenv("OPENCONVERTER_NCM_REFERENCE_AUDIO")
+        assumeTrue("set OPENCONVERTER_NCM_SAMPLE and OPENCONVERTER_NCM_REFERENCE_AUDIO for authorized real samples", input != null && reference != null)
+        val result = NcmDecoder.decrypt(java.io.File(input!!).readBytes())
+        org.junit.Assert.assertArrayEquals(java.io.File(reference!!).readBytes(), result.audio)
     }
 
     @Test fun ncm_streaming_matches_bytearray_path() {
-        assumeTrue(
-            "test-ncm/sample.ncm not present (copyrighted fixture, not tracked)",
-            resourceExists("test-ncm/sample.ncm")
-        )
-        val cipher = loadResource("test-ncm/sample.ncm")
+        val cipher = SyntheticNcm.build()
         val buffered = NcmDecoder.decrypt(cipher)
         val streamed = java.io.ByteArrayOutputStream()
         val format = NcmDecoder.decrypt(java.io.ByteArrayInputStream(cipher), streamed, 64)

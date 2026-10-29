@@ -1,47 +1,66 @@
 package com.openconverter.app.decoders
 
+import com.openconverter.app.meta.NcmTrackMeta
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertTrue
-import org.junit.Assume.assumeTrue
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 
 class NcmStreamingMetaTest {
-    private fun resourceExists(path: String): Boolean =
-        javaClass.classLoader!!.getResource(path) != null
-
-    private fun loadResource(path: String): ByteArray =
-        javaClass.classLoader!!.getResourceAsStream(path)!!.use { it.readBytes() }
-
     @Test fun streaming_result_carries_tags_cover_and_musicId() {
-        assumeTrue("test-ncm/sample.ncm not present", resourceExists("test-ncm/sample.ncm"))
-        val cipher = loadResource("test-ncm/sample.ncm")
-        val audio = ByteArrayOutputStream()
-        val result = NcmDecoder.decryptStreaming(ByteArrayInputStream(cipher), audio)
-        assertTrue(result.format == "mp3" || result.format == "flac")
-        assertTrue(result.tags["title"].orEmpty().isNotBlank())
-        assertTrue(result.tags["artist"].orEmpty().isNotBlank())
-        assertNotNull(result.musicId)
-        val cover = result.cover
-        assertNotNull(cover)
-        assertTrue(cover!!.size > 32)
-        val jpeg = cover[0] == 0xFF.toByte() && cover[1] == 0xD8.toByte()
-        val png = cover[0] == 0x89.toByte() && cover[1] == 0x50.toByte()
-        assertTrue("cover must be jpeg or png", jpeg || png)
-        assertFalse(result.rawMeta.isNullOrBlank())
+        val cipher = SyntheticNcm.build()
+        for (chunkSize in listOf(1, 7, 256, 8192)) {
+            val audio = ByteArrayOutputStream()
+            val result = NcmDecoder.decryptStreaming(ByteArrayInputStream(cipher), audio, chunkSize)
+            assertEquals("wav", result.format)
+            assertEquals(mapOf("title" to "Synthetic tone", "artist" to "Synth / Wave", "album" to "Regression fixtures"), result.tags)
+            assertEquals("123456789", result.musicId)
+            assertArrayEquals(SyntheticNcm.cover, result.cover)
+            assertEquals(SyntheticNcm.META, result.rawMeta)
+            assertArrayEquals(SyntheticNcm.audio, audio.toByteArray())
+        }
     }
 
-    @Test fun byte_array_path_still_matches_streaming_audio() {
-        assumeTrue("test-ncm/sample.ncm not present", resourceExists("test-ncm/sample.ncm"))
-        val cipher = loadResource("test-ncm/sample.ncm")
+    @Test fun byte_array_path_matches_streaming_audio_and_metadata() {
+        val cipher = SyntheticNcm.build()
         val buffered = NcmDecoder.decrypt(cipher)
-        val streamed = ByteArrayOutputStream()
-        val result = NcmDecoder.decryptStreaming(ByteArrayInputStream(cipher), streamed)
-        org.junit.Assert.assertArrayEquals(buffered.audio, streamed.toByteArray())
-        assertEquals(buffered.format, result.format)
-        assertEquals(buffered.meta, result.rawMeta)
+        val audio = ByteArrayOutputStream()
+        val streamed = NcmDecoder.decryptStreaming(ByteArrayInputStream(cipher), audio, 13)
+        assertArrayEquals(buffered.audio, audio.toByteArray())
+        assertEquals(buffered.format, streamed.format)
+        assertEquals(buffered.meta, streamed.rawMeta)
+        val tags = NcmTrackMeta.fromJson(buffered.meta)
+        assertEquals(tags.tags, streamed.tags)
+        assertEquals(tags.musicId, streamed.musicId)
+    }
+
+    @Test fun metadata_free_fixture_keeps_audio_and_reports_absent_fields() {
+        val cipher = SyntheticNcm.build(meta = null, image = byteArrayOf())
+        val audio = ByteArrayOutputStream()
+        val result = NcmDecoder.decryptStreaming(ByteArrayInputStream(cipher), audio, 7)
+        assertEquals(emptyMap<String, String>(), result.tags)
+        assertNull(result.cover)
+        assertNull(result.musicId)
+        assertNull(result.rawMeta)
+        assertArrayEquals(SyntheticNcm.audio, audio.toByteArray())
+    }
+
+    @Test fun metadata_free_legacy_generator_sample_has_no_title() {
+        val cipher = javaClass.classLoader!!.getResourceAsStream("test-ncm/sample.ncm")!!.use { it.readBytes() }
+        val result = NcmDecoder.decryptStreaming(ByteArrayInputStream(cipher), ByteArrayOutputStream())
+        assertEquals("mp3", result.format)
+        assertEquals(emptyMap<String, String>(), result.tags)
+        assertNull(result.musicId)
+        assertNull(result.cover)
+    }
+
+    @Test fun altered_magic_is_rejected_before_decryption() {
+        val cipher = SyntheticNcm.build()
+        cipher[0] = 'X'.code.toByte()
+        val error = assertThrows(IllegalArgumentException::class.java) { NcmDecoder.decrypt(cipher) }
+        assertEquals("NCM: bad magic", error.message)
     }
 }
