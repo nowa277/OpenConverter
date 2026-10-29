@@ -6,6 +6,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.lifecycle.ViewModelProvider
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +32,19 @@ import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     private val homeVm: HomeViewModel by viewModels()
+    private val updateVm: com.openconverter.app.update.UpdateViewModel by viewModels {
+        object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
+                com.openconverter.app.update.UpdateViewModel(
+                    BuildConfig.VERSION_NAME,
+                    { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.openconverter.app.update.ApkUpdate.fetchNewest(android.os.Build.SUPPORTED_ABIS.first()) } },
+                    { asset -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        java.io.File(cacheDir, "updates/openconverter-update.apk").also { com.openconverter.app.update.ApkUpdate.download(asset.apkUrl, it) }
+                    } },
+                ) as T
+        }
+    }
     private val settingsVm: SettingsViewModel by viewModels {
         SettingsViewModel.Factory((application as OpenConverterApp).kggKeyStore)
     }
@@ -74,7 +88,6 @@ class MainActivity : ComponentActivity() {
             }
 
             OpenConverterTheme(darkTheme = darkTheme) {
-                val settingsState by settingsVm.state.collectAsState()
                 var tab by rememberSaveable { mutableStateOf("convert") }
                 Column(modifier = Modifier.fillMaxSize()) {
                     Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -94,7 +107,7 @@ class MainActivity : ComponentActivity() {
                                     recreate()
                                 },
                             )
-                            "about" -> AboutScreen(versionName = settingsState.versionName)
+                            "about" -> AboutScreen(viewModel = updateVm)
                             else -> HomeScreen(viewModel = homeVm)
                         }
                     }

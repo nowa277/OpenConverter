@@ -25,11 +25,19 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
+import com.openconverter.app.update.UpdatePhase
+import com.openconverter.app.update.UpdateViewModel
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,24 +51,15 @@ import androidx.core.content.FileProvider
 import com.openconverter.app.R
 import com.openconverter.app.ui.components.GreenCta
 import com.openconverter.app.ui.components.PillButton
-import com.openconverter.app.update.ApkUpdate
-import com.openconverter.app.update.ReleaseAsset
-import com.openconverter.app.update.ReleaseCheck
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AboutScreen(versionName: String) {
+fun AboutScreen(viewModel: UpdateViewModel) {
+    val versionName = com.openconverter.app.BuildConfig.VERSION_NAME
     val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val abi = Build.SUPPORTED_ABIS.firstOrNull().orEmpty()
-    var note by remember { mutableStateOf("") }
-    var busy by remember { mutableStateOf(false) }
-    var newer by remember { mutableStateOf<ReleaseAsset?>(null) }
+    val state by viewModel.state.collectAsState()
+    val busy = state.busy
     val checking = stringResource(R.string.about_checking)
     val upToDate = stringResource(R.string.about_up_to_date)
     val available = stringResource(R.string.about_available)
@@ -69,69 +68,43 @@ fun AboutScreen(versionName: String) {
     val noPackage = stringResource(R.string.about_no_package)
     val needPermission = stringResource(R.string.about_need_permission)
 
-    fun lookup() {
-        if (busy) return
-        scope.launch {
-            busy = true
-            note = checking
-            val found = withContext(Dispatchers.IO) {
-                runCatching { ApkUpdate.fetchNewest(abi) }
-            }
-            busy = false
-            found.onFailure { note = failed }
-            found.onSuccess { asset ->
-                when {
-                    asset == null -> {
-                        newer = null
-                        note = noPackage
+    fun launchInstaller() {
+        val apk = viewModel.state.value.pendingInstall ?: return
+        try {
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.updates", apk)
+            context.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
+            viewModel.installLaunched()
+        } catch (_: android.content.ActivityNotFoundException) {
+            viewModel.installFailed()
+        }
+    }
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        if (Build.VERSION.SDK_INT < 26 || context.packageManager.canRequestPackageInstalls()) launchInstaller()
+    }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    var permissionRequested by rememberSaveable(state.pendingInstall?.path) { mutableStateOf(false) }
+    LaunchedEffect(lifecycle, state.pendingInstall) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            if (viewModel.state.value.pendingInstall != null) {
+                if (Build.VERSION.SDK_INT >= 26 && !context.packageManager.canRequestPackageInstalls()) {
+                    if (!permissionRequested) {
+                        permissionRequested = true
+                        permission.launch(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}")))
                     }
-                    ReleaseCheck.isNewer(asset.version, versionName) -> {
-                        newer = asset
-                        note = available.format(asset.version)
-                    }
-                    else -> {
-                        newer = null
-                        note = upToDate
-                    }
-                }
+                } else launchInstaller()
             }
         }
     }
-
-    fun install(asset: ReleaseAsset) {
-        if (busy) return
-        scope.launch {
-            busy = true
-            note = downloading
-            val file = File(context.cacheDir, "updates/openconverter-update.apk")
-            val saved = withContext(Dispatchers.IO) {
-                runCatching {
-                    if (file.exists()) file.delete()
-                    ApkUpdate.download(asset.apkUrl, file)
-                    file
-                }
-            }
-            busy = false
-            saved.onFailure { note = failed }
-            saved.onSuccess { apk ->
-                if (Build.VERSION.SDK_INT >= 26 && !context.packageManager.canRequestPackageInstalls()) {
-                    note = needPermission
-                    context.startActivity(
-                        Intent(
-                            Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                            Uri.parse("package:${context.packageName}"),
-                        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                    )
-                    return@onSuccess
-                }
-                val uri = FileProvider.getUriForFile(context, "${context.packageName}.updates", apk)
-                context.startActivity(
-                    Intent(Intent.ACTION_VIEW)
-                        .setDataAndType(uri, "application/vnd.android.package-archive")
-                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK),
-                )
-            }
-        }
+    val note = when (state.phase) {
+        UpdatePhase.Idle -> ""
+        UpdatePhase.Checking -> checking
+        UpdatePhase.Current -> upToDate
+        UpdatePhase.Available -> available.format(state.asset!!.version)
+        UpdatePhase.Downloading -> downloading
+        UpdatePhase.Ready -> needPermission
+        UpdatePhase.NoPackage -> noPackage
+        UpdatePhase.Failed -> failed
     }
 
     Scaffold(
@@ -175,7 +148,7 @@ fun AboutScreen(versionName: String) {
             ) {
                 PillButton(
                     text = stringResource(R.string.about_check),
-                    onClick = { lookup() },
+                    onClick = viewModel::check,
                     enabled = !busy,
                     modifier = Modifier.weight(1f),
                     height = 48.dp,
@@ -183,28 +156,11 @@ fun AboutScreen(versionName: String) {
                 GreenCta(
                     text = stringResource(R.string.about_update),
                     onClick = {
-                        val known = newer
-                        if (known != null) install(known)
-                        else scope.launch {
-                            if (busy) return@launch
-                            busy = true
-                            note = checking
-                            val found = withContext(Dispatchers.IO) {
-                                runCatching { ApkUpdate.fetchNewest(abi) }
-                            }
-                            busy = false
-                            found.onFailure { note = failed }
-                            found.onSuccess { asset ->
-                                when {
-                                    asset == null -> note = noPackage
-                                    ReleaseCheck.isNewer(asset.version, versionName) -> {
-                                        newer = asset
-                                        install(asset)
-                                    }
-                                    else -> note = upToDate
-                                }
-                            }
-                        }
+                        if (state.pendingInstall != null) {
+                            if (Build.VERSION.SDK_INT >= 26 && !context.packageManager.canRequestPackageInstalls()) {
+                                permission.launch(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}")))
+                            } else launchInstaller()
+                        } else viewModel.update()
                     },
                     enabled = !busy,
                     modifier = Modifier.weight(1f),
