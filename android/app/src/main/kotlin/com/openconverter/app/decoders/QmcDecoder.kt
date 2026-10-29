@@ -82,13 +82,13 @@ object QmcDecoder : StreamingDecoder {
         if (len >= 8) {
             val tail = buf.sliceArray(len - 8 until len).decodeToString()
             if (tail == "musicex\u0000") {
-                throw IllegalArgumentException("This file was encrypted with a newer QQ Music client (musicex) without an embedded key. Please downgrade your client or provide a key database.")
+                throw IllegalArgumentException("This file was encrypted with a newer QQ Music client (musicex) without an embedded key. Android QQ database key import requires a versioned, authorized database sample.")
             }
         }
         if (len >= 4) {
             val tail4 = buf.sliceArray(len - 4 until len).decodeToString()
             if (tail4 == "STag") {
-                throw IllegalArgumentException("This file contains an STag but no embedded key. Please downgrade your QQ Music client or provide a key database.")
+                throw IllegalArgumentException("This file contains an STag but no embedded key. Android QQ database key import requires a versioned, authorized database sample.")
             }
         }
         if (len < 8) return null
@@ -435,6 +435,17 @@ object QmcDecoder : StreamingDecoder {
         require(size > 0L) { "QMC: empty input" }
         require(size <= Int.MAX_VALUE.toLong()) { "QMC: file too large to decrypt" }
         val detected = detectKey(raf, size)
+        val originalFormat = detectAudioFormat(readRaf(raf, 0, minOf(size, 16).toInt()))
+        if (detected == null && originalFormat != null) {
+            raf.seek(0)
+            val buffer = ByteArray(bufferSize)
+            while (true) {
+                val count = raf.read(buffer)
+                if (count < 0) break
+                output.write(buffer, 0, count)
+            }
+            return originalFormat
+        }
         val audioOffset = detected?.audioOffset ?: 0
         val audioLen = detected?.audioLen ?: size.toInt()
         val derivedKey = detected?.let { qmcDeriveKey(it.ekey) }
@@ -468,7 +479,8 @@ object QmcDecoder : StreamingDecoder {
                         detectAudioFormat(probe.toByteArray())
                             ?: throw IllegalArgumentException("QMCv2 decryption failed: decrypted data is not a recognized audio stream")
                     } else {
-                        FormatSniffer.sniff(probe.toByteArray())
+                        detectAudioFormat(probe.toByteArray())
+                            ?: throw IllegalArgumentException("QQ audio could not be decoded: a key is missing or this layout is unsupported")
                     }
                 }
             }
@@ -481,7 +493,8 @@ object QmcDecoder : StreamingDecoder {
                 detectAudioFormat(probe.toByteArray())
                     ?: throw IllegalArgumentException("QMCv2 decryption failed: decrypted data is not a recognized audio stream")
             } else {
-                FormatSniffer.sniff(probe.toByteArray())
+                detectAudioFormat(probe.toByteArray())
+                            ?: throw IllegalArgumentException("QQ audio could not be decoded: a key is missing or this layout is unsupported")
             }
         }
         return format
@@ -498,13 +511,13 @@ object QmcDecoder : StreamingDecoder {
         if (len >= 8) {
             val tail = String(readRaf(raf, len - 8, 8), Charsets.ISO_8859_1)
             if (tail == "musicex\u0000") {
-                throw IllegalArgumentException("This file was encrypted with a newer QQ Music client (musicex) without an embedded key. Please downgrade your client or provide a key database.")
+                throw IllegalArgumentException("This file was encrypted with a newer QQ Music client (musicex) without an embedded key. Android QQ database key import requires a versioned, authorized database sample.")
             }
         }
         if (len >= 4) {
             val tail4 = String(readRaf(raf, len - 4, 4), Charsets.US_ASCII)
             if (tail4 == "STag") {
-                throw IllegalArgumentException("This file contains an STag but no embedded key. Please downgrade your QQ Music client or provide a key database.")
+                throw IllegalArgumentException("This file contains an STag but no embedded key. Android QQ database key import requires a versioned, authorized database sample.")
             }
         }
         if (len < 8) return null

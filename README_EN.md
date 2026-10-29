@@ -108,11 +108,13 @@ Download the latest APK files from the [Releases page](https://github.com/nowa27
 
 KuGou `.kgg` needs a per-track key. Keys stay on the phone:
 1. **Rooted**: turn on Auto sync, or tap Sync keys.
-2. **Not rooted**: put `kgg.key` or `KGMusicV3.db` in Download or Music, or tap Import in Settings.
+2. **SAF import**: select an authorized `kgg.key`, `mggkey` or `KGMusicV3.db` in Settings. Public-folder scanning depends on Android storage permissions.
+
+Android supports QMC v1 and selected QMC v2 layouts with embedded keys. Manual ekey configuration is available on desktop. Android QQ database key import needs versioned sample validation.
 
 > [!IMPORTANT]
 > **Android KGG Decryption Guide:**
-> 1. **Rooted Phones**: One-tap Native Root sync in Settings unlocks all downloaded KGG tracks immediately.
+> 1. **Root-authorized phones**: Sync keys attempts to read KuGou files. Results depend on the client layout and access permissions.
 > 2. **Not rooted**: copy `KGMusicV3.db` (on Windows, often `C:\Users\Public\KuGou\KGMusic\KGMusicV3.db`) or `kgg.key` into Download or Music, or tap Import in Settings.
 > 3. **Downgrade Alternative**: Older KuGou versions download tracks as `.kgm` / `.kgma` without database requirements, allowing instant decryption without root or imports.
 
