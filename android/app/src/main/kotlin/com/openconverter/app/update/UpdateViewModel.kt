@@ -66,6 +66,9 @@ class UpdateViewModel(
         } catch (_: java.io.IOException) {
             mutable.value = UpdateState(UpdatePhase.Failed)
             null
+        } catch (_: org.json.JSONException) {
+            mutable.value = UpdateState(UpdatePhase.Failed)
+            null
         }
     }
 }

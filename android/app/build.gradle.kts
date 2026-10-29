@@ -74,6 +74,7 @@ android {
     sourceSets["main"].kotlin.srcDir("src/main/kotlin")
     sourceSets["test"].kotlin.srcDir("src/test/kotlin")
     sourceSets["debug"].kotlin.srcDir("src/sharedTest/kotlin")
+    sourceSets["testRelease"].kotlin.srcDir("src/sharedTest/kotlin")
 }
 
 dependencies {

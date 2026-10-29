@@ -32,6 +32,23 @@ class UpdateViewModelTest {
         } finally { Dispatchers.resetMain() }
     }
 
+    @Test fun malformed_release_json_sets_failed_and_can_be_retried() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            for (invalid in listOf("{", "{}")) {
+                var body = invalid
+                val model = UpdateViewModel("1.4.4", { ReleaseCheck.newestApk(body, "x86_64") }, { File("synthetic.apk") })
+                model.check()
+                advanceUntilIdle()
+                assertEquals(UpdatePhase.Failed, model.state.value.phase)
+                body = """[{"tag_name":"v1.4.5-android","assets":[{"name":"test-x86_64.apk","browser_download_url":"https://example.test/update.apk"}]}]"""
+                model.check()
+                advanceUntilIdle()
+                assertEquals(UpdatePhase.Available, model.state.value.phase)
+            }
+        } finally { Dispatchers.resetMain() }
+    }
+
     @Test fun failed_download_can_be_retried() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {

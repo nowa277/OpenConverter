@@ -11,6 +11,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.test.runTest
@@ -634,6 +635,32 @@ class ConversionEngineTest {
         assertNull(result.error)
         assertEquals(2, attempts)
         assertEquals("song.flac", fs.writes.single().second)
+    }
+
+    @Test fun cancelling_during_lyric_export_rolls_back_published_audio() = runTest {
+        val stored = FakeFileSystemPort(reads = mapOf("uri:ncm" to byteArrayOf(1)))
+        val fs = object : FileSystemPort by stored {
+            override suspend fun writeOutput(folderUri: String, displayName: String, mime: String, bytes: ByteArray): String {
+                if (displayName.endsWith(".lrc")) {
+                    kotlin.coroutines.coroutineContext[kotlinx.coroutines.Job]!!.cancel()
+                    kotlin.coroutines.coroutineContext.ensureActive()
+                }
+                return stored.writeOutput(folderUri, displayName, mime, bytes)
+            }
+        }
+        val sink = RecordingProgressSink()
+        val engine = ConversionEngine(
+            DecoderRegistry(listOf(taggedNcm("9", mapOf("title" to "Tone")))),
+            FakeFfmpegRunner(stored, outputBytes = ID3), fs, sink,
+            lyricResolver = LyricResolverPort { "[00:00.00]Synthetic" },
+        )
+        val job = launch {
+            engine.convertAll(ConversionRequest(listOf("uri:ncm"), listOf("tone.ncm"), "mp3", "tree:out", null, PLAIN_EXTS))
+        }
+        job.join()
+        assertTrue(job.isCancelled)
+        assertTrue("audio must be rolled back with the cancelled task", stored.writes.isEmpty())
+        assertTrue(sink.events.none { it.startsWith("done ") })
     }
 
     private fun fakeStreamingDecoder(audio: ByteArray, format: String): StreamingDecoder =

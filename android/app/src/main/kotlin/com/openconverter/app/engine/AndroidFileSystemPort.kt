@@ -70,6 +70,10 @@ class AndroidFileSystemPort(private val context: Context) : FileSystemPort {
             ?: throw java.io.IOException("createDocument returned null for $displayName in $folderUri")
     }
 
+    override fun deleteOutput(uri: String) {
+        check(DocumentsContract.deleteDocument(context.contentResolver, Uri.parse(uri))) { "Cannot remove cancelled output: $uri" }
+    }
+
     override fun cleanup(path: String) { File(path).delete() }
 
     fun clearStaleCache() {

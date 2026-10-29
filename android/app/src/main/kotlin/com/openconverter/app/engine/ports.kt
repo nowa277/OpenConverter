@@ -30,6 +30,7 @@ interface FileSystemPort {
         mime: String,
         cachePath: String,
     ): String
+    fun deleteOutput(uri: String)
     /** Best-effort delete of a temp file. No-op if missing. */
     fun cleanup(path: String)
 }

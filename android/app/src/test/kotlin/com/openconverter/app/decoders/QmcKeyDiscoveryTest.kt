@@ -22,6 +22,24 @@ class QmcKeyDiscoveryTest {
         assertArrayEquals(SyntheticNcm.audio, result.audio)
     }
 
+    @Test fun aac_wma_and_dff_keep_their_format_before_and_after_qmc_v1_decode() {
+        val headers = listOf(
+            "aac" to byteArrayOf(0xff.toByte(), 0xf1.toByte(), 0x50, 0x80.toByte()),
+            "dff" to "FRM8".toByteArray(),
+            "wma" to byteArrayOf(0x30, 0x26, 0xb2.toByte(), 0x75, 0x8e.toByte(), 0x66, 0xcf.toByte(), 0x11,
+                0xa6.toByte(), 0xd9.toByte(), 0, 0xaa.toByte(), 0, 0x62, 0xce.toByte(), 0x6c),
+        )
+        for ((format, header) in headers) {
+            val audio = header + ByteArray(64) { 0x34 }
+            val plain = QmcDecoder.decrypt(audio)
+            assertEquals(format, plain.format)
+            assertArrayEquals(audio, plain.audio)
+            val decrypted = QmcDecoder.decrypt(QmcDecoder.decryptV1(audio))
+            assertEquals(format, decrypted.format)
+            assertArrayEquals(audio, decrypted.audio)
+        }
+    }
+
     @Test fun external_key_layouts_report_missing_key_for_buffered_and_streaming_paths() {
         for (tail in listOf("STag", "musicex\u0000")) {
             val cipher = ByteArray(100) { 0x42 } + tail.toByteArray()
