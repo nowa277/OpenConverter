@@ -65,6 +65,30 @@ test('empty lyric JSON is not retried', async () => {
   assert.strictEqual(lrc, null);
 });
 
+test('cancelled lyric lookup stops its in-flight request and retries', async () => {
+  const controller = new AbortController();
+  let attempts = 0;
+  let entered;
+  const ready = new Promise((resolve) => { entered = resolve; });
+  const lookup = resolveLrc({
+    musicId: '1', signal: controller.signal, listRoots: () => [],
+    fetchJson: async (_id, { signal } = {}) => {
+      attempts++;
+      entered();
+      await new Promise((resolve, reject) => {
+        signal?.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
+        if (!signal) resolve();
+      });
+      return null;
+    },
+    delayMs: 0,
+  });
+  await ready;
+  controller.abort();
+  await assert.rejects(lookup, /aborted/);
+  assert.strictEqual(attempts, 1);
+});
+
 test('cache miss uses API lyric field', async () => {
   const lrc = await resolveLrc({
     musicId: '1', enabled: true,

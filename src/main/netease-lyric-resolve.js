@@ -51,7 +51,9 @@ function isJsonBody(body) {
 }
 
 async function resolveLrc(opts = {}) {
-  const { musicId, enabled, extraRootDir } = opts;
+  const { musicId, enabled, extraRootDir, signal } = opts;
+  const checkCancelled = () => { if (signal?.aborted) throw new Error('aborted'); };
+  checkCancelled();
   if (enabled === false) return null;
 
   const fetchJson = typeof opts.fetchJson === 'function' ? opts.fetchJson : getNeteaseLyricJson;
@@ -82,10 +84,13 @@ async function resolveLrc(opts = {}) {
   for (let i = 0; i < attempts; i++) {
     let body = null;
     try {
-      body = await fetchJson(musicId);
-    } catch {
+      checkCancelled();
+      body = await fetchJson(musicId, { signal });
+    } catch (error) {
+      checkCancelled();
       body = null;
     }
+    checkCancelled();
     const lrc = toLrc(body);
     if (lrc != null) return lrc;
     // A parsed JSON body is a real answer (including "this song has no lyric").

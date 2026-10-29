@@ -145,37 +145,45 @@ const HANDLERS = {
     let historyChain = Promise.resolve();
     const appendToHistory = (record) => { historyChain = historyChain.then(() => history.append(record)); };
 
-    const tasks = files.map((inputPath, index) => async () => {
+    const tasks = files.map((inputPath, index) => {
       const jobId = `job-${++jobCounter}`;
       const controller = new AbortController();
       activeJobs.set(jobId, { controller, inputPath });
       send('convert:progress', { jobId, filePath: inputPath, stage: 'queued', percent: 0 });
-      const started = Date.now();
-      try {
-        const decodeOpts = await decodeOptsFor(inputPath);
-        const r = await pipeline.convertOne({
-          inputPath, outputDir, format, quality, decodeOpts, ffmpegBin, ffprobeBin,
-          ncmLyricsEnabled: config.get().ncmLyricsEnabled !== false,
-          signal: controller.signal,
-          onProgress: ({ stage, percent }) => send('convert:progress', { jobId, filePath: inputPath, stage, percent }),
-        });
-        results[index] = { jobId, inputPath, outputPath: r.outputPath, format: r.format, durationMs: r.durationMs };
-        appendToHistory({
-          ts: Date.now(), inputName: path.basename(inputPath), targetFormat: format, status: 'success',
-          outputName: path.basename(r.outputPath), outputPath: r.outputPath, durationMs: r.durationMs, error: null,
-        });
-      } catch (e) {
-        const cancelled = e.message === 'aborted';
-        results[index] = { jobId, inputPath, error: cancelled ? 'Cancelled' : e.message, cancelled };
-        if (!cancelled) {
-          appendToHistory({
-            ts: Date.now(), inputName: path.basename(inputPath), targetFormat: format, status: 'failed',
-            outputName: null, outputPath: null, durationMs: Date.now() - started, error: e.message,
+      return async () => {
+        const started = Date.now();
+        try {
+          if (controller.signal.aborted) throw new Error('aborted');
+          const decodeOpts = await decodeOptsFor(inputPath);
+          if (controller.signal.aborted) throw new Error('aborted');
+          const r = await pipeline.convertOne({
+            inputPath, outputDir, format, quality, decodeOpts, ffmpegBin, ffprobeBin,
+            ncmLyricsEnabled: config.get().ncmLyricsEnabled !== false,
+            signal: controller.signal,
+            onProgress: ({ stage, percent }) => {
+              if (stage !== 'done' && !controller.signal.aborted) send('convert:progress', { jobId, filePath: inputPath, stage, percent });
+            },
           });
+          results[index] = { jobId, inputPath, outputPath: r.outputPath, format: r.format, durationMs: r.durationMs };
+          send('convert:progress', { jobId, filePath: inputPath, stage: 'done', percent: 100, outputPath: r.outputPath, durationMs: r.durationMs });
+          appendToHistory({
+            ts: Date.now(), inputName: path.basename(inputPath), targetFormat: format, status: 'success',
+            outputName: path.basename(r.outputPath), outputPath: r.outputPath, durationMs: r.durationMs, error: null,
+          });
+        } catch (e) {
+          const cancelled = e.message === 'aborted';
+          results[index] = { jobId, inputPath, error: cancelled ? 'Cancelled' : e.message, cancelled };
+          send('convert:progress', { jobId, filePath: inputPath, stage: cancelled ? 'cancelled' : 'error', error: cancelled ? null : e.message });
+          if (!cancelled) {
+            appendToHistory({
+              ts: Date.now(), inputName: path.basename(inputPath), targetFormat: format, status: 'failed',
+              outputName: null, outputPath: null, durationMs: Date.now() - started, error: e.message,
+            });
+          }
+        } finally {
+          activeJobs.delete(jobId);
         }
-      } finally {
-        activeJobs.delete(jobId);
-      }
+      };
     });
 
     await pipeline.parallelLimit(limit, tasks);
