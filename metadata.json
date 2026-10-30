@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.12.2",
+  "checkpoint_id": "01M65RB1YDD6Y2YGSNZ9WP4Y7R",
+  "strategy": "manual-commit",
+  "checkpoints_count": 7,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1569993,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 19021312,
+    "output_tokens": 36189,
+    "api_call_count": 99
+  },
+  "redaction": {
+    "replacements": 112,
+    "layers": {
+      "betterleaks": 2,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 38,
+      "credentialed_uri": 0,
+      "entropy": 436,
+      "key_context": 0,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  },
+  "linked_commits": [
+    {
+      "sha": "6664c991715b74bd4ea4c0596b0a4b13fc3acb3d",
+      "repo": "gh/nowa277/OpenConverter"
+    }
+  ]
+}

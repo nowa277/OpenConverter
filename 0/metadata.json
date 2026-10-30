@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.12.2",
+  "checkpoint_id": "01M65RB1YDD6Y2YGSNZ9WP4Y7R",
+  "session_id": "592ff2a5-0d70-4265-91bc-bb1367ee94be",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-30T06:35:48.654208781Z",
+  "checkpoints_count": 7,
+  "files_touched": null,
+  "agent": "Claude Code",
+  "model": "gpt-6.1-terra",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 1569993,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 19021312,
+    "output_tokens": 36189,
+    "api_call_count": 99
+  },
+  "redaction": {
+    "replacements": 112,
+    "layers": {
+      "betterleaks": 2,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 38,
+      "credentialed_uri": 0,
+      "entropy": 436,
+      "key_context": 0,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}
