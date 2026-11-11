@@ -74,7 +74,12 @@ class KggV5Decoder(
         }
 
         if (format == null) {
-            format = detectFormat(probe.toByteArray())
+            format = runCatching { detectFormat(probe.toByteArray()) }.getOrElse { error ->
+                throw IllegalArgumentException(
+                    "KGG 音频解密后格式无法识别（密钥可能与当前设备/账号不匹配；请在当前设备、当前账号下重新下载该歌曲）: ${error.message}",
+                    error,
+                )
+            }
             output.write(probe.toByteArray())
         }
         return requireNotNull(format)

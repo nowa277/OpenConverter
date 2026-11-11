@@ -48,6 +48,9 @@ function parse(prefix) {
   }
   const version = readLeInt(prefix, 0x14);
   if (version !== 3 && version !== 5) {
+    if (version === 7) {
+      throw new Error('检测到 KGG crypto version 7，当前版本暂不支持；请在 GitHub Issue #6 附上样本文件与报错以供分析支持');
+    }
     throw new Error(`Unsupported KGG crypto version: ${version}`);
   }
   const idLength = readLeInt(prefix, ID_LENGTH_OFFSET);

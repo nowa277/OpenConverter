@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -167,7 +168,32 @@ fun AboutScreen(viewModel: UpdateViewModel) {
                     height = 48.dp,
                 )
             }
-            if (note.isNotEmpty()) {
+            if (state.phase == UpdatePhase.Downloading) {
+                Spacer(Modifier.height(10.dp))
+                val pct = state.progressPercent
+                if (pct != null) {
+                    LinearProgressIndicator(
+                        progress = { pct / 100f },
+                        modifier = Modifier.fillMaxWidth().height(6.dp),
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "$downloading ($pct%)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth().height(6.dp),
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        downloading,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else if (note.isNotEmpty()) {
                 Spacer(Modifier.height(10.dp))
                 Text(
                     note,

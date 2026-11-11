@@ -29,7 +29,7 @@ class ConversionEngine(
     private val sink: ProgressSink,
     private val clock: Clock = SystemClock,
     private val lyricResolver: LyricResolverPort? = null,
-    private val syncMissingKggKeys: (suspend () -> Boolean)? = null,
+    private val syncMissingKggKeys: (suspend (keyId: String) -> Boolean)? = null,
 ) {
     suspend fun convertAll(
         req: ConversionRequest,
@@ -101,8 +101,10 @@ class ConversionEngine(
                 } catch (t: IllegalArgumentException) {
                     val msg = t.message.orEmpty()
                     if (msg.contains("Missing KGG key for", ignoreCase = true) || msg.contains("No KGG keys imported", ignoreCase = true)) {
+                        val keyIdMatch = Regex("""Missing KGG key for ([^;]+)""", RegexOption.IGNORE_CASE).find(msg)
+                        val keyId = keyIdMatch?.groupValues?.get(1)?.trim().orEmpty()
                         val healed = try {
-                            syncMissingKggKeys?.invoke() == true
+                            syncMissingKggKeys?.invoke(keyId) == true
                         } catch (cancelled: CancellationException) {
                             throw cancelled
                         } catch (_: Exception) {
@@ -115,7 +117,12 @@ class ConversionEngine(
                                 }
                             }
                         } else {
-                            throw t
+                            val detailedMsg = if (keyId.isNotBlank()) {
+                                "未找到歌曲密钥 (ID: $keyId)。已尝试 Root 同步与公共目录扫描。请在设置中导入对应的 KGMusicV3.db 或 kgg.key；若该歌曲在其他设备或账号下载，请在当前酷狗账号下重新下载该歌曲"
+                            } else {
+                                "未导入任何 KGG 密钥。请在设置中导入 KGMusicV3.db 或 kgg.key，或在已 Root 设备上进行密钥同步"
+                            }
+                            throw IllegalArgumentException(detailedMsg, t)
                         }
                     } else {
                         throw t

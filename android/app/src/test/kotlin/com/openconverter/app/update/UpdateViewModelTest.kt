@@ -19,7 +19,7 @@ class UpdateViewModelTest {
             var downloads = 0
             val asset = ReleaseAsset("1.4.5", "https://example.test/update.apk")
             val file = File("synthetic-update.apk")
-            val model = UpdateViewModel("1.4.4", { asset }, { downloads++; file })
+            val model = UpdateViewModel("1.4.4", { asset }, { _, _ -> downloads++; file })
             model.update()
             advanceUntilIdle()
             assertEquals(file, model.state.value.pendingInstall)
@@ -37,7 +37,7 @@ class UpdateViewModelTest {
         try {
             for (invalid in listOf("{", "{}")) {
                 var body = invalid
-                val model = UpdateViewModel("1.4.4", { ReleaseCheck.newestApk(body, "x86_64") }, { File("synthetic.apk") })
+                val model = UpdateViewModel("1.4.4", { ReleaseCheck.newestApk(body, "x86_64") }, { _, _ -> File("synthetic.apk") })
                 model.check()
                 advanceUntilIdle()
                 assertEquals(UpdatePhase.Failed, model.state.value.phase)
@@ -53,7 +53,7 @@ class UpdateViewModelTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
             var attempts = 0
-            val model = UpdateViewModel("1.4.4", { ReleaseAsset("1.4.5", "https://example.test/update.apk") }, {
+            val model = UpdateViewModel("1.4.4", { ReleaseAsset("1.4.5", "https://example.test/update.apk") }, { _, _ ->
                 attempts++
                 if (attempts == 1) throw java.io.IOException("connection lost")
                 File("synthetic-update.apk")
@@ -65,6 +65,24 @@ class UpdateViewModelTest {
             advanceUntilIdle()
             assertEquals(UpdatePhase.Ready, model.state.value.phase)
             assertEquals(2, attempts)
+        } finally { Dispatchers.resetMain() }
+    }
+
+    @Test fun progress_is_reflected_in_state() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val asset = ReleaseAsset("1.4.5", "https://example.test/update.apk")
+            val file = File("synthetic-update.apk")
+            val model = UpdateViewModel("1.4.4", { asset }, { _, onProgress ->
+                onProgress(500L, 1000L)
+                file
+            })
+            model.update()
+            advanceUntilIdle()
+            assertEquals(UpdatePhase.Ready, model.state.value.phase)
+            assertEquals(500L, model.state.value.progressBytes)
+            assertEquals(1000L, model.state.value.totalBytes)
+            assertEquals(50, model.state.value.progressPercent)
         } finally { Dispatchers.resetMain() }
     }
 }

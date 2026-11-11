@@ -182,10 +182,18 @@ class ConversionService : Service() {
                 val engine = ConversionEngine(
                     DefaultDecoders.registry(kggKeys), ffmpeg, fs, sink, RealClock(),
                     lyricResolver = lyricResolver,
-                    syncMissingKggKeys = {
-                        val keys = com.openconverter.app.decoders.kgg.KugouKeySyncManager.syncKeys()
-                        kggKeys.mergeKeys(keys)
-                        true
+                    syncMissingKggKeys = { missingKeyId ->
+                        if (missingKeyId.isNotBlank()) {
+                            kggKeys.tryResolveMissingKey(missingKeyId)
+                        } else {
+                            val newlyFound = com.openconverter.app.decoders.kgg.KugouKeySyncManager.syncKeys()
+                            if (newlyFound.isNotEmpty()) {
+                                kggKeys.mergeKeys(newlyFound)
+                                true
+                            } else {
+                                false
+                            }
+                        }
                     },
                 )
                 val history: HistoryPort = JsonHistoryStore(applicationContext.filesDir)

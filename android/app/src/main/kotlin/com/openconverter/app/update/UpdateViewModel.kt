@@ -14,14 +14,18 @@ data class UpdateState(
     val phase: UpdatePhase = UpdatePhase.Idle,
     val asset: ReleaseAsset? = null,
     val pendingInstall: File? = null,
+    val progressBytes: Long = 0L,
+    val totalBytes: Long = 0L,
 ) {
+    val progressPercent: Int?
+        get() = if (totalBytes > 0L) ((progressBytes * 100) / totalBytes).toInt().coerceIn(0, 100) else null
     val busy: Boolean get() = phase == UpdatePhase.Checking || phase == UpdatePhase.Downloading
 }
 
 class UpdateViewModel(
     private val currentVersion: String,
     private val fetch: suspend () -> ReleaseAsset?,
-    private val download: suspend (ReleaseAsset) -> File,
+    private val download: suspend (ReleaseAsset, (Long, Long) -> Unit) -> File,
 ) : ViewModel() {
     private val mutable = MutableStateFlow(UpdateState())
     val state = mutable.asStateFlow()
@@ -35,9 +39,15 @@ class UpdateViewModel(
         if (state.value.busy || state.value.pendingInstall != null) return
         viewModelScope.launch {
             val asset = state.value.asset ?: lookup() ?: return@launch
-            mutable.value = state.value.copy(phase = UpdatePhase.Downloading)
+            mutable.value = state.value.copy(phase = UpdatePhase.Downloading, progressBytes = 0L, totalBytes = 0L)
             try {
-                val file = download(asset)
+                val file = download(asset) { downloaded, total ->
+                    mutable.value = state.value.copy(
+                        phase = UpdatePhase.Downloading,
+                        progressBytes = downloaded,
+                        totalBytes = total,
+                    )
+                }
                 mutable.value = state.value.copy(phase = UpdatePhase.Ready, pendingInstall = file)
             } catch (cancelled: CancellationException) {
                 throw cancelled

@@ -39,8 +39,10 @@ class MainActivity : ComponentActivity() {
                 com.openconverter.app.update.UpdateViewModel(
                     BuildConfig.VERSION_NAME,
                     { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.openconverter.app.update.ApkUpdate.fetchNewest(android.os.Build.SUPPORTED_ABIS.first()) } },
-                    { asset -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        java.io.File(cacheDir, "updates/openconverter-update.apk").also { com.openconverter.app.update.ApkUpdate.download(asset.apkUrl, it) }
+                    { asset, onProgress -> kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        java.io.File(cacheDir, "updates/openconverter-update.apk").also {
+                            com.openconverter.app.update.ApkUpdate.download(asset.apkUrl, it, onProgress)
+                        }
                     } },
                 ) as T
         }

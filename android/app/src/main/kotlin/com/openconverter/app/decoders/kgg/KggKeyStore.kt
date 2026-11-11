@@ -147,41 +147,17 @@ class KggKeyStore internal constructor(
             val mmkvKeys = MmkvKeyParser.parse(raw)
             if (mmkvKeys.isNotEmpty()) return mmkvKeys
 
-            java.io.BufferedInputStream(source.inputStream(), 64 * 1024).use { input ->
-                java.io.BufferedOutputStream(plaintext.outputStream(), 64 * 1024).use { output ->
-                    KggDatabaseCipher.decrypt(input, output)
-                }
-            }
-            return queryDatabase(plaintext)
+            val dbKeys = KggDatabaseReader.readKeys(source, cacheDir)
+            if (dbKeys.isNotEmpty()) return dbKeys
+
+            throw IllegalArgumentException("KGMusicV3.db 未包含有效密钥。请先在酷狗中播放一次目标歌曲，待数据刷新写入数据库后再试")
         } finally {
             source.delete()
             plaintext.delete()
         }
     }
 
-    private fun queryDatabase(file: File): Map<String, String> {
-        val result = linkedMapOf<String, String>()
-        try {
-            SQLiteDatabase.openDatabase(file.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { db ->
-                db.rawQuery(
-                    """SELECT EncryptionKeyId, EncryptionKey FROM ShareFileItems
-                        WHERE EncryptionKeyId IS NOT NULL AND EncryptionKeyId != ''
-                          AND EncryptionKey IS NOT NULL AND EncryptionKey != ''""".trimIndent(),
-                    null,
-                ).use { cursor ->
-                    while (cursor.moveToNext()) {
-                        val id = cursor.getString(0)
-                        val key = cursor.getString(1)
-                        if (id.isNotBlank() && key.isNotBlank()) result[id] = key
-                    }
-                }
-            }
-        } catch (error: Exception) {
-            throw IllegalArgumentException("Invalid KGMusicV3.db: ${error.message}", error)
-        }
-        require(result.isNotEmpty()) { "KGMusicV3.db contains no KGG keys" }
-        return result
-    }
+    private fun queryDatabase(file: File): Map<String, String> = KggDatabaseReader.queryDatabase(file)
 
     private fun persist(merged: Map<String, String>) {
         val stream = atomicFile.startWrite()

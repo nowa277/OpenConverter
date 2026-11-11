@@ -31,6 +31,14 @@ test('header: rejects unsupported crypto version', () => {
   assert.throws(() => parseHeader(buf), /Unsupported KGG crypto version/);
 });
 
+test('header: detects version 7 and provides diagnostic error', () => {
+  const buf = Buffer.alloc(PREFIX_SIZE);
+  MAGIC.copy(buf, 0);
+  buf.writeUInt32LE(PREFIX_SIZE, 0x10);
+  buf.writeUInt32LE(7, 0x14); // version 7
+  assert.throws(() => parseHeader(buf), /检测到 KGG crypto version 7/);
+});
+
 test('header: parses valid v5 header with UTF-8 key id', () => {
   const buf = Buffer.alloc(PREFIX_SIZE);
   MAGIC.copy(buf, 0);
