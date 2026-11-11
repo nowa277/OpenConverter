@@ -33,21 +33,6 @@ A lightweight format conversion and decryption tool for audio workflows.<br/>
 * **Private by default**: decryption and transcoding stay on the device. NetEase lyrics request a song id unless that switch is off. No audio is uploaded.
 * **Real transcoding**: FFmpeg on desktop, FFmpegKit on Android. Desktop writes MP3 / FLAC / WAV / M4A / OGG. Android writes MP3 / FLAC / WAV / M4A.
 
-### Desktop 0.3.11
-* Merges bilingual lyrics by millisecond timestamps chronologically, preventing out-of-order translated lyric playback; fully decodes HTML entities and skips pure-music placeholder lyrics.
-* Explicitly diagnoses KGG crypto version 7 and provides guided troubleshooting for key mismatches.
-* The sidebar is the brand wordmark. Format and quality sit on the convert page. Swipe a queue row left to remove it.
-* Conversion tasks immediately respond to cancellation, safely terminating worker threads and FFmpeg/FFprobe sub-processes. Outputs use isolated staging directories to prevent half-written files or accidental source overwrites.
-* Window bar controls bind synchronously on launch, ensuring responsive minimize, maximize, and close buttons.
-
-### Android 1.4.6
-* Merges bilingual lyrics chronologically by timestamp, decodes HTML entities, and skips pure-music placeholder lyrics.
-* Automatically decrypts and extracts `KGMusicV3.db` during Native Root sync and public storage scanning without manual SAF imports; improves key resolution retry and device-binding diagnostics.
-* In-app updates show real download progress percentages and progress bars; automatically falls back to mirror endpoints when direct GitHub downloads fail.
-* Four static icons sit on the bottom bar. The convert page is the output folder, the target format, and an add area. Swipe a queue row left to remove it.
-* Resolves batch queue cancellation and state stalls; supports repeated cancellations, retries, and new queue items without restarting the app.
-* Decryption and transcoding use bounded cancellable streams to prevent OOM on large files; cancelled jobs cleanly roll back incomplete SAF outputs.
-
 ---
 
 ## UI Preview
