@@ -30,7 +30,13 @@ object KggHeaderParser {
         require(headerLength in ID_OFFSET..prefix.size) { "KGG header length is invalid: $headerLength" }
 
         val version = prefix.leInt(0x14)
-        require(version == 3 || version == 5) { "Unsupported KGG crypto version: $version" }
+        require(version == 3 || version == 5) {
+            if (version == 7) {
+                "检测到 KGG crypto version 7，当前版本暂不支持；请在 GitHub Issue #6 附上样本文件与报错以供分析支持"
+            } else {
+                "Unsupported KGG crypto version: $version"
+            }
+        }
 
         val idLength = prefix.leInt(ID_LENGTH_OFFSET)
         require(idLength in 1..MAX_ID_LENGTH) { "KGG key ID length is invalid: $idLength" }

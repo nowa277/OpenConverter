@@ -63,6 +63,15 @@ object PublicStorageKeyScanner {
                 }
             }
 
+            // 3. Try DB decryption (for KGMusicV3.db / kugou_music_v2.db)
+            val name = file.name.lowercase()
+            if (name.endsWith(".db") || name.contains("kgmusic") || bytes.size >= KggDatabaseCipher.PAGE_SIZE) {
+                val dbKeys = KggDatabaseReader.readKeys(file)
+                if (dbKeys.isNotEmpty()) {
+                    return@runCatching dbKeys
+                }
+            }
+
             emptyMap<String, String>()
         }.getOrDefault(emptyMap())
     }

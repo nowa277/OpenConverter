@@ -22,6 +22,14 @@ class KggHeaderTest {
     }
 
     @Test
+    fun detects_version_seven_with_clear_diagnosis() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            KggHeaderParser.parse(header(version = 7, id = "v7-sample"))
+        }
+        assertEquals("检测到 KGG crypto version 7，当前版本暂不支持；请在 GitHub Issue #6 附上样本文件与报错以供分析支持", ex.message)
+    }
+
+    @Test
     fun rejects_wrong_magic_unknown_version_and_truncated_fixed_header() {
         val wrongMagic = header().also { it[0] = 0 }
 

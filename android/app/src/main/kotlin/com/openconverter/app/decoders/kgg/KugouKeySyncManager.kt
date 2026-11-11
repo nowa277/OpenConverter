@@ -178,7 +178,17 @@ object KugouKeySyncManager {
             val text = runCatching { String(bytes, Charsets.UTF_8) }.getOrNull()
             if (text != null && '\u0000' !in text && '$' in text) {
                 val parsed = runCatching { KggKeyMap.parse(text) }.getOrDefault(emptyMap())
-                if (parsed.isNotEmpty()) result.putAll(parsed)
+                if (parsed.isNotEmpty()) {
+                    result.putAll(parsed)
+                    continue
+                }
+            }
+            if (path.endsWith(".db", ignoreCase = true) || bytes.size >= KggDatabaseCipher.PAGE_SIZE) {
+                val dbKeys = runCatching { KggDatabaseReader.readKeysFromBytes(bytes) }.getOrDefault(emptyMap())
+                if (dbKeys.isNotEmpty()) {
+                    result.putAll(dbKeys)
+                    continue
+                }
             }
         }
         return result
