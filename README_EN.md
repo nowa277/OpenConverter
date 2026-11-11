@@ -33,21 +33,20 @@ A lightweight format conversion and decryption tool for audio workflows.<br/>
 * **Private by default**: decryption and transcoding stay on the device. NetEase lyrics request a song id unless that switch is off. No audio is uploaded.
 * **Real transcoding**: FFmpeg on desktop, FFmpegKit on Android. Desktop writes MP3 / FLAC / WAV / M4A / OGG. Android writes MP3 / FLAC / WAV / M4A.
 
-### Desktop 0.3.10
+### Desktop 0.3.11
+* Merges bilingual lyrics by millisecond timestamps chronologically, preventing out-of-order translated lyric playback; fully decodes HTML entities and skips pure-music placeholder lyrics.
+* Explicitly diagnoses KGG crypto version 7 and provides guided troubleshooting for key mismatches.
 * The sidebar is the brand wordmark. Format and quality sit on the convert page. Swipe a queue row left to remove it.
 * Conversion tasks immediately respond to cancellation, safely terminating worker threads and FFmpeg/FFprobe sub-processes. Outputs use isolated staging directories to prevent half-written files or accidental source overwrites.
 * Window bar controls bind synchronously on launch, ensuring responsive minimize, maximize, and close buttons.
-* NetEase tracks keep title, artist, album, and cover, and lyrics are written by default. A transient miss is retried. A missing lyric does not fail the conversion.
-* Cipher files are decrypted in chunks. KuGou `.kgg` can be scanned or imported. QQ Music `.mgg` / `.mflac` uses an ekey entered in Settings.
 
-### Android 1.4.5
+### Android 1.4.6
+* Merges bilingual lyrics chronologically by timestamp, decodes HTML entities, and skips pure-music placeholder lyrics.
+* Automatically decrypts and extracts `KGMusicV3.db` during Native Root sync and public storage scanning without manual SAF imports; improves key resolution retry and device-binding diagnostics.
+* In-app updates show real download progress percentages and progress bars; automatically falls back to mirror endpoints when direct GitHub downloads fail.
 * Four static icons sit on the bottom bar. The convert page is the output folder, the target format, and an add area. Swipe a queue row left to remove it.
 * Resolves batch queue cancellation and state stalls; supports repeated cancellations, retries, and new queue items without restarting the app.
 * Decryption and transcoding use bounded cancellable streams to prevent OOM on large files; cancelled jobs cleanly roll back incomplete SAF outputs.
-* In-app update: downloaded APK packages are retained across system "Install Unknown Apps" permission navigation for seamless installation.
-* Enhanced plain container sniffing (AAC ADTS, WMA, DFF) and explicit error reporting for missing/unsupported external QQ keys.
-* NetEase tracks keep title, artist, album, cover, and lyrics. A missing lyric does not fail the conversion.
-* Cipher files are decrypted in chunks. KuGou `.kgg` keys can be synced, found automatically, or imported from Settings.
 
 ---
 
@@ -85,20 +84,20 @@ Download the latest installer package for your operating system from the [Releas
 #### Debian / Ubuntu
 ```bash
 # AppImage installation and execution (Recommended)
-chmod +x openconverter-v0.3.10-linux-x64.AppImage
-./openconverter-v0.3.10-linux-x64.AppImage
+chmod +x openconverter-v0.3.11-linux-x64.AppImage
+./openconverter-v0.3.11-linux-x64.AppImage
 
 # Deb package (Linux needs ffmpeg on PATH)
 sudo apt install ffmpeg
-sudo apt install ./openconverter-v0.3.10-linux-amd64.deb
+sudo apt install ./openconverter-v0.3.11-linux-amd64.deb
 sudo apt install -f  # Fix potentially missing dependencies
 openconverter
 ```
 
 #### Windows
-* **Portable (recommended)**: `openconverter-v0.3.10-windows-x64-portable.exe`
+* **Portable (recommended)**: `openconverter-v0.3.11-windows-x64-portable.exe`
   Double-click to run. Nothing to install.
-* **NSIS installer**: `openconverter-v0.3.10-windows-x64-setup.exe`
+* **NSIS installer**: `openconverter-v0.3.11-windows-x64-setup.exe`
   Double-click to install via wizard.
 * *Note: The Windows client has built-in `ffmpeg.exe` and `ffprobe.exe`, so no manual FFmpeg installation is required. If the Windows Defender unsigned prompt pops up on first launch, click "More info" -> "Run anyway".*
 
@@ -108,8 +107,8 @@ openconverter
 
 Download the latest APK files from the [Releases page](https://github.com/nowa277/OpenConverter/releases) to install:
 
-* **arm64-v8a**: `openconverter-v1.4.5-android-arm64-v8a.apk` (Recommended, suitable for the vast majority of modern smartphones)
-* **x86_64**: `openconverter-v1.4.5-android-x86_64.apk` (Suitable for running and debugging on Android Emulators)
+* **arm64-v8a**: `openconverter-v1.4.6-android-arm64-v8a.apk` (Recommended, suitable for the vast majority of modern smartphones)
+* **x86_64**: `openconverter-v1.4.6-android-x86_64.apk` (Suitable for running and debugging on Android Emulators)
 
 KuGou `.kgg` needs a per-track key. Keys stay on the phone:
 1. **Rooted**: turn on Auto sync, or tap Sync keys.
