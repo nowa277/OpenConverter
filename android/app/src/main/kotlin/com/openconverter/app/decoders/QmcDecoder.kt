@@ -14,9 +14,10 @@ import kotlin.math.tan
 object QmcDecoder : StreamingDecoder {
 
     override val supportedExtensions: Set<String> = setOf(
-        ".qmc0", ".qmc3", ".qmcflac", ".qmcogg", ".qmc1", ".qmc2", ".tkm",
+        ".qmc0", ".qmc3", ".qmc4", ".qmc6", ".qmc8", ".qmcflac", ".qmcogg", ".qmc1", ".qmc2", ".tkm",
         ".mflac", ".mflac0", ".mflac2", ".mflac4", ".mgg", ".mgg1", ".mgg2", ".mgg4", ".mggl",
-        ".bkc", ".bkcmp3", ".bkcflac", ".bkcogg", ".bkcm4a", ".bkcwav", ".bkcwma", ".bkcape"
+        ".bkc", ".bkcmp3", ".bkcflac", ".bkcogg", ".bkcm4a", ".bkcwav", ".bkcwma", ".bkcape",
+        ".qrc"
     )
 
     private val QMC1_STATIC_BOX = intArrayOf(
@@ -88,7 +89,7 @@ object QmcDecoder : StreamingDecoder {
         if (len >= 4) {
             val tail4 = buf.sliceArray(len - 4 until len).decodeToString()
             if (tail4 == "STag") {
-                throw IllegalArgumentException("This file contains an STag but no embedded key. Android QQ database key import requires a versioned, authorized database sample.")
+                throw IllegalArgumentException("This file contains an STag but no embedded key. 检测到 QQ 音乐 STag 尾部变体格式（当前版本暂不支持该变体转换；请在 GitHub Issue #7 附上样本文件以供分析支持）")
             }
         }
         if (len < 8) return null
@@ -522,7 +523,7 @@ object QmcDecoder : StreamingDecoder {
         if (len >= 4) {
             val tail4 = String(readRaf(raf, len - 4, 4), Charsets.US_ASCII)
             if (tail4 == "STag") {
-                throw IllegalArgumentException("This file contains an STag but no embedded key. Android QQ database key import requires a versioned, authorized database sample.")
+                throw IllegalArgumentException("This file contains an STag but no embedded key. 检测到 QQ 音乐 STag 尾部变体格式（当前版本暂不支持该变体转换；请在 GitHub Issue #7 附上样本文件以供分析支持）")
             }
         }
         if (len < 8) return null

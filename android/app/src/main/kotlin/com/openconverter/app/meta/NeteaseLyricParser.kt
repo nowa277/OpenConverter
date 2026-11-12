@@ -31,6 +31,9 @@ object NeteaseLyricParser {
 
     fun toLrc(bytes: ByteArray): String? {
         if (bytes.isEmpty()) return null
+        if (bytes.size >= 4 && bytes[0] == 'k'.code.toByte() && bytes[1] == 'r'.code.toByte() && bytes[2] == 'c'.code.toByte() && bytes[3] == '1'.code.toByte()) {
+            return runCatching { KrcDecoder.decodeKrcToLrc(bytes) }.getOrNull()
+        }
         val text = bytes.toString(Charsets.UTF_8).trim()
         if (text.isEmpty()) return null
 

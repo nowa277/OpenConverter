@@ -172,6 +172,19 @@ async function convertStaged(job) {
       lrc = null;
     }
   }
+  if (!lrc && ncmLyricsEnabled !== false) {
+    const companionLrc = inputPath.replace(/\.[^./]+$/, '') + '.lrc';
+    const companionKrc = inputPath.replace(/\.[^./]+$/, '') + '.krc';
+    if (fs.existsSync(companionLrc)) {
+      try { lrc = fs.readFileSync(companionLrc, 'utf8'); } catch {}
+    } else if (fs.existsSync(companionKrc)) {
+      try {
+        const krcBytes = fs.readFileSync(companionKrc);
+        const { decodeKrcToLrc } = require('./krc-decoder');
+        lrc = decodeKrcToLrc(krcBytes);
+      } catch {}
+    }
+  }
   if (signal?.aborted) throw new Error('aborted');
 
   let metadataFile = null;
