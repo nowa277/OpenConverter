@@ -179,8 +179,17 @@ function mergeLrcWithTranslation(origLrc, transLrc) {
   return merged.join('\n');
 }
 
+const { decodeKrcToLrc } = require('./krc-decoder');
+
 function toLrc(input) {
   if (input == null) return null;
+  if (Buffer.isBuffer(input) && input.length >= 4 && input.subarray(0, 4).toString() === 'krc1') {
+    try {
+      return decodeKrcToLrc(input);
+    } catch {
+      return null;
+    }
+  }
   let text;
   if (Buffer.isBuffer(input)) {
     if (input.length === 0) return null;

@@ -70,7 +70,15 @@ async function fetchEkeyFromApi(songMid, fileMid, cookie, opts = {}) {
 const V1_OFFSET_BOUNDARY = 0x7fff;
 const V2_KEY_SIZE = 128;
 const KEY_COMPRESS_INDEX_OFFSET = 71214;
-const EXT_MAP_V1 = { '.qmc0': 'mp3', '.qmc3': 'mp3', '.qmcflac': 'flac', '.qmcogg': 'ogg' };
+const EXT_MAP_V1 = {
+  '.qmc0': 'mp3',
+  '.qmc3': 'mp3',
+  '.qmc4': 'mp3',
+  '.qmc6': 'mp3',
+  '.qmc8': 'mp3',
+  '.qmcflac': 'flac',
+  '.qmcogg': 'ogg',
+};
 const EXT_MAP_V2 = {
   '.mflac0': 'flac', '.mflac': 'flac', '.mgg1': 'ogg', '.mgg': 'ogg',
   '.mflac2': 'flac', '.mflac4': 'flac', '.mgg2': 'ogg', '.mgg4': 'ogg', '.mggl': 'ogg',
@@ -422,7 +430,7 @@ function detectKey(buf) {
 
   // 3. STag at the tail: container without an embedded key.
   if (tail4 === 'STag' && len >= MIN_TAIL_CONTAINER_LEN) {
-    throw new Error('This file contains an STag but no embedded key. Please provide your QQ Music Cookie in Settings or downgrade your client.');
+    throw new Error('This file contains an STag but no embedded key. 检测到 QQ 音乐 STag 尾部变体格式（当前版本暂不支持该变体转换；请在 GitHub Issue #7 附上样本文件以供分析支持）');
   }
 
   // 4. QTag tail: "<ekey>,<songid>,<version>" with a big-endian length.
@@ -498,7 +506,7 @@ function detectKeyFromFd(fd, len) {
     throw new Error('This file was encrypted with a newer QQ Music client (musicex) without an embedded key. Please provide your QQ Music Cookie in Settings to unlock it.');
   }
   if (tail4 === 'STag' && len >= MIN_TAIL_CONTAINER_LEN) {
-    throw new Error('This file contains an STag but no embedded key. Please provide your QQ Music Cookie in Settings or downgrade your client.');
+    throw new Error('This file contains an STag but no embedded key. 检测到 QQ 音乐 STag 尾部变体格式（当前版本暂不支持该变体转换；请在 GitHub Issue #7 附上样本文件以供分析支持）');
   }
   if (tail4 === 'QTag') {
     const metaLen = tail16.readUInt32BE(tail16.length - 8);

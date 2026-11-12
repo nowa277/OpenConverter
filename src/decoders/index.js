@@ -18,6 +18,9 @@ const EXT_TO_DECODER = {
   // QMCv1 — headerless, no key needed
   '.qmc0': qmc,
   '.qmc3': qmc,
+  '.qmc4': qmc,
+  '.qmc6': qmc,
+  '.qmc8': qmc,
   '.qmcflac': qmc,
   '.qmcogg': qmc,
   '.qmc1': qmc,
@@ -49,6 +52,13 @@ const EXT_TO_DECODER = {
   // KGG v5 (KuGou mobile) — needs opts.keyPath (a kgg.key file path)
   '.kgg': kgg,
   '.kgg.flac': kgg, // double extension, picked below
+
+  // QRC (QQ lyrics) — explicit unsupported notice
+  // Future reverse engineering reference: gitee.com/ying32/MakeLyric
+  '.qrc': {
+    decrypt: () => { throw new Error('QQ 逐字歌词 QRC 格式暂不支持解密'); },
+    decodeFile: () => { throw new Error('QQ 逐字歌词 QRC 格式暂不支持解密'); },
+  },
 };
 
 function pickDecoder(filePath) {
@@ -113,6 +123,9 @@ const EXT_METADATA = {
   // QMC v1 (QQ Music cache, headerless, no key)
   '.qmc0':     { platform: 'QQ 音乐',          version: 'v1',   requiresKey: false },
   '.qmc3':     { platform: 'QQ 音乐',          version: 'v1',   requiresKey: false },
+  '.qmc4':     { platform: 'QQ 音乐',          version: 'v1',   requiresKey: false },
+  '.qmc6':     { platform: 'QQ 音乐',          version: 'v1',   requiresKey: false },
+  '.qmc8':     { platform: 'QQ 音乐',          version: 'v1',   requiresKey: false },
   '.qmcflac':  { platform: 'QQ 音乐',          version: 'v1',   requiresKey: false },
   '.qmcogg':   { platform: 'QQ 音乐',          version: 'v1',   requiresKey: false },
   '.qmc1':     { platform: 'QQ 音乐',          version: 'v1',   requiresKey: false },
