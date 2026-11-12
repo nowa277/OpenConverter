@@ -156,6 +156,9 @@ const EXT_METADATA = {
   // KGG v5 (KuGou mobile, requires KGMusicV3.db or kgg.key)
   '.kgg':      { platform: '酷狗',             version: 'v5',   requiresKey: true,  keySource: 'KGMusicV3.db' },
   '.kgg.flac': { platform: '酷狗',             version: 'v5',   requiresKey: true,  keySource: 'KGMusicV3.db' },
+
+  // QRC (QQ lyrics, currently unsupported)
+  '.qrc':      { platform: 'QQ 音乐',          version: '逐字歌词', requiresKey: false, note: '暂不支持解密' },
 };
 
 /**
