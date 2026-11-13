@@ -94,7 +94,11 @@ async function convertOne(job) {
       .sort((a, b) => b.length - a.length)
       .find((extension) => job.inputPath.toLowerCase().endsWith(extension));
     const sourceName = path.basename(job.inputPath);
-    const stem = encryptedExtension ? sourceName.slice(0, -encryptedExtension.length) : path.parse(sourceName).name;
+    // Link-resolved jobs rename their output after the video title; the temp
+    // file's generated name must not leak into the user-visible output.
+    const stem = job.outputBaseName
+      ? String(job.outputBaseName).replace(/[\\/:*?"<>|\x00-\x1f]/g, '_').trim().slice(0, 120) || sourceName.replace(/\.[^.]+$/, '')
+      : (encryptedExtension ? sourceName.slice(0, -encryptedExtension.length) : path.parse(sourceName).name);
     const outputPath = path.join(job.outputDir, `${stem}.${result.format}`);
     if (path.resolve(outputPath) === path.resolve(job.inputPath)) {
       if (!encryptedExtension && result.reencoded === false) {

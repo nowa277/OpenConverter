@@ -398,3 +398,15 @@ exec '${realFfmpeg.replace(/'/g, `'\\''`)}' "$@"
   assert.match(remuxProbe, /TAG:title=Sine Test/i);
   assert.ok(!/TAG:lyrics=/i.test(remuxProbe));
 });
+
+test('convertOne: outputBaseName renames output for link jobs with temp inputs', { skip: skipNoFfmpeg }, async () => {
+  const tempInput = path.join(OUT_DIR, 'tmp-e9bee1208a0c.mp3'); // simulates link temp file
+  makeMp3(tempInput);
+  const r = await pipeline.convertOne({
+    inputPath: tempInput, outputDir: path.join(OUT_DIR, 'rename-out'), format: 'mp3',
+    outputBaseName: '【经典】周杰伦全MV 【200P】 - P1',
+  });
+  assert.ok(fs.existsSync(r.outputPath), r.outputPath);
+  assert.ok(path.basename(r.outputPath).startsWith('【经典】周杰伦全MV 【200P】 - P1.mp3'),
+    'output must use outputBaseName, got ' + path.basename(r.outputPath));
+});
