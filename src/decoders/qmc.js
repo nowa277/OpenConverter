@@ -599,7 +599,12 @@ function decodeV1File(inputPath, outputDir) {
     const probe = streamDecrypt(fd, 0, stat.size, tmpPath, (chunk, start) => {
       applyMaskRange(chunk, V1_MASK, start);
     });
-    const fmt = inferFormat(probe, outExtHint);
+    // Corrupt / non-QMCv1 inputs decrypt to garbage that would otherwise hit
+    // ffmpeg's generic "Invalid data found" error — classify it here instead.
+    const fmt = detectAudioFormat(probe);
+    if (!fmt) {
+      throw new Error(`QMCv1 解密失败：解密结果不是可识别的音频流（预期 ${outExtHint}）。文件可能已损坏，或并非 QMCv1 加密缓存。`);
+    }
     const base = inputPath.replace(/\.[^./]+$/, '');
     const name = base.split(/[\\/]/).pop();
     const outPath = path.join(stagingDir, `${name}.${fmt}`);

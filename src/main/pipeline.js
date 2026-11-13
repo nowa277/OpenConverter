@@ -17,6 +17,7 @@ const { Worker } = require('node:worker_threads');
 const decoders = require('../decoders');
 const ffmpeg = require('./ffmpeg');
 const { resolveLrc } = require('./netease-lyric-resolve');
+const kugouLyric = require('./kugou-lyric-http');
 const { writeFfmetadata } = require('./ffmetadata');
 
 const EMBED_LYRICS_FORMATS = new Set(['mp3', 'flac', 'm4a']);
@@ -121,7 +122,7 @@ async function convertOne(job) {
 }
 
 async function convertStaged(job) {
-  const { inputPath, outputDir, format = 'mp3', quality = '320k', decodeOpts = {}, signal, ffmpegBin, ffprobeBin, ncmLyricsDir, ncmLyricsEnabled, fetchJson, listRoots } = job;
+  const { inputPath, outputDir, format = 'mp3', quality = '320k', decodeOpts = {}, signal, ffmpegBin, ffprobeBin, ncmLyricsDir, ncmLyricsEnabled, fetchJson, listRoots, kugouFetch } = job;
   const onProgress = job.onProgress || (() => {});
   const started = Date.now();
   fs.mkdirSync(outputDir, { recursive: true });
@@ -191,6 +192,31 @@ async function convertStaged(job) {
         const { decodeKrcToLrc } = require('./krc-decoder');
         lrc = decodeKrcToLrc(krcBytes);
       } catch {}
+    }
+  }
+  if (!lrc && ncmLyricsEnabled !== false && decoded.tags && decoded.tags.title) {
+    // KuGou keyword fallback (round-2 client, wired here 2026-11-13).
+    // Keyword ranking is loose — first hit may be a remix — so the audio
+    // duration is probed and the nearest candidate wins. Same best-effort
+    // contract as the NetEase path: failure never blocks the conversion.
+    try {
+      let durationSec = null;
+      try {
+        durationSec = await ffmpeg.probeDuration(decryptedPath, { ffprobeBin, signal });
+      } catch (err) {
+        if (err.message === 'aborted') throw err;
+        durationSec = null;
+      }
+      const artist = Array.isArray(decoded.tags.artist)
+        ? decoded.tags.artist.map((a) => (Array.isArray(a) ? a[0] : a)).join('/')
+        : decoded.tags.artist;
+      lrc = await kugouLyric.fetchKugouLyricByTags(
+        { title: decoded.tags.title, artist, durationSec },
+        { signal, fetchImpl: kugouFetch },
+      );
+    } catch (error) {
+      if (signal?.aborted) throw new Error('aborted');
+      lrc = null;
     }
   }
   if (signal?.aborted) throw new Error('aborted');

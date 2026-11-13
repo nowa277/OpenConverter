@@ -63,3 +63,23 @@ test('restoreUcFile restores encrypted file and detects short preview', () => {
 test('restoreUcFile rejects .uc! partial files', () => {
   assert.throws(() => restoreUcFile('test.uc!'), /\.uc!/);
 });
+
+// ---- routing integration (registered in decoders/index.js) ----
+
+test('.uc is routed through the decoder registry', () => {
+  const decoders = require('../src/decoders/index');
+  const ucRaw = require('../src/decoders/uc');
+
+  const routed = decoders.pickDecoder('song/1786453-320-abc.uc');
+  assert.strictEqual(routed, decoders.uc); // router exports the same adapter
+  assert.strictEqual(routed.decodeFile, ucRaw.restoreUcFile); // contract fulfilled
+  assert.strictEqual(decoders.pickDecoder('song/tune.UC'), decoders.uc); // case-insensitive
+
+  const meta = decoders.getMetadata('.uc');
+  assert.ok(meta, 'EXT_METADATA entry for .uc');
+  assert.strictEqual(meta.platform, '网易云');
+  assert.strictEqual(meta.requiresKey, false);
+
+  assert.ok(decoders.listImplemented().includes('.uc'));
+  assert.ok(decoders.listByKeyRequirement().withoutKey.includes('.uc'));
+});
