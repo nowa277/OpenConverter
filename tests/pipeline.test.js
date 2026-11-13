@@ -193,6 +193,7 @@ test('pipeline: ncm lyric miss does not fail conversion or write .lrc', { skip: 
     inputPath: ncmPath, outputDir: path.join(OUT_DIR, 'ncm-lyric-miss-out'), format: 'mp3', ncmLyricsDir: emptyRoot,
     fetchJson: async () => null,
     listRoots: () => [],
+    kugouFetch: async () => ({ status: 500, body: '' }), // keep netease-miss tests hermetic
   });
   assert.ok(fs.existsSync(r.outputPath));
   assert.ok(!fs.existsSync(r.outputPath.replace(/\.mp3$/, '.lrc')));
@@ -230,6 +231,7 @@ test('pipeline: http miss still succeeds', { skip: skipNoFfmpeg }, async () => {
     ncmLyricsEnabled: true,
     fetchJson: async () => null,
     listRoots: () => [],
+    kugouFetch: async () => ({ status: 500, body: '' }), // keep netease-miss tests hermetic
   });
   assert.ok(fs.existsSync(r.outputPath));
   assert.ok(!fs.existsSync(r.outputPath.replace(/\.mp3$/, '.lrc')));
@@ -397,4 +399,49 @@ exec '${realFfmpeg.replace(/'/g, `'\\''`)}' "$@"
   ], { stdio: 'pipe' }).toString();
   assert.match(remuxProbe, /TAG:title=Sine Test/i);
   assert.ok(!/TAG:lyrics=/i.test(remuxProbe));
+});
+
+test('pipeline: kugou fallback writes lrc when netease misses but tags exist', { skip: skipNoFfmpeg }, async () => {
+  const audio = makeMp3(path.join(OUT_DIR, 'kugou-fallback-src.mp3'));
+  const meta = { musicName: '晴天', artist: [['周杰伦', 1]], album: 'Unit Tests', format: 'mp3', musicId: 777 };
+  const { ncm: file } = buildSyntheticNcm(audio, meta, null);
+  const ncmPath = path.join(OUT_DIR, 'kugou-fallback.ncm');
+  fs.writeFileSync(ncmPath, file);
+
+  const kugouFetch = async (url) => {
+    if (url.includes('/search')) {
+      return { status: 200, body: JSON.stringify({ status: 200, candidates: [{ id: '42', accesskey: 'AK', duration: 269300, song: '晴天', singer: '周杰伦' }] }) };
+    }
+    return { status: 200, body: JSON.stringify({ status: 200, content: Buffer.from('[00:00.00]FromKugou', 'utf8').toString('base64') }) };
+  };
+
+  const r = await pipeline.convertOne({
+    inputPath: ncmPath, outputDir: path.join(OUT_DIR, 'kugou-fallback-out'), format: 'mp3',
+    ncmLyricsEnabled: true,
+    fetchJson: async () => null,
+    listRoots: () => [],
+    kugouFetch,
+  });
+  assert.ok(fs.existsSync(r.outputPath));
+  const lrcPath = r.outputPath.replace(/\.mp3$/, '.lrc');
+  assert.ok(fs.existsSync(lrcPath), 'kugou fallback must write sibling .lrc');
+  assert.strictEqual(fs.readFileSync(lrcPath, 'utf8').trim(), '[00:00.00]FromKugou');
+});
+
+test('pipeline: lyrics switch also disables the kugou fallback', { skip: skipNoFfmpeg }, async () => {
+  const audio = makeMp3(path.join(OUT_DIR, 'kugou-off-src.mp3'));
+  const meta = { musicName: '晴天', artist: [['周杰伦', 1]], album: 'Unit Tests', format: 'mp3', musicId: 778 };
+  const { ncm: file } = buildSyntheticNcm(audio, meta, null);
+  const ncmPath = path.join(OUT_DIR, 'kugou-off.ncm');
+  fs.writeFileSync(ncmPath, file);
+
+  let kugouCalled = false;
+  const r = await pipeline.convertOne({
+    inputPath: ncmPath, outputDir: path.join(OUT_DIR, 'kugou-off-out'), format: 'mp3',
+    ncmLyricsEnabled: false,
+    kugouFetch: async () => { kugouCalled = true; return { status: 200, body: '{}' }; },
+  });
+  assert.ok(fs.existsSync(r.outputPath));
+  assert.strictEqual(kugouCalled, false, 'switch off must prevent any kugou request');
+  assert.ok(!fs.existsSync(r.outputPath.replace(/\.mp3$/, '.lrc')));
 });

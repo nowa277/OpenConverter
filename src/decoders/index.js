@@ -10,10 +10,17 @@ const qmc = require('./qmc');
 const kgm = require('./kgm');
 const kwm = require('./kwm');
 const kgg = require('./kgg');
+const ucRestore = require('./uc');
+// Router adapter: restoreUcFile(inputPath, outputDir) already satisfies the
+// decodeFile(inputPath, outputDir, opts?) contract — opts are unused for UC.
+const uc = { ...ucRestore, decodeFile: ucRestore.restoreUcFile };
 
 const EXT_TO_DECODER = {
   // NCM (NetEase)
   '.ncm': ncm,
+
+  // UC (NetEase PC cache) — plain XOR restore, output format sniffed
+  '.uc': uc,
 
   // QMCv1 — headerless, no key needed
   '.qmc0': qmc,
@@ -88,6 +95,7 @@ function listImplemented() {
     '.kgm', '.kgma', '.vpr',
     '.kwm',
     '.bkc',
+    '.uc',
   ];
 }
 
@@ -159,6 +167,9 @@ const EXT_METADATA = {
 
   // QRC (QQ lyrics, currently unsupported)
   '.qrc':      { platform: 'QQ 音乐',          version: '逐字歌词', requiresKey: false, note: '暂不支持解密' },
+
+  // UC (NetEase PC cache restore)
+  '.uc':       { platform: '网易云',           version: 'PC 缓存', requiresKey: false, note: 'XOR 0xA3 还原，输出格式自动嗅探' },
 };
 
 /**
@@ -197,4 +208,5 @@ module.exports = {
   kgm,
   kwm,
   kgg,
+  uc,
 };
