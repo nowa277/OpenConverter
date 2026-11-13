@@ -642,57 +642,31 @@ code { font-family: 'SF Mono', Menlo, monospace; background: var(--bg-elevated-2
   .select select { min-width: 110px; }
 }
 
-/* ---------- link resolver panel (convert view) ---------- */
+/* ---------- Link resolver panel (convert view).
+   Reuses existing vocabulary: .output-picker (container), .text-input,
+   .btn-text, .chip, .settings-hint; only layout glue is defined here. */
 .link-panel {
-  margin-top: 12px;
+  margin-bottom: 16px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg, 12px);
-  padding: 12px 14px;
-}
-.link-input-row { display: flex; gap: 8px; align-items: center; }
-.link-input {
-  flex: 1;
-  min-width: 0;
-  background: var(--bg-elevated-2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
-  padding: 9px 12px;
-  font-size: 13px;
-  outline: none;
+  border-radius: var(--radius);
+  padding: 10px 12px 10px 16px;
   transition: border-color var(--transition);
 }
-.link-input:focus { border-color: var(--accent); }
-.link-input::placeholder { color: var(--text-dim); }
+.link-panel:hover { border-color: var(--text-dim); }
+.link-input-row { display: flex; gap: 8px; align-items: center; }
 .link-result { margin-top: 10px; display: grid; gap: 8px; }
 .link-result-head { display: flex; gap: 8px; align-items: center; min-width: 0; }
 .link-title {
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: var(--text); font-size: var(--t-body); font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.link-pages {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-  max-height: 120px;
-  overflow-y: auto;
-}
+.link-pages { display: flex; flex-wrap: wrap; gap: 6px 14px; max-height: 120px; overflow-y: auto; }
 .link-page {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
-  color: var(--text-secondary);
-  font-size: 12px;
-  cursor: pointer;
-  user-select: none;
-  max-width: 100%;
+  display: inline-flex; gap: 6px; align-items: center;
+  color: var(--text-secondary); font-size: var(--t-note);
+  cursor: pointer; user-select: none; max-width: 100%;
 }
 .link-page span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .link-page input { accent-color: var(--accent); }
 .link-result-actions { display: flex; justify-content: flex-end; }
-.link-hint { margin-top: 8px; color: var(--text-dim); font-size: 11px; }
