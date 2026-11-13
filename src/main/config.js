@@ -22,6 +22,8 @@ const DEFAULTS = {
   kggAutoScan: false,
   ncmLyricsDir: '', // NetEase lyrics cache root; empty = unset (CLI extra root only)
   ncmLyricsEnabled: true, // default-on NetEase lyric fetch
+  ytdlpPath: '', // optional yt-dlp sidecar path (YouTube link parsing)
+  ytdlpCookiesPath: '', // user-provided cookies file; stays on this machine
 };
 
 let store = null;
