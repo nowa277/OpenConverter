@@ -37,6 +37,7 @@ A lightweight format conversion and decryption tool for audio workflows.<br/>
 ## Project Highlights
 
 * **Private by default**: decryption and transcoding stay on the device. NetEase lyrics request a song id unless that switch is off. No audio is uploaded.
+* **Link parsing (desktop · prototype)**: paste a Bilibili / YouTube video link, resolve title & parts, and grab the audio-only stream — Bilibili DASH audio is remuxed to M4A without re-encoding, YouTube goes through yt-dlp. Public, free content only; content requiring login/membership/regional authorization is out of scope (see disclaimer).
 * **Real transcoding**: FFmpeg on desktop, FFmpegKit on Android. Desktop writes MP3 / FLAC / WAV / M4A / OGG. Android writes MP3 / FLAC / WAV / M4A.
 
 ---
@@ -161,6 +162,8 @@ android/scripts/verify-kgg-v5.sh
 ## Disclaimer
 
 This project is intended solely as a technical tool for personal audio learning, file format organization, and compatibility research. It does not provide, distribute, or store any copyrighted audio content. Users must strictly abide by relevant laws and regulations, respect the legitimate rights of music copyright holders, and must not use this tool for any copyright-infringing behaviors. Any legal disputes or controversies arising from the use of this tool shall be borne by the user, and have no association with the authors and contributors of this project.
+
+The link-parsing feature (Bilibili / YouTube) is only for extracting audio from public, free, user-accessible content, for personal study and authorized use. It does not circumvent DRM, paywalls, memberships, or regional restrictions, and does not handle content protected by technological measures. Any credentials (e.g. cookies) stay on the user's machine — never uploaded, logged, or committed.
 
 ---
 
