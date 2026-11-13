@@ -105,12 +105,12 @@ function createWindow() {
  * Compliance: public/free content only, no DRM or paywall bypass; cookie
  * files (if configured) stay on this machine and are never logged.
  */
-async function prepareLinkAudio(entry, signal, onDownloadProgress) {
+async function prepareLinkAudio(entry, signal, onDownloadProgress, ffmpegBin) {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oc-link-'));
   const token = crypto.randomBytes(6).toString('hex');
   const base = path.join(tmpDir, token);
   const cfg = config.get();
-  const ytOpts = { signal, ytdlpPath: cfg.ytdlpPath, cookiesPath: cfg.ytdlpCookiesPath };
+  const ytOpts = { signal, ytdlpPath: cfg.ytdlpPath, cookiesPath: cfg.ytdlpCookiesPath, ffmpegBin };
   try {
     if (entry.platform === 'bilibili') {
       const view = await linkResolver.resolveBilibili(entry.bvid, { signal });
@@ -212,7 +212,7 @@ const HANDLERS = {
             send('convert:progress', { jobId, filePath: inputPath, stage: 'download', percent: 0 });
             const prepared = await prepareLinkAudio(entry, controller.signal, (p) => {
               if (!controller.signal.aborted) send('convert:progress', { jobId, filePath: inputPath, stage: 'download', percent: Math.round(p.percent) });
-            });
+            }, ffmpegBin);
             tmpDir = prepared.tmpDir;
             outputBaseName = prepared.outputBaseName;
             convInput = prepared.tempPath;

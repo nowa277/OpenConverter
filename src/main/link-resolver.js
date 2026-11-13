@@ -212,7 +212,8 @@ function runYtDlp(args, opts = {}) {
       if (opts.signal) opts.signal.removeEventListener('abort', onAbort);
       if (opts.signal?.aborted) { reject(new Error('aborted')); return; }
       if (code === 0) { resolve({ stdout, stderr }); return; }
-      const tail = stderr.trim().split(/\r?\n/).filter(Boolean).slice(-3).join(' | ');
+      const errLines = stderr.trim().split(/\r?\n/).filter((l) => /ERROR|error/i.test(l));
+      const tail = (errLines.length ? errLines.slice(-2) : stderr.trim().split(/\r?\n/).filter(Boolean).slice(-3)).join(' | ');
       if (/Sign in to confirm|cookies|age.?restrict/i.test(stderr)) {
         reject(new LinkError('forbidden', '需要登录或年龄验证：该内容需登录态访问。请在设置中配置 yt-dlp cookie 文件（仅存本机，不上传）'));
       } else if (/Video unavailable|Private video|removed by the uploader/i.test(stderr)) {
@@ -234,6 +235,7 @@ function runYtDlp(args, opts = {}) {
 async function resolveYouTube(url, opts = {}) {
   const { bin } = await findYtDlp(opts);
   const args = ['-J', '--no-playlist'];
+  if (opts.ffmpegBin) args.push('--ffmpeg-location', opts.ffmpegBin);
   if (opts.cookiesPath) args.push('--cookies', opts.cookiesPath);
   args.push(url);
   const { stdout } = await runYtDlp(args, { ...opts, bin });
@@ -261,6 +263,7 @@ async function downloadYouTubeAudio(url, destBase, opts = {}) {
   const { bin } = await findYtDlp(opts);
   const onProgress = opts.onProgress || (() => {});
   const args = ['-x', '--audio-format', 'm4a', '--audio-quality', '0', '--no-playlist', '--newline', '-o', `${destBase}.%(ext)s`];
+  if (opts.ffmpegBin) args.push('--ffmpeg-location', opts.ffmpegBin);
   if (opts.cookiesPath) args.push('--cookies', opts.cookiesPath);
   args.push(url);
   await runYtDlp(args, {
