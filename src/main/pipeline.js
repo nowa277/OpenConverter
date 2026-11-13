@@ -123,7 +123,11 @@ async function convertStaged(job) {
   fs.mkdirSync(outputDir, { recursive: true });
 
   const ext = path.extname(inputPath).toLowerCase();
-  const baseName = path.basename(inputPath, path.extname(inputPath));
+  // Link-resolved jobs name their output from the video title instead of the
+  // temp file's generated name; sanitize defensively either way.
+  const baseName = job.outputBaseName
+    ? String(job.outputBaseName).replace(/[\\/:*?"<>|\x00-\x1f]/g, '_').trim().slice(0, 120) || path.basename(inputPath, path.extname(inputPath))
+    : path.basename(inputPath, path.extname(inputPath));
   const targetPath = path.join(outputDir, `${baseName}.${format}`);
   const ffmpegOpts = { format, quality, signal, ffmpegBin, ffprobeBin, onProgress: ({ percent }) => onProgress({ stage: 'encode', percent }) };
   const finish = (outputPath, reencoded) => ({ outputPath, format, durationMs: Date.now() - started, reencoded });

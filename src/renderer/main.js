@@ -28,6 +28,7 @@ const state = {
   ffmpeg: null, // { ok, version, error }
   converting: false,
   view: 'convert',
+  linkResolved: null, // { platform, title, bvid, pages } from links:resolve
 };
 
 // ---------- translations ----------
@@ -121,8 +122,16 @@ const TRANSLATIONS = {
     toast_settings_saved: 'Settings saved',
     status_ready: 'Ready',
     status_queued: 'Waiting',
+    status_download: 'Downloading',
     status_decrypt: 'Decrypting',
     status_encode: 'Encoding',
+    link_resolve: 'Resolve',
+    link_add_selected: 'Add to queue',
+    link_compliance: 'For personal study and authorized content only — no DRM or paywall circumvention.',
+    link_platform_bilibili: 'Bilibili',
+    link_platform_youtube: 'YouTube',
+    toast_link_added: 'Added {count} item(s) from link',
+    toast_link_no_selection: 'Select at least one part',
     status_done: 'Done',
     status_error: 'Error',
     status_cancelled: 'Cancelled',
@@ -234,8 +243,16 @@ const TRANSLATIONS = {
     toast_settings_saved: '设置已保存',
     status_ready: '就绪',
     status_queued: '等待中',
+    status_download: '下载中',
     status_decrypt: '解密中',
     status_encode: '转码中',
+    link_resolve: '解析',
+    link_add_selected: '加入队列',
+    link_compliance: '仅供个人学习与已授权内容使用；不绕过 DRM 与付费限制。',
+    link_platform_bilibili: '哔哩哔哩',
+    link_platform_youtube: 'YouTube',
+    toast_link_added: '已从链接加入 {count} 项',
+    toast_link_no_selection: '请至少选择一个分P',
     status_done: '完成',
     status_error: '错误',
     status_cancelled: '已取消',
@@ -582,6 +599,46 @@ function bindEvents() {
   $('dropzone').addEventListener('click', pick);
   $('dropzone').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
 
+  // Link resolver (Bilibili / YouTube → audio) — resolve shows title + parts,
+  // then the picked parts join the same conversion queue as local files.
+  $('link-resolve-btn').addEventListener('click', () => withBusy($('link-resolve-btn'), async () => {
+    const url = $('link-input').value.trim();
+    if (!url) return;
+    const r = await api.invoke('links:resolve', { url });
+    state.linkResolved = r;
+    $('link-platform').textContent = t(r.platform === 'bilibili' ? 'link_platform_bilibili' : 'link_platform_youtube');
+    $('link-title').textContent = r.title;
+    const pagesEl = $('link-pages');
+    pagesEl.replaceChildren(...r.pages.map((p, i) => {
+      const id = `link-page-${p.page}`;
+      const cb = el('input', { type: 'checkbox', id });
+      cb.checked = i === 0; // default: first part only
+      cb.dataset.page = String(p.page);
+      const dur = p.durationSec ? ` · ${Math.floor(p.durationSec / 60)}:${String(p.durationSec % 60).padStart(2, '0')}` : '';
+      return el('label', { class: 'link-page', for: id }, cb, el('span', {}, `P${p.page} ${p.part}${dur}`));
+    }));
+    $('link-result').hidden = false;
+  }));
+  $('link-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('link-resolve-btn').click(); } });
+  $('link-add-btn').addEventListener('click', () => {
+    const r = state.linkResolved;
+    if (!r) return;
+    const checked = [...$('link-pages').querySelectorAll('input:checked')].map((cb) => Number(cb.dataset.page));
+    if (checked.length === 0) { toast(t('toast_link_no_selection'), 'warn'); return; }
+    const url = $('link-input').value.trim();
+    const items = checked.map((page) => ({
+      kind: 'link', platform: r.platform, url, bvid: r.bvid, page,
+      displayPath: `${r.title}${r.pages.length > 1 ? ` - P${page}` : ''}`,
+    }));
+    const n = addLinkItems(items);
+    if (n) {
+      toast(t('toast_link_added', { count: n }), 'ok');
+      $('link-result').hidden = true;
+      state.linkResolved = null;
+      $('link-input').value = '';
+    }
+  });
+
   // Drag and drop — accepted anywhere in the window, with a full-screen overlay.
   let dragDepth = 0;
   const overlay = $('drop-overlay');
@@ -742,6 +799,18 @@ function addFiles(paths) {
   if (skipped) toast(t('toast_skipped_unsupported', { count: skipped }), 'warn');
 }
 
+/** Add resolved-link jobs; they ride the same queue/progress machinery. */
+function addLinkItems(items) {
+  let added = 0;
+  for (const it of items) {
+    if (state.files.find((f) => f.path === it.displayPath)) continue;
+    state.files.push({ id: ++fileSeq, path: it.displayPath, name: it.displayPath, status: 'pending', progress: 0, outputPath: null, error: null, link: it });
+    added++;
+  }
+  if (added) renderQueue();
+  return added;
+}
+
 function removeFile(f) {
   if (state.converting && !['done', 'error', 'cancelled', 'pending'].includes(f.status)) return;
   state.files = state.files.filter((x) => x !== f);
@@ -763,8 +832,8 @@ function updateOutputDisplay() {
   $('open-output-btn').hidden = !state.outputDir;
 }
 
-const STATUS_KEYS = { pending: 'status_ready', queued: 'status_queued', decrypt: 'status_decrypt', encode: 'status_encode', done: 'status_done', error: 'status_error', cancelled: 'status_cancelled' };
-const ACTIVE = new Set(['queued', 'decrypt', 'encode']);
+const STATUS_KEYS = { pending: 'status_ready', queued: 'status_queued', download: 'status_download', decrypt: 'status_decrypt', encode: 'status_encode', done: 'status_done', error: 'status_error', cancelled: 'status_cancelled' };
+const ACTIVE = new Set(['queued', 'download', 'decrypt', 'encode']);
 
 const SWIPE_ACTION_WIDTH = 88;
 
@@ -855,7 +924,7 @@ function renderQueueItem(f, node) {
   fill.style.width = indeterminate ? '100%' : `${f.status === 'done' ? 100 : (f.progress || 0)}%`;
   const statusEl = node.querySelector('.status');
   let statusText = t(STATUS_KEYS[f.status] || 'status_ready');
-  if (f.status === 'encode') statusText = `${statusText} ${Math.round(f.progress || 0)}%`;
+  if (f.status === 'encode' || f.status === 'download') statusText = `${statusText} ${Math.round(f.progress || 0)}%`;
   if (f.status === 'done' && f.durationMs != null) statusText += ` · ${(f.durationMs / 1000).toFixed(1)}s`;
   statusEl.textContent = statusText;
   node.querySelector('.act-show').hidden = f.status !== 'done' || !f.outputPath;
@@ -907,9 +976,15 @@ function renderQueueSummary() {
 
   if (state.converting) {
     summary.textContent = t('summary_running', { done: finished, total });
-    // Aggregate progress: finished items count 100, active items their own %.
+    // Aggregate progress: finished items count 100, download counts half,
+    // decrypt counts as a fixed third, encode its own percent.
     let sum = 0;
-    for (const f of state.files) sum += (f.status === 'done' || f.status === 'error' || f.status === 'cancelled') ? 100 : (f.status === 'encode' ? f.progress : (f.status === 'decrypt' ? 30 : 0));
+    for (const f of state.files) {
+      if (f.status === 'done' || f.status === 'error' || f.status === 'cancelled') sum += 100;
+      else if (f.status === 'encode') sum += f.progress || 0;
+      else if (f.status === 'download') sum += (f.progress || 0) / 2;
+      else if (f.status === 'decrypt') sum += 30;
+    }
     overall.hidden = false;
     $('queue-overall-fill').style.width = `${total ? sum / total : 0}%`;
     $('convert-bar-info').textContent = t('summary_running', { done: finished, total });
@@ -938,7 +1013,9 @@ async function convert() {
 
   try {
     const r = await api.invoke('convert:start', {
-      files: targets.map((f) => f.path),
+      files: targets.map((f) => (f.link
+        ? { kind: 'link', platform: f.link.platform, url: f.link.url, bvid: f.link.bvid, page: f.link.page, displayPath: f.path }
+        : f.path)),
       format: state.format,
       quality: state.quality,
       outputDir: state.outputDir,

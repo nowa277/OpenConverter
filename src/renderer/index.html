@@ -117,6 +117,25 @@
             </div>
           </div>
 
+          <div id="link-panel" class="link-panel">
+            <div class="link-input-row">
+              <input id="link-input" class="link-input" type="url" autocomplete="off" spellcheck="false"
+                     placeholder="https://www.bilibili.com/video/BV... · https://youtube.com/watch?v=..." />
+              <button id="link-resolve-btn" class="btn btn-text" type="button" data-i18n="link_resolve">Resolve</button>
+            </div>
+            <div id="link-result" class="link-result" hidden>
+              <div class="link-result-head">
+                <span id="link-platform" class="chip"></span>
+                <span id="link-title" class="link-title"></span>
+              </div>
+              <div id="link-pages" class="link-pages"></div>
+              <div class="link-result-actions">
+                <button id="link-add-btn" class="btn btn-text" type="button" data-i18n="link_add_selected">Add to queue</button>
+              </div>
+            </div>
+            <div class="link-hint" data-i18n="link_compliance">For personal study and authorized content only — no DRM or paywall circumvention.</div>
+          </div>
+
           <div class="queue" id="queue" hidden>
             <div class="queue-header">
               <div class="queue-title-wrap">

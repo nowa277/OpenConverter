@@ -3,7 +3,9 @@
  *
  * Single IPC channel "process-message" carrying { method, data }. Methods:
  *
- *   convert:start        { files: [paths], format, outputDir, quality }
+ *   convert:start        { files: [paths | link entries], format, outputDir, quality }
+ *                        link entry: { kind: 'link', platform, url, bvid?, page, displayPath }
+ *   links:resolve        { url } → { platform, title, bvid, pages }
  *   convert:cancel       { jobId }
  *   convert:cancelAll
  *   file:pickInput       { multi }
@@ -25,11 +27,13 @@ const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme, Menu } = requir
 const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
+const crypto = require('node:crypto');
 const config = require('./config');
 const decoders = require('../decoders');
 const { resolveFfmpegPath, resolveFfprobePath } = require('./ffmpeg-path');
 const ffmpeg = require('./ffmpeg');
 const pipeline = require('./pipeline');
+const linkResolver = require('./link-resolver');
 const HistoryStore = require('./history');
 const kggKeys = require('./kgg-keys');
 const dbCipher = require('../decoders/kgg/db-cipher');
@@ -95,6 +99,37 @@ function createWindow() {
   return mainWindow;
 }
 
+/**
+ * Resolve a link job entry and download its audio to a temp dir.
+ * Returns { tempPath, tmpDir, outputBaseName } for pipeline.convertOne.
+ * Compliance: public/free content only, no DRM or paywall bypass; cookie
+ * files (if configured) stay on this machine and are never logged.
+ */
+async function prepareLinkAudio(entry, signal, onDownloadProgress) {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oc-link-'));
+  const token = crypto.randomBytes(6).toString('hex');
+  const base = path.join(tmpDir, token);
+  const cfg = config.get();
+  const ytOpts = { signal, ytdlpPath: cfg.ytdlpPath, cookiesPath: cfg.ytdlpCookiesPath };
+  try {
+    if (entry.platform === 'bilibili') {
+      const view = await linkResolver.resolveBilibili(entry.bvid, { signal });
+      const stream = await linkResolver.fetchBilibiliStream(view, entry.page, { signal });
+      // DASH audio is AAC in an fMP4 (`.m4s`) container; saving it with an
+      // .m4a extension lets the pipeline treat it as plain audio (remux/copy
+      // or transcode) without a decoder.
+      const dl = await linkResolver.downloadBilibiliAudio(stream, `${base}.m4a`, { signal, onProgress: onDownloadProgress });
+      return { tempPath: dl.tempPath, tmpDir, outputBaseName: linkResolver.sanitizeFilename(entry.displayPath) };
+    }
+    const dl = await linkResolver.downloadYouTubeAudio(entry.url, base, { signal, onProgress: onDownloadProgress, ...ytOpts });
+    return { tempPath: dl.tempPath, tmpDir, outputBaseName: linkResolver.sanitizeFilename(entry.displayPath) };
+  } catch (err) {
+    // Nothing usable was produced — clean the staging dir and rethrow.
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* best effort */ }
+    throw err;
+  }
+}
+
 /** Build decoder options (keys / cookies) for one input file. */
 async function decodeOptsFor(inputPath) {
   const ext = path.extname(inputPath).toLowerCase();
@@ -136,8 +171,20 @@ const HANDLERS = {
     if (!Array.isArray(files) || files.length === 0) throw new Error('files array required');
     if (!outputDir) throw new Error('outputDir required');
 
+    // Entries are plain path strings (local files) or link job objects:
+    // { kind: 'link', platform, url, bvid?, page, displayPath }.
+    const entries = files.map((f) => (f && typeof f === 'object' ? f : { kind: 'file', path: f }));
+    for (const e of entries) {
+      if (e.kind === 'link') {
+        if (!e.url || !e.displayPath) throw new Error('link entry requires url and displayPath');
+        if (e.platform === 'bilibili' && !e.bvid) throw new Error('bilibili link entry requires bvid');
+      } else if (typeof e.path !== 'string') {
+        throw new Error('file entry requires a path');
+      }
+    }
+
     fs.mkdirSync(outputDir, { recursive: true });
-    const results = new Array(files.length);
+    const results = new Array(entries.length);
     const history = getHistoryStore();
     const { ffmpegBin, ffprobeBin } = binPaths();
     const limit = Math.min(4, Math.max(2, os.cpus()?.length || 2));
@@ -145,20 +192,37 @@ const HANDLERS = {
     let historyChain = Promise.resolve();
     const appendToHistory = (record) => { historyChain = historyChain.then(() => history.append(record)); };
 
-    const tasks = files.map((inputPath, index) => {
+    const tasks = entries.map((entry, index) => {
+      const isLink = entry.kind === 'link';
+      // For link jobs the queue key / history name is the display title, not
+      // the temp file's generated name.
+      const inputPath = isLink ? entry.displayPath : entry.path;
       const jobId = `job-${++jobCounter}`;
       const controller = new AbortController();
       activeJobs.set(jobId, { controller, inputPath });
       send('convert:progress', { jobId, filePath: inputPath, stage: 'queued', percent: 0 });
       return async () => {
         const started = Date.now();
+        let tmpDir = null;
         try {
           if (controller.signal.aborted) throw new Error('aborted');
-          const decodeOpts = await decodeOptsFor(inputPath);
+          let convInput = inputPath;
+          let outputBaseName;
+          if (isLink) {
+            send('convert:progress', { jobId, filePath: inputPath, stage: 'download', percent: 0 });
+            const prepared = await prepareLinkAudio(entry, controller.signal, (p) => {
+              if (!controller.signal.aborted) send('convert:progress', { jobId, filePath: inputPath, stage: 'download', percent: Math.round(p.percent) });
+            });
+            tmpDir = prepared.tmpDir;
+            outputBaseName = prepared.outputBaseName;
+            convInput = prepared.tempPath;
+          }
+          const decodeOpts = isLink ? {} : await decodeOptsFor(inputPath);
           if (controller.signal.aborted) throw new Error('aborted');
           const r = await pipeline.convertOne({
-            inputPath, outputDir, format, quality, decodeOpts, ffmpegBin, ffprobeBin,
+            inputPath: convInput, outputDir, format, quality, decodeOpts, ffmpegBin, ffprobeBin,
             ncmLyricsEnabled: config.get().ncmLyricsEnabled !== false,
+            outputBaseName,
             signal: controller.signal,
             onProgress: ({ stage, percent }) => {
               if (stage !== 'done' && !controller.signal.aborted) send('convert:progress', { jobId, filePath: inputPath, stage, percent });
@@ -182,6 +246,7 @@ const HANDLERS = {
           }
         } finally {
           activeJobs.delete(jobId);
+          if (tmpDir) { try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* temp cleanup is best-effort */ } }
         }
       };
     });
@@ -189,6 +254,19 @@ const HANDLERS = {
     await pipeline.parallelLimit(limit, tasks);
     await historyChain;
     return { results };
+  },
+
+  'links:resolve': async (data) => {
+    const url = data?.url;
+    if (!url || typeof url !== 'string') throw new Error('url required');
+    const cfg = config.get();
+    const r = await linkResolver.resolveLink(url, { ytdlpPath: cfg.ytdlpPath, cookiesPath: cfg.ytdlpCookiesPath });
+    return {
+      platform: r.platform,
+      title: r.title,
+      bvid: r.bvid || null,
+      pages: r.pages.map(({ page, part, durationSec }) => ({ page, part, durationSec })),
+    };
   },
 
   'convert:cancel': async (data) => {
