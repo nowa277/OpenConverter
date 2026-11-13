@@ -1,6 +1,10 @@
 <div align="center">
 
 <p align="center">
+  <img src="build/icons/icon.png" alt="OpenConverter" width="112">
+</p>
+
+<p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/brand-wordmark.png">
     <img src="assets/brand-wordmark-light.png" alt="OpenConverter" width="440">
@@ -16,6 +20,8 @@
 <b>桌面端</b>基于 JavaScript 解码管线 + Electron + FFmpeg 转码后端构建；<br/>
 <b>Android 端</b>基于 Jetpack Compose + 纯 Kotlin 解码器 + FFmpegKit 架构实现。
 </p>
+
+💬 欢迎随时光临——觉得好用就顺手点个 Star，遇到问题或想聊上几句，Issues 一向敞开。
 
 [![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)](#desktop-安装)
 [![Windows](https://img.shields.io/badge/Windows-0078D4?style=for-the-badge&logo=windows11&logoColor=white)](#desktop-安装)

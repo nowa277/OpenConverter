@@ -1,5 +1,9 @@
 <div align="center">
 
+<p align="center">
+  <img src="build/icons/icon.png" alt="OpenConverter" width="112">
+</p>
+
 # OpenConverter
 
 ### Cross-platform lightweight audio format converter and local decoding toolchain
@@ -11,6 +15,8 @@ A lightweight format conversion and decryption tool for audio workflows.<br/>
 <b>Desktop client</b> built with JavaScript decoding pipeline + Electron + FFmpeg transcoding backend;<br/>
 <b>Android client</b> implemented with Jetpack Compose + pure Kotlin decoders + FFmpegKit architecture.
 </p>
+
+👋 Welcome! If you find it useful, a ⭐ is always appreciated — and Issues are open for bugs, questions, or just a friendly chat.
 
 [![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)](#desktop-installation)
 [![Windows](https://img.shields.io/badge/Windows-0078D4?style=for-the-badge&logo=windows11&logoColor=white)](#desktop-installation)
