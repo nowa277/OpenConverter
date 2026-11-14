@@ -91,7 +91,7 @@ object KugouLyricHttp {
         if (kw.isEmpty()) return emptyList()
         val encoded = URLEncoder.encode(kw, "UTF-8")
         val response = httpGet(
-            "http://lyrics.kugou.com/search?ver=1&man=yes&client=pc&keyword=$encoded",
+            "https://lyrics.kugou.com/search?ver=1&man=yes&client=pc&keyword=$encoded",
             timeoutMs,
         ) ?: return emptyList()
         if (response.status !in 200..299) return emptyList()
@@ -118,7 +118,7 @@ object KugouLyricHttp {
     fun searchCandidate(hash: String, timeoutMs: Int = DEFAULT_TIMEOUT_MS): Candidate? {
         val encoded = URLEncoder.encode(hash.trim(), "UTF-8")
         val response = httpGet(
-            "http://lyrics.kugou.com/search?ver=1&man=yes&client=pc&hash=$encoded",
+            "https://lyrics.kugou.com/search?ver=1&man=yes&client=pc&hash=$encoded",
             timeoutMs,
         ) ?: return null
         if (response.status !in 200..299) return null
@@ -129,7 +129,7 @@ object KugouLyricHttp {
         val encodedId = URLEncoder.encode(id.trim(), "UTF-8")
         val encodedKey = URLEncoder.encode(accesskey.trim(), "UTF-8")
         val response = httpGet(
-            "http://lyrics.kugou.com/download?ver=1&client=pc&id=$encodedId&accesskey=$encodedKey&fmt=lrc&charset=utf8",
+            "https://lyrics.kugou.com/download?ver=1&client=pc&id=$encodedId&accesskey=$encodedKey&fmt=lrc&charset=utf8",
             timeoutMs,
         ) ?: return null
         if (response.status !in 200..299) return null

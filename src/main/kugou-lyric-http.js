@@ -7,8 +7,8 @@
  * - 52pojie thread-453069 (2016-02-07), verified active on 2026-11-11.
  *
  * Note on 2026 verification:
- * - `http://lyrics.kugou.com/search` requires `hash=<audioHash>` to return matching candidates.
- * - `http://lyrics.kugou.com/download` returns base64 encoded LRC or KRC text.
+ * - `https://lyrics.kugou.com/search` requires `hash=<audioHash>` to return matching candidates.
+ * - `https://lyrics.kugou.com/download` returns base64 encoded LRC or KRC text.
  */
 
 const http = require('node:http');
@@ -36,7 +36,7 @@ function defaultFetchImpl(url, { headers, timeoutMs, signal } = {}) {
 async function searchKugouCandidate(hash, opts = {}) {
   if (!hash || String(hash).trim() === '') return null;
   const fetchImpl = opts.fetchImpl || defaultFetchImpl;
-  const url = `http://lyrics.kugou.com/search?ver=1&man=yes&client=pc&hash=${encodeURIComponent(String(hash).trim())}`;
+  const url = `https://lyrics.kugou.com/search?ver=1&man=yes&client=pc&hash=${encodeURIComponent(String(hash).trim())}`;
   try {
     const res = await fetchImpl(url, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
@@ -57,7 +57,7 @@ async function searchKugouCandidate(hash, opts = {}) {
 async function downloadKugouLyric(id, accesskey, opts = {}) {
   if (!id || !accesskey) return null;
   const fetchImpl = opts.fetchImpl || defaultFetchImpl;
-  const url = `http://lyrics.kugou.com/download?ver=1&client=pc&id=${encodeURIComponent(id)}&accesskey=${encodeURIComponent(accesskey)}&fmt=lrc&charset=utf8`;
+  const url = `https://lyrics.kugou.com/download?ver=1&client=pc&id=${encodeURIComponent(id)}&accesskey=${encodeURIComponent(accesskey)}&fmt=lrc&charset=utf8`;
   try {
     const res = await fetchImpl(url, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
@@ -95,7 +95,7 @@ async function searchKugouCandidatesByKeyword(keyword, opts = {}) {
   const kw = String(keyword || '').trim();
   if (!kw) return [];
   const fetchImpl = opts.fetchImpl || defaultFetchImpl;
-  const url = `http://lyrics.kugou.com/search?ver=1&man=yes&client=pc&keyword=${encodeURIComponent(kw)}`;
+  const url = `https://lyrics.kugou.com/search?ver=1&man=yes&client=pc&keyword=${encodeURIComponent(kw)}`;
   try {
     const res = await fetchImpl(url, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
