@@ -1,0 +1,4 @@
+{
+  "synthetic-tone.uc": "248be336ef985d0694cd0d69c08cf16d48d2e6f2d8a9d716530f865ab9d7225d",
+  "notes": "UC is a whole-file XOR 0xA3 (self-inverse, no headers, no key). The Android decoder must restore identical bytes and sniff the MP3 container."
+}

@@ -29,6 +29,7 @@ class ConversionEngine(
     private val sink: ProgressSink,
     private val clock: Clock = SystemClock,
     private val lyricResolver: LyricResolverPort? = null,
+    private val kugouLyrics: KugouLyricsPort? = null,
     private val syncMissingKggKeys: (suspend (keyId: String) -> Boolean)? = null,
 ) {
     suspend fun convertAll(
@@ -163,6 +164,7 @@ class ConversionEngine(
             coroutineContext.ensureActive()
 
             val lrc = resolveLrcOrNull(musicId)
+                ?: kugouFallbackOrNull(displayName, inPath, audio)
             val canEmbedLyrics = !lrc.isNullOrBlank() && req.targetFormat.lowercase() in EMBED_LYRICS_FORMATS
             // Direct write if format already matches, no bitrate change, and no tags/cover/lyrics sidecar.
             val hasSidecar = tags.isNotEmpty() || cover != null || canEmbedLyrics
@@ -281,6 +283,38 @@ class ConversionEngine(
         }
     }
 
+    /**
+     * KuGou keyword fallback (mirrors desktop `kugouFallbackOrNull`): search
+     * by the file's display name — Android decoders expose no tags for
+     * non-NCM formats, so the filename is the best keyword we have — with
+     * the decoded audio's duration picking the nearest candidate. Same
+     * best-effort contract: failure never blocks the conversion.
+     */
+    private suspend fun kugouFallbackOrNull(displayName: String?, inPath: String?, audio: ByteArray?): String? {
+        val port = kugouLyrics ?: return null
+        val title = displayName
+            ?.substringBeforeLast('.', displayName)
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+            ?: return null
+        val durationSec = when {
+            inPath != null -> runCatching { ffmpeg.probeDurationMs(inPath) }.getOrNull()?.div(1000.0)
+            audio != null -> runCatching {
+                val tmp = fs.cachePath("kugou_probe.tmp")
+                fs.cacheFile(tmp, audio)
+                ffmpeg.probeDurationMs(tmp).also { fs.cleanup(tmp) }.div(1000.0)
+            }.getOrNull()
+            else -> null
+        }
+        return try {
+            port.fetchByTags(title = title, artist = null, durationSec = durationSec)
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
     private suspend fun writeSiblingLrc(
         folderUri: String,
         displayName: String,
@@ -338,4 +372,22 @@ internal fun outName(
         }
     }
     return "$stem.$targetFormat"
+}
+
+/** KuGou keyword lyric fallback port (see [KugouLyricHttp] on the meta side). */
+interface KugouLyricsPort {
+    suspend fun fetchByTags(title: String, artist: String?, durationSec: Double?): String?
+}
+
+/**
+ * Blocking KuGou HTTP behind the coroutine port: HttpURLConnection runs on
+ * the IO dispatcher so the engine's cancellable flow is never blocked.
+ */
+class KugouLyricsFallback(
+    private val timeoutMs: Int = 15_000,
+) : KugouLyricsPort {
+    override suspend fun fetchByTags(title: String, artist: String?, durationSec: Double?): String? =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            com.openconverter.app.meta.KugouLyricHttp.fetchLyricByTags(title, artist, durationSec, timeoutMs)
+        }
 }

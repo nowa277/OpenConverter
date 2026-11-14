@@ -155,9 +155,18 @@ class DecoderParityTest {
         val r = DefaultDecoders.registry(KggKeyProvider { null })
         // Every v1 cipher extension must route to a real decoder.
         for (ext in listOf(".ncm", ".kwm", ".kgm", ".kgma", ".vpr",
-                           ".qmc0", ".qmc3", ".qmcflac", ".qmcogg")) {
+                           ".qmc0", ".qmc3", ".qmcflac", ".qmcogg", ".uc")) {
             val d = r.find(ext)
             assertEquals("registry must resolve $ext", true, d != null)
         }
+    }
+    // ----- UC -----
+    @Test fun uc_synthetic_matches_js_oracle() {
+        val oracle = loadOracle("test-uc")
+        val expectedSha = oracle.getString("synthetic-tone.uc")
+        val cipher = loadResource("test-uc/synthetic-tone.uc")
+        val r = UcDecoder.decrypt(cipher)
+        assertEquals(expectedSha, sha256(r.audio))
+        assertEquals("mp3", r.format)
     }
 }

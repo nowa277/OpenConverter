@@ -179,9 +179,15 @@ class ConversionService : Service() {
                     fetchJson = { NeteaseLyricHttp.fetchJson(it) },
                     open = { root, rel -> File(root, rel).takeIf { it.isFile }?.readBytes() },
                 )
+                val kugouLyrics = if (lyricsEnabled) {
+                    com.openconverter.app.engine.KugouLyricsFallback()
+                } else {
+                    null
+                }
                 val engine = ConversionEngine(
                     DefaultDecoders.registry(kggKeys), ffmpeg, fs, sink, RealClock(),
                     lyricResolver = lyricResolver,
+                    kugouLyrics = kugouLyrics,
                     syncMissingKggKeys = { missingKeyId ->
                         if (missingKeyId.isNotBlank()) {
                             kggKeys.tryResolveMissingKey(missingKeyId)

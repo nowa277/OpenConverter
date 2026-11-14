@@ -12,11 +12,12 @@ import com.openconverter.app.decoders.kgg.KggV5Decoder
  *   .qmc0/.qmc3/.qmcflac/.qmcogg      → QmcDecoder (v1 only)
  *   .kgm/.kgma/.vpr                   → KgmDecoder
  *   .kwm                              → KwmDecoder
+ *   .uc                               → UcDecoder (NetEase PC cache restore)
  *
  * v2+ adds: .mflac/.mgg/.bkc (QmcDecoder v2 path with ekey UI).
  */
 object DefaultDecoders {
     fun registry(kggKeys: KggKeyProvider): DecoderRegistry = DecoderRegistry(
-        listOf(NcmDecoder, QmcDecoder, KgmDecoder, KggV5Decoder(kggKeys), KwmDecoder),
+        listOf(NcmDecoder, UcDecoder, QmcDecoder, KgmDecoder, KggV5Decoder(kggKeys), KwmDecoder),
     )
 }
